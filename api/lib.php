@@ -11,9 +11,9 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $allowed = false;
 if ($origin !== '') {
   $host = parse_url($origin, PHP_URL_HOST) ?: '';
-  $allowed = ($host === 'hbaillyg.fr')
-    || str_ends_with($host, '.hbaillyg.fr')
-    || str_ends_with($host, '.odns.fr');
+  // liste blanche stricte (plus de *.odns.fr : sous-domaines partagés o2switch)
+  $allowed = ($host === 'hbaillyg.fr') || str_ends_with($host, '.hbaillyg.fr')
+    || $host === 'gogobailly-grandvaux.github.io';
 }
 if ($allowed) {
   header('Access-Control-Allow-Origin: ' . $origin);
@@ -23,9 +23,43 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: content-type, authorization');
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+
+// jamais de détails techniques au client (une exception non catchée = 500 générique)
+set_exception_handler(function ($e) {
+  if (!headers_sent()) { http_response_code(500); }
+  error_log('sport-salle: ' . $e->getMessage());
+  echo json_encode(['error' => 'erreur serveur']);
+  exit;
+});
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { fail(405, 'POST uniquement'); }
+
+// ---- limitation de débit (anti-brute-force, par IP + clé d'action) ----
+// Le usleep seul est contournable en parallèle : ici on COMPTE les échecs
+// récents dans un fichier et on bloque au-delà du seuil.
+function client_ip(): string {
+  $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0';
+  $ip = trim(explode(',', $ip)[0]);
+  return substr(hash('sha256', $ip), 0, 24);
+}
+function rate_limit(string $key, int $max, int $windowSec): void {
+  $dir = sys_get_temp_dir() . '/sportsalle_rl';
+  @mkdir($dir, 0700, true);
+  $file = $dir . '/' . preg_replace('/[^a-z0-9_]/i', '', $key) . '_' . client_ip();
+  $now = time();
+  $hits = [];
+  if (is_file($file)) {
+    $hits = array_filter(array_map('intval', explode("\n", (string)@file_get_contents($file))), fn($t) => $t > $now - $windowSec);
+  }
+  if (count($hits) >= $max) {
+    header('Retry-After: ' . $windowSec);
+    fail(429, 'trop de tentatives — réessaie dans un instant');
+  }
+  $hits[] = $now;
+  @file_put_contents($file, implode("\n", $hits), LOCK_EX);
+}
 
 // ---- corps JSON (limite 6 Mo) ----
 function read_body(): array {

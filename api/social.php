@@ -17,7 +17,7 @@ switch ($action) {
       'SELECT id, username, display_name, avatar_emoji, accent FROM users
        WHERE (username LIKE ? OR LOWER(display_name) LIKE ?) AND id <> ? LIMIT 10'
     );
-    $like = $q . '%';
+    $like = addcslashes($q, '%_\\') . '%';
     $st->execute([$like, $like, $me['id']]);
     $rows = array_map('public_user', $st->fetchAll(PDO::FETCH_ASSOC));
     // état de la relation pour chaque résultat

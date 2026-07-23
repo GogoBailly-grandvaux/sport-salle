@@ -13,7 +13,11 @@
 declare(strict_types=1);
 
 // ---- CORS (l'app peut être servie depuis le même domaine ou GitHub Pages) ----
-header('Access-Control-Allow-Origin: *');
+$__o = $_SERVER['HTTP_ORIGIN'] ?? '';
+$__h = $__o ? (parse_url($__o, PHP_URL_HOST) ?: '') : '';
+if ($__h === 'hbaillyg.fr' || str_ends_with($__h, '.hbaillyg.fr') || $__h === 'gogobailly-grandvaux.github.io') {
+  header('Access-Control-Allow-Origin: ' . $__o); header('Vary: Origin');
+}
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: content-type');
 header('Content-Type: application/json; charset=utf-8');
@@ -69,37 +73,11 @@ try {
 try { $pdo->exec("DELETE FROM sync_profiles WHERE updated_at < DATE_SUB(NOW(), INTERVAL 180 DAY)"); } catch (Throwable $e) { /* purge opportuniste */ }
 
 switch ($action) {
-  case 'pull': {
-    $st = $pdo->prepare('SELECT profile_id, device_id, data, UNIX_TIMESTAMP(updated_at) AS updated_at FROM sync_profiles WHERE code = ?');
-    $st->execute([$code]);
-    $out = [];
-    while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-      $out[] = [
-        'profile_id' => $row['profile_id'],
-        'device_id'  => $row['device_id'],
-        'data'       => json_decode($row['data'], true),
-        'updated_at' => (int)$row['updated_at'],
-      ];
-    }
-    ok($out);
-  }
-
-  case 'push': {
-    $profile = (string)($body['profile'] ?? '');
-    $device  = substr((string)($body['device'] ?? ''), 0, 64);
-    $data    = $body['data'] ?? null;
-    if ($profile === '' || strlen($profile) > 64) { fail(400, 'profil invalide'); }
-    if (!is_array($data)) { fail(400, 'données invalides'); }
-    $json = json_encode($data, JSON_UNESCAPED_UNICODE);
-    if ($json === false || strlen($json) > 5 * 1024 * 1024) { fail(413, 'instantané trop volumineux'); }
-    $st = $pdo->prepare(
-      'INSERT INTO sync_profiles (code, profile_id, device_id, data)
-       VALUES (?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE data = VALUES(data), device_id = VALUES(device_id), updated_at = CURRENT_TIMESTAMP'
-    );
-    $st->execute([$code, $profile, $device, $json]);
-    ok(['ok' => true, 'updated_at' => time()]);
-  }
+  // La synchro par code (v1.3) n'est plus proposée dans l'app ; seul `ping`
+  // (détection du serveur, traité plus haut) subsiste. pull/push sont retirés.
+  case 'pull':
+  case 'push':
+    fail(410, 'la synchro par code a été retirée — utilise un compte');
 
   default:
     fail(400, 'action inconnue');

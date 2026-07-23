@@ -167,39 +167,53 @@ export function routinePayload(r) {
   };
 }
 
+// nettoie une chaîne venant d'un fichier/partage externe (défense en profondeur :
+// on ne fait jamais confiance aux données d'autrui, même si l'affichage échappe)
+const clean = (v, max) => String(v ?? '').replace(/[<>]/g, '').slice(0, max);
+const cleanList = (arr) => Array.isArray(arr) ? arr.map(x => clean(x, 40)).filter(Boolean).slice(0, 8) : [];
+
 export async function importRoutinePayload(d) {
   if (!d || d.kind !== 'routine' || !d.routine) throw new Error('format');
-  // recrée les exercices perso manquants
+  // Recrée les exercices perso manquants — en RÉGÉNÉRANT un id local (jamais
+  // l'id fourni : il pourrait contenir une charge XSS et casser un attribut).
+  // On mappe l'ancien id → nouvel id pour recâbler les items du programme.
+  const idMap = new Map();
   for (const def of (d.custom || [])) {
-    if (!state.libraryById.has(def.id)) {
-      const ex = {
-        id: def.id, profileId: state.activeProfileId,
-        name: def.name, nameLower: (def.name || '').toLowerCase(),
-        primaryMuscles: def.primaryMuscles || [], secondaryMuscles: def.secondaryMuscles || [],
-        equipment: def.equipment || 'machine', category: def.category || 'strength',
-        level: 'intermediate', force: null, mechanic: null, instructions: [], images: [],
-        source: 'custom', createdAt: nowTs(),
-      };
-      await db.put('customExercises', ex);
-      state.library.push(ex);
-      state.libraryById.set(ex.id, ex);
-    }
+    const oldId = def?.id;
+    if (oldId == null) continue;
+    const existing = state.libraryById.get(oldId);
+    if (existing && existing.source === 'custom') { idMap.set(oldId, oldId); continue; } // déjà chez moi
+    const newId = 'custom-' + uid();
+    const ex = {
+      id: newId, profileId: state.activeProfileId,
+      name: clean(def.name, 60) || 'Exercice', nameLower: clean(def.name, 60).toLowerCase(),
+      primaryMuscles: cleanList(def.primaryMuscles), secondaryMuscles: cleanList(def.secondaryMuscles),
+      equipment: clean(def.equipment, 20) || 'machine', category: clean(def.category, 20) || 'strength',
+      level: 'intermediate', force: null, mechanic: null, instructions: [], images: [],
+      source: 'custom', createdAt: nowTs(),
+    };
+    await db.put('customExercises', ex);
+    state.library.push(ex);
+    state.libraryById.set(ex.id, ex);
+    idMap.set(oldId, newId);
   }
   const r = {
     id: uid(), profileId: state.activeProfileId,
-    name: d.routine.name || 'Programme importé', description: d.routine.description || '',
+    name: clean(d.routine.name, 60) || 'Programme importé', description: clean(d.routine.description, 200),
     color: null, items: [], order: nextOrder(), isArchived: false, createdAt: nowTs(), updatedAt: nowTs(),
   };
   (d.routine.items || []).forEach((s, i) => {
-    if (!state.libraryById.has(s.exerciseId)) return; // exercice inconnu -> on saute
-    const item = mkRoutineItem(s.exerciseId, i);
-    item.targetSets = s.targetSets ?? 3;
-    item.targetRepsMin = s.targetRepsMin ?? null;
-    item.targetRepsMax = s.targetRepsMax ?? null;
-    item.targetWeightKg = s.targetWeightKg ?? null;
-    item.restSec = s.restSec ?? 90;
-    item.supersetGroup = s.supersetGroup ?? null;
-    item.notes = s.notes || '';
+    const exerciseId = idMap.get(s.exerciseId) || s.exerciseId; // recâble vers l'id régénéré
+    if (!state.libraryById.has(exerciseId)) return; // exercice inconnu -> on saute
+    const item = mkRoutineItem(exerciseId, i);
+    const num = (v, min, max, dflt) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : dflt; };
+    item.targetSets = num(s.targetSets, 1, 20, 3);
+    item.targetRepsMin = s.targetRepsMin == null ? null : num(s.targetRepsMin, 1, 100, null);
+    item.targetRepsMax = s.targetRepsMax == null ? null : num(s.targetRepsMax, 1, 100, null);
+    item.targetWeightKg = s.targetWeightKg == null ? null : num(s.targetWeightKg, 0, 1000, null);
+    item.restSec = num(s.restSec, 0, 3600, 90);
+    item.supersetGroup = s.supersetGroup == null ? null : clean(s.supersetGroup, 20);
+    item.notes = clean(s.notes, 300);
     r.items.push(item);
   });
   if (!r.items.length) throw new Error('empty');

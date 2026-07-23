@@ -12,7 +12,7 @@ export function openExercisePicker({ multi = true, onPick } = {}) {
   let limit = CHUNK;
 
   const rowHtml = (ex) => `
-      <button class="pick-row ${selected.has(ex.id) ? 'sel' : ''}" data-id="${ex.id}">
+      <button class="pick-row ${selected.has(ex.id) ? 'sel' : ''}" data-id="${esc(ex.id)}">
         ${exImage(ex, 'sm')}
         <div class="pick-info"><b>${esc(ex.name)}</b><span>${esc((ex.primaryMuscles||[]).map(muscleFR).join(', '))}</span></div>
         <span class="pick-check">${icon(selected.has(ex.id) ? 'check' : 'plus')}</span>

@@ -11,6 +11,7 @@ $action = (string)($b['action'] ?? '');
 switch ($action) {
 
   case 'register': {
+    rate_limit('register', 10, 3600); // max 10 créations/h par IP
     $username = strtolower(trim((string)($b['username'] ?? '')));
     $password = (string)($b['password'] ?? '');
     $displayName = trim((string)($b['displayName'] ?? ''));
@@ -23,7 +24,7 @@ switch ($action) {
     if (strlen($password) < 8) { fail(400, 'mot de passe trop court (8 caractères minimum)'); }
     if ($displayName === '' || mb_strlen($displayName) > 40) { fail(400, 'prénom invalide'); }
 
-    $hash = password_hash($password, PASSWORD_BCRYPT);
+    $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
     try {
       $st = db()->prepare('INSERT INTO users (username, display_name, pass_hash, avatar_emoji, accent) VALUES (?,?,?,?,?)');
       $st->execute([$username, $displayName, $hash, $emoji, $accent]);
@@ -36,13 +37,17 @@ switch ($action) {
   }
 
   case 'login': {
+    rate_limit('login', 8, 900); // max 8 échecs/15 min par IP
     $username = strtolower(trim((string)($b['username'] ?? '')));
     $password = (string)($b['password'] ?? '');
     $st = db()->prepare('SELECT id, pass_hash FROM users WHERE username = ?');
     $st->execute([$username]);
     $row = $st->fetch(PDO::FETCH_ASSOC);
-    if (!$row || !password_verify($password, $row['pass_hash'])) {
-      usleep(350000); // freine le brute-force
+    // toujours un password_verify (même si l'utilisateur n'existe pas) : temps
+    // de réponse constant → pas d'oracle temporel d'énumération de comptes.
+    $hash = $row['pass_hash'] ?? '$2y$12$6MBx5X0CGpE4mZU4cZqoy.8Z3GjzrOW3yUOuvVdnZZJXP85m6EVCi';
+    $okpw = password_verify($password, $hash);
+    if (!$row || !$okpw) {
       fail(401, 'pseudo ou mot de passe incorrect');
     }
     ok(issue_session((int)$row['id']));
@@ -63,6 +68,7 @@ switch ($action) {
   }
 
   case 'google': {
+    rate_limit('google', 20, 900);
     $c = require __DIR__ . '/config.php';
     $clientId = (string)($c['google_client_id'] ?? '');
     if ($clientId === '') { fail(501, 'connexion Google non configurée'); }
@@ -79,12 +85,16 @@ switch ($action) {
       curl_close($ch);
     }
     $info = is_string($resp) ? json_decode($resp, true) : null;
-    if (!is_array($info) || ($info['aud'] ?? '') !== $clientId || (int)($info['exp'] ?? 0) < time()) {
+    $iss = $info['iss'] ?? '';
+    $issOk = in_array($iss, ['accounts.google.com', 'https://accounts.google.com'], true);
+    if (!is_array($info) || ($info['aud'] ?? '') !== $clientId || (int)($info['exp'] ?? 0) < time() || !$issOk) {
       fail(401, 'jeton Google invalide');
     }
+    // e-mail seulement s'il est vérifié par Google (email_verified peut valoir "true" en string)
+    $emailOk = (($info['email_verified'] ?? '') === true) || (($info['email_verified'] ?? '') === 'true');
     $sub = (string)($info['sub'] ?? '');
     if ($sub === '') { fail(401, 'jeton Google invalide'); }
-    $email = isset($info['email']) ? substr((string)$info['email'], 0, 190) : null;
+    $email = ($emailOk && isset($info['email'])) ? substr((string)$info['email'], 0, 190) : null;
     $name = trim((string)($info['given_name'] ?? ($info['name'] ?? 'Athlète')));
 
     $st = db()->prepare('SELECT id FROM users WHERE google_sub = ?');
@@ -108,7 +118,7 @@ switch ($action) {
       $username = substr($base, 0, 14) . random_int(10, 99);
     }
     db()->prepare('INSERT INTO users (username, display_name, pass_hash, google_sub, email) VALUES (?,?,?,?,?)')
-      ->execute([$username, mb_substr($name ?: $username, 0, 40), password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT), $sub, $email]);
+      ->execute([$username, mb_substr($name ?: $username, 0, 40), password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT, ['cost' => 12]), $sub, $email]);
     $s = issue_session((int)db()->lastInsertId());
     $s['isNew'] = true;
     ok($s);
@@ -145,6 +155,7 @@ switch ($action) {
   case 'delete': {
     // suppression définitive du compte (mot de passe exigé) — cascade sur toutes les données
     $u = require_user();
+    rate_limit('delete', 5, 900);
     $password = (string)($b['password'] ?? '');
     $st = db()->prepare('SELECT pass_hash FROM users WHERE id = ?');
     $st->execute([$u['id']]);

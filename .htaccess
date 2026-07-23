@@ -9,3 +9,15 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 <IfModule mod_mime.c>
   AddType application/manifest+json .webmanifest
 </IfModule>
+
+# ---- En-têtes de sécurité (défense en profondeur) ----
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # CSP : bloque les scripts/objets tiers, encadrement, et limite les connexions.
+  # 'unsafe-inline' toléré (l'app a des gestionnaires inline) mais object-src 'none',
+  # base-uri 'none' et frame-ancestors 'self' ferment les vecteurs principaux.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.jsdelivr.net https://raw.githubusercontent.com https://wger.de; media-src 'self' https://wger.de; connect-src 'self' https://oauth2.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; font-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'self'"
+</IfModule>

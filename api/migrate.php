@@ -24,9 +24,9 @@ foreach ($files as $f) {
       db()->exec($stmt);
       $results[] = ['table' => $m[1], 'ok' => true];
     } catch (PDOException $e) {
-      $results[] = ['table' => $m[1], 'ok' => false, 'error' => $e->getMessage()];
+      error_log('migrate: ' . $e->getMessage());
+      $results[] = ['table' => $m[1], 'ok' => false];
     }
   }
 }
-$st = db()->query('SHOW TABLES');
-ok(['results' => $results, 'tables' => $st->fetchAll(PDO::FETCH_COLUMN)]);
+ok(['results' => $results]);
