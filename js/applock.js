@@ -9,6 +9,22 @@ const supported = () =>
 
 export const isLockEnabled = () => !!state.global?.appLock?.credId;
 
+// ---- période de grâce : pas de re-demande d'empreinte sur un simple refresh ----
+// Déverrouillé une fois, on ne redemande que si l'app a été quittée > 5 min.
+// La grâce ne court QUE depuis un état déverrouillé (impossible de la gagner
+// en fermant l'app devant l'écran de verrouillage).
+const LAST_KEY = 'sportsalle-lock-last';
+const GRACE_MS = 5 * 60 * 1000;
+let unlocked = false;
+const touch = () => { try { localStorage.setItem(LAST_KEY, String(Date.now())); } catch {} };
+function withinGrace() {
+  try { return Date.now() - (parseInt(localStorage.getItem(LAST_KEY), 10) || 0) < GRACE_MS; }
+  catch { return false; }
+}
+// au moment de quitter/masquer l'app (refresh compris), on note l'instant
+addEventListener('pagehide', () => { if (unlocked) touch(); });
+document.addEventListener('visibilitychange', () => { if (unlocked && document.hidden) touch(); });
+
 function b64ToBuf(b64) {
   const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
   const buf = new Uint8Array(bin.length);
@@ -44,12 +60,14 @@ export async function enableLock() {
 
 export async function disableLock() {
   await saveGlobal({ appLock: null });
+  try { localStorage.removeItem(LAST_KEY); } catch {}
   toast('Verrouillage désactivé');
 }
 
 /** À l'ouverture : demande l'empreinte. Résout true si déverrouillé (ou verrou inactif). */
 export async function gate() {
-  if (!isLockEnabled() || !supported()) return true;
+  if (!isLockEnabled() || !supported()) { unlocked = true; return true; }
+  if (withinGrace()) { unlocked = true; touch(); return true; } // retour rapide / refresh : pas de re-demande
   const overlay = document.createElement('div');
   overlay.className = 'lock-overlay';
   overlay.innerHTML = `<div class="lock-box">${icon('finger')}<h2>Sport Salle</h2><p>Déverrouille avec ton empreinte</p><button class="btn primary" id="lock-try">Déverrouiller</button></div>`;
@@ -65,6 +83,7 @@ export async function gate() {
         },
       });
       overlay.remove();
+      unlocked = true; touch();
       return true;
     } catch { return false; }
   };
@@ -80,7 +99,7 @@ export function appLockCardHtml() {
     <div class="setting"><span>${icon('finger')} Verrouillage par empreinte</span>
       <button class="switch ${isLockEnabled() ? 'on' : ''}" id="lock-toggle" role="switch" aria-checked="${isLockEnabled()}"><span></span></button>
     </div>
-    <p class="mut sm" style="margin:4px 0 0">Demande ton empreinte (ou le déverrouillage du téléphone) à chaque ouverture de l’app.</p>
+    <p class="mut sm" style="margin:4px 0 0">Demande ton empreinte à l’ouverture de l’app — pas si tu reviens en moins de 5 minutes (un refresh ne redemande rien).</p>
   </section>`;
 }
 
