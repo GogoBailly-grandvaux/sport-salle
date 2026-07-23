@@ -13,6 +13,7 @@ import { praise } from '../voice.js';
 let W = null;
 let prevMap = new Map();       // exerciseId -> [prev sets]
 let elapsedTimer = null;
+let onVis = null;              // handler visibilitychange (chrono actif)
 let rest = { timer: null, remaining: 0, total: 0, hideTimeout: null };
 let audioCtx = null;
 
@@ -88,16 +89,40 @@ export async function render(params) {
     </div>`;
 }
 
+// ---- chrono « temps actif » ----
+// Le chrono ne tourne QUE quand l'écran séance est ouvert au premier plan.
+// Fini le compteur qui explose quand on verrouille le téléphone, prend un appel
+// ou laisse une séance ouverte : on fige le temps dès qu'on quitte l'écran.
+function elapsedSec() {
+  const base = W.activeSec || 0;
+  return Math.round(base + (W._resumedAt ? (Date.now() - W._resumedAt) / 1000 : 0));
+}
+function freezeElapsed() {
+  if (W && W._resumedAt) { W.activeSec = elapsedSec(); W._resumedAt = null; }
+}
+
 export function mount(root, params) {
   document.body.classList.add('workout-mode');
   const exs = root.querySelector('#wk-exs');
 
-  // elapsed timer
+  // reprise du chrono actif ; migration douce des anciennes séances (sans activeSec)
+  if (W.activeSec == null) W.activeSec = W.startedAt ? Math.min(Math.round((Date.now() - W.startedAt) / 1000), 4 * 3600) : 0;
+  W._resumedAt = Date.now();
+
+  // un seul timer à la fois (défense : jamais deux chronos en parallèle)
+  if (elapsedTimer) clearInterval(elapsedTimer);
   const tickElapsed = () => {
     const el = root.querySelector('#wk-elapsed');
-    if (el) el.textContent = fmtClock(Math.round((Date.now() - W.startedAt) / 1000));
+    if (el) el.textContent = fmtClock(elapsedSec());
   };
   tickElapsed(); elapsedTimer = setInterval(tickElapsed, 1000);
+
+  // app en arrière-plan → on fige ; retour au premier plan → on reprend
+  onVis = () => {
+    if (document.hidden) { freezeElapsed(); persist(); }
+    else if (W && !W._resumedAt) { W._resumedAt = Date.now(); }
+  };
+  document.addEventListener('visibilitychange', onVis);
 
   // delegated input
   exs.addEventListener('input', e => {
@@ -135,6 +160,8 @@ export function mount(root, params) {
 
 export function unmount() {
   clearInterval(elapsedTimer); elapsedTimer = null;
+  if (onVis) { document.removeEventListener('visibilitychange', onVis); onVis = null; }
+  freezeElapsed(); // fige le temps actif en quittant l'écran
   clearRest();
   document.body.classList.remove('workout-mode');
   if (W && W.status === 'in_progress') saveWorkout(W);
@@ -152,7 +179,7 @@ function toggleDone(btn, ex) {
     s.completedAt = Date.now();
     row.classList.add('done');
     vibrate(15);
-    startRest(ex._restSec || ps('defaultRestSec'));
+    startRest(ex._restSec ?? ps('defaultRestSec')); // ?? : un repos réglé à 0 = pas de minuteur
   } else {
     s.completedAt = null; row.classList.remove('done');
   }
@@ -308,12 +335,29 @@ function addWarmupSets(exEl, ex) {
   persist();
 }
 
+function restSheet(ex) {
+  const cur = ex._restSec ?? ps('defaultRestSec');
+  const opts = [0, 30, 45, 60, 75, 90, 120, 150, 180, 240];
+  const label = (v) => v === 0 ? t('Aucun','None') : v < 60 ? `${v}s` : `${Math.floor(v/60)}min${v%60 ? ' ' + (v%60) + 's' : ''}`;
+  const s2 = sheet(`
+    <p class="mut sm">${t('Temps de repos après chaque série de cet exercice.','Rest time after each set of this exercise.')}</p>
+    <div class="rest-grid">${opts.map(v => `<button class="rest-opt ${v === cur ? 'on' : ''}" data-r="${v}">${label(v)}</button>`).join('')}</div>`,
+    { title: t('Temps de repos','Rest time') });
+  s2.root.querySelectorAll('[data-r]').forEach(b => b.onclick = () => {
+    ex._restSec = parseInt(b.dataset.r, 10); persist(); s2.close();
+    toast(`${t('Repos','Rest')} : ${label(ex._restSec)}`);
+  });
+}
+
 function exMenu(exEl, ex) {
+  const restLabel = (ex._restSec ?? ps('defaultRestSec'));
   const s = sheet(`
+    <button class="menu-row" data-a="rest">${icon('timer')} ${t('Temps de repos','Rest time')} · ${restLabel}s</button>
     <button class="menu-row" data-a="warmup">🔥 ${t('Générer l’échauffement','Generate warm-up')}</button>
     <button class="menu-row" data-a="plates">${icon('calc')} ${t('Chargement de la barre','Barbell loading')}</button>
     <button class="menu-row" data-a="note">${icon('edit')} ${t('Note d’exercice','Exercise note')}</button>
     <button class="menu-row danger" data-a="remove">${icon('trash')} ${t('Retirer l’exercice','Remove exercise')}</button>`, { title: t('Exercice','Exercise') });
+  s.root.querySelector('[data-a="rest"]').onclick = () => { s.close(); restSheet(ex); };
   s.root.querySelector('[data-a="warmup"]').onclick = () => { s.close(); addWarmupSets(exEl, ex); };
   s.root.querySelector('[data-a="plates"]').onclick = () => {
     s.close();
@@ -390,9 +434,17 @@ async function finish() {
   // On ne retire les séries non validées qu'au moment où la fin est actée.
   for (const ex of W.exercises) ex.sets = ex.sets.filter(s => s.done);
   W.exercises = W.exercises.filter(ex => ex.sets.length);
+  freezeElapsed(); // durée finale = temps actif réel
   clearRest();
   const id = W.id;
-  await finishWorkout(W);
+  try {
+    await finishWorkout(W);
+  } catch (e) {
+    console.error(e);
+    toast(t('Impossible d’enregistrer la séance — réessaie', 'Couldn’t save the workout — try again'), { type: 'error' });
+    W._resumedAt = Date.now(); // on relance le chrono, la séance n'est pas perdue
+    return;
+  }
   nav.go(`#/workout/${id}/summary`);
 }
 

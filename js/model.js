@@ -112,7 +112,8 @@ export async function finishWorkout(w) {
   const prs = detectPRs(w, prior, ps('e1rmFormula'));
   w.status = 'completed';
   w.completedAt = nowTs();
-  w.durationSec = Math.round((w.completedAt - w.startedAt) / 1000);
+  // durée = temps ACTIF (chrono séance) ; repli sur le temps écoulé pour les anciennes séances
+  w.durationSec = w.activeSec != null ? Math.round(w.activeSec) : Math.round((w.completedAt - w.startedAt) / 1000);
   w.totalVolumeKg = workoutStats(w, ps('e1rmFormula')).volume;
   w.prs = prs;
   // drop fully-empty exercises

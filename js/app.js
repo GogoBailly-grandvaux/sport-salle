@@ -160,12 +160,16 @@ function welcome() {
           : `<button class="btn primary full big" id="wel-guest">${t('Commencer','Get started')}</button>
           <button class="wel-guest" id="wel-diag">${t('Pas de connexion au serveur ? Diagnostic','Can’t reach the server? Diagnostics')}</button>`}
         </div>
+        <div class="wel-lang">${['fr','en'].map(l => `<button class="wel-lang-b ${(state.global?.locale||'')===l?'on':''}" data-lang="${l}">${l.toUpperCase()}</button>`).join('')}</div>
         <p class="wel-legal"><a href="legal.html" target="_blank" rel="noopener">${t('Confidentialité · Mentions légales','Privacy · Legal')}</a></p>
       </div>
     </div>`;
     const done = () => { document.body.classList.remove('welcome-mode'); resolve(); };
     view.querySelector('#wel-register')?.addEventListener('click', () => openAuthSheet('register', done));
     view.querySelector('#wel-login')?.addEventListener('click', () => openAuthSheet('login', done));
+    view.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', async () => {
+      await saveGlobal({ locale: b.dataset.lang }); location.reload();
+    }));
     view.querySelector('#wel-guest')?.addEventListener('click', async () => { await onboarding(); done(); });
     view.querySelector('#wel-offgo')?.addEventListener('click', done);
     view.querySelector('#wel-retry')?.addEventListener('click', () => location.reload());

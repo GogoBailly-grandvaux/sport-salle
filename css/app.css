@@ -642,6 +642,12 @@ body.welcome-mode .tabbar{display:none}
 .wel-feats{display:flex;flex-direction:column;gap:9px;align-items:center;margin:18px 0 26px;animation:welUp .45s .2s cubic-bezier(.2,.8,.2,1) both}
 .wel-feats span{display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-size:.9rem;font-weight:600}
 .wel-feats .ico{width:17px;height:17px;color:var(--accent)}
+.wel-lang{display:flex;gap:6px;justify-content:center;margin-top:20px}
+.wel-lang-b{border:1px solid var(--line2);background:transparent;color:var(--muted);border-radius:9px;padding:6px 14px;font-weight:700;font-size:.8rem}
+.wel-lang-b.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.rest-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.rest-opt{border:1.5px solid var(--line2);background:var(--surface2);color:var(--text);border-radius:12px;padding:14px 4px;font-weight:700;font-size:.9rem}
+.rest-opt.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
 .wel-legal{margin-top:22px;font-size:.75rem}
 .wel-legal a{color:var(--muted);text-decoration:underline;text-underline-offset:3px}
 .legal-hint{margin-top:10px;font-size:.78rem}
