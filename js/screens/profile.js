@@ -72,6 +72,7 @@ export async function render() {
         <h3 class="card-t">À propos</h3>
         <p class="mut sm">Sport Salle — v${APP_VERSION}. Ton coach de musculation : programmes, séances, records et amis. Tes données vivent sur ton téléphone et te suivent avec ton compte.</p>
         <p class="mut sm">Données d’exercices open source : free-exercise-db (domaine public) · wger.de (CC-BY-SA 4.0, noms français). Ceci n’est pas un avis médical.</p>
+        <p class="mut sm"><a href="legal.html" target="_blank" rel="noopener">Mentions légales · Politique de confidentialité · CGU</a></p>
       </section>
     </div>`;
 }

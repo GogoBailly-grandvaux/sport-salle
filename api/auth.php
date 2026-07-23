@@ -90,9 +90,14 @@ switch ($action) {
     $st = db()->prepare('SELECT id FROM users WHERE google_sub = ?');
     $st->execute([$sub]);
     $uid = $st->fetchColumn();
-    if ($uid) { ok(issue_session((int)$uid)); }
+    if ($uid) {
+      $s = issue_session((int)$uid);
+      $s['isNew'] = false;
+      ok($s);
+    }
 
-    // création : pseudo dérivé de l'email, unique
+    // création : pseudo provisoire dérivé de l'email — le client propose
+    // aussitôt d'en choisir un (action 'username' ci-dessous)
     $base = strtolower(preg_replace('/[^a-z0-9_.]/', '', explode('@', (string)($email ?? 'athlete'))[0]) ?: 'athlete');
     $base = substr($base, 0, 16) ?: 'athlete';
     $username = $base;
@@ -104,7 +109,29 @@ switch ($action) {
     }
     db()->prepare('INSERT INTO users (username, display_name, pass_hash, google_sub, email) VALUES (?,?,?,?,?)')
       ->execute([$username, mb_substr($name ?: $username, 0, 40), password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT), $sub, $email]);
-    ok(issue_session((int)db()->lastInsertId()));
+    $s = issue_session((int)db()->lastInsertId());
+    $s['isNew'] = true;
+    ok($s);
+  }
+
+  case 'username': {
+    // changement de pseudo (droit de rectification) — mêmes règles qu'à l'inscription
+    $u = require_user();
+    $username = strtolower(trim((string)($b['username'] ?? '')));
+    if (!preg_match('/^[a-z0-9_.]{3,20}$/', $username)) {
+      fail(400, 'pseudo invalide : 3-20 caractères, lettres/chiffres/_ /.');
+    }
+    if ($username !== $u['username']) {
+      try {
+        db()->prepare('UPDATE users SET username = ? WHERE id = ?')->execute([$username, $u['id']]);
+      } catch (PDOException $e) {
+        if ((int)$e->getCode() === 23000) { fail(409, 'ce pseudo est déjà pris'); }
+        fail(500, 'erreur');
+      }
+    }
+    $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    ok(['user' => public_user($st->fetch(PDO::FETCH_ASSOC))]);
   }
 
   case 'me': {

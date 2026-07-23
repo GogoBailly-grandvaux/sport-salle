@@ -639,6 +639,10 @@ body.welcome-mode .tabbar{display:none}
 .wel-feats{display:flex;flex-direction:column;gap:9px;align-items:center;margin:18px 0 26px;animation:welUp .45s .2s cubic-bezier(.2,.8,.2,1) both}
 .wel-feats span{display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-size:.9rem;font-weight:600}
 .wel-feats .ico{width:17px;height:17px;color:var(--accent)}
+.wel-legal{margin-top:22px;font-size:.75rem}
+.wel-legal a{color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.legal-hint{margin-top:10px;font-size:.78rem}
+.legal-hint a{text-decoration:underline;text-underline-offset:2px}
 #wel-gsi{min-height:0}
 #wel-gsi .gsi-sep{margin:14px 0}
 /* entrée en scène de l'écran de bienvenue */

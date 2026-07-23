@@ -156,6 +156,7 @@ function welcome() {
           <button class="btn ghost full" id="wel-login">J’ai déjà un compte</button>`
           : `<button class="btn primary full big" id="wel-guest">Commencer</button>`}
         </div>
+        <p class="wel-legal"><a href="legal.html" target="_blank" rel="noopener">Confidentialité · Mentions légales</a></p>
       </div>
     </div>`;
     const done = () => { document.body.classList.remove('welcome-mode'); resolve(); };

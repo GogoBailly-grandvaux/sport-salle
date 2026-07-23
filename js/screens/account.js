@@ -72,8 +72,15 @@ export async function mountGoogleButton(container, onDone, closeSheet, { sep = '
           const res = await call('auth', 'google', { idToken: resp.credential }, { auth: false });
           await applySession(res);
           closeSheet();
-          toast(`Bienvenue @${res.user.username} ! 🎉`);
-          if (onDone) onDone(res);
+          if (res.isNew) {
+            // premier compte Google : on propose de choisir son @pseudo (sinon celui dérivé de l'email reste)
+            openUsernameSheet(res.user.username, () => { if (onDone) onDone(res); }, {
+              title: 'Choisis ton pseudo', welcome: true,
+            });
+          } else {
+            toast(`Content de te revoir @${res.user.username} 💪`);
+            if (onDone) onDone(res);
+          }
         } catch (e) { toast(e.message, { type: 'error', duration: 4500 }); }
       },
     });
@@ -102,6 +109,47 @@ function fieldError(input, msg) {
   input.focus();
 }
 
+// ---- choix / changement de pseudo (1re connexion Google, ou droit de rectification) ----
+function openUsernameSheet(current, after, { title = 'Changer de pseudo', welcome = false } = {}) {
+  let finished = false;
+  const finish = () => { if (!finished) { finished = true; if (after) after(); } };
+  const s = sheet(`
+    <p class="mut sm">${welcome
+      ? 'Bienvenue ! 🎉 Ton pseudo est ton identité publique — tes amis te retrouvent avec. Choisis-le maintenant, ou garde celui-ci.'
+      : 'Ton pseudo est ton identité publique. Tes amis et groupes te suivent automatiquement.'}</p>
+    <label class="field-label" for="un-user">Pseudo (unique, sans espace)</label>
+    <div class="input-ico"><span class="at">@</span><input class="input at-input" id="un-user" value="${esc(current)}" autocapitalize="none" spellcheck="false" maxlength="20"></div>
+    <button class="btn primary full big" id="un-save">Valider ce pseudo</button>
+    <button class="btn ghost full" id="un-keep">Garder @${esc(current)}</button>`,
+    { title, onClose: finish });
+  const inp = s.root.querySelector('#un-user');
+  setTimeout(() => { inp.focus(); inp.select?.(); }, 300);
+  s.root.querySelector('#un-keep').onclick = () => s.close();
+  s.root.querySelector('#un-save').onclick = async () => {
+    const username = inp.value.trim().toLowerCase();
+    if (!USER_RX.test(username)) {
+      fieldError(inp, username.length < 3 ? 'Au moins 3 caractères.' : 'Lettres minuscules, chiffres, « _ » et « . » uniquement (3 à 20).');
+      return;
+    }
+    const btn = s.root.querySelector('#un-save');
+    const label = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      const res = await call('auth', 'username', { username });
+      const acc = ps('account');
+      if (acc) { acc.user = res.user; await savePSettings({ account: acc }); }
+      try { localStorage.setItem(LAST_USER_KEY, res.user.username); } catch {}
+      emit('account-changed');
+      toast(welcome ? `Bienvenue @${res.user.username} ! 🎉` : `À toi @${res.user.username} ✓`);
+      s.close();
+    } catch (err) {
+      btn.disabled = false; btn.innerHTML = label;
+      if (err.status === 409) fieldError(inp, 'Ce pseudo est déjà pris.');
+      else toast(err.status === 0 ? 'Hors-ligne ou serveur injoignable' : err.message, { type: 'error', duration: 4500 });
+    }
+  };
+}
+
 export function openAuthSheet(mode = 'register', onDone = null) {
   const p = activeProfile();
   let m = mode;
@@ -126,6 +174,7 @@ export function openAuthSheet(mode = 'register', onDone = null) {
         <button type="button" class="pw-eye" aria-label="Afficher le mot de passe" aria-pressed="false">${icon('eye')}</button>
       </div>
       <button class="btn primary full big" id="au-go" type="submit">${isReg ? 'Créer mon compte' : 'Se connecter'}</button>
+      ${isReg ? `<p class="mut sm center legal-hint">En créant un compte, tu acceptes la <a href="legal.html" target="_blank" rel="noopener">politique de confidentialité</a>.</p>` : ''}
       <p class="mut sm center auth-hint">${isReg
         ? 'Ton compte permet de retrouver tes données sur n’importe quel téléphone, d’ajouter des amis et de partager tes programmes.'
         : 'Tes données locales seront fusionnées avec celles de ton compte.'}</p>
@@ -243,6 +292,7 @@ export function accountCardHtml() {
     <h3 class="card-t">${icon('user')} Compte</h3>
     <div class="acc-row"><b>@${esc(acc.user.username)}</b><span class="mut sm">${esc(acc.user.displayName)}</span></div>
     <p class="mut sm">Données synchronisées sur ce compte · amis et groupes dans l’onglet Social.</p>
+    <button class="btn ghost full sm" id="acc-username">Changer de pseudo</button>
     <button class="btn ghost full" id="acc-logout">Se déconnecter</button>
     <button class="btn danger-ghost full sm" id="acc-delete">Supprimer définitivement mon compte</button>
   </section>`;
@@ -269,6 +319,10 @@ async function deleteAccount() {
 export function mountAccountCard(root) {
   root.querySelector('#acc-register')?.addEventListener('click', () => openAuthSheet('register', () => nav.refresh()));
   root.querySelector('#acc-login')?.addEventListener('click', () => openAuthSheet('login', () => nav.refresh()));
+  root.querySelector('#acc-username')?.addEventListener('click', () => {
+    const acc = account(); if (!acc) return;
+    openUsernameSheet(acc.user.username, () => nav.refresh());
+  });
   root.querySelector('#acc-logout')?.addEventListener('click', logout);
   root.querySelector('#acc-delete')?.addEventListener('click', deleteAccount);
 }
