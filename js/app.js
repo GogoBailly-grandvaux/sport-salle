@@ -154,7 +154,8 @@ function welcome() {
           <div id="wel-gsi"></div>
           <button class="btn primary full big" id="wel-register">Créer un compte gratuit</button>
           <button class="btn ghost full" id="wel-login">J’ai déjà un compte</button>`
-          : `<button class="btn primary full big" id="wel-guest">Commencer</button>`}
+          : `<button class="btn primary full big" id="wel-guest">Commencer</button>
+          <button class="wel-guest" id="wel-diag">Pas de connexion au serveur ? Diagnostic</button>`}
         </div>
         <p class="wel-legal"><a href="legal.html" target="_blank" rel="noopener">Confidentialité · Mentions légales</a></p>
       </div>
@@ -165,6 +166,19 @@ function welcome() {
     view.querySelector('#wel-guest')?.addEventListener('click', async () => { await onboarding(); done(); });
     view.querySelector('#wel-offgo')?.addEventListener('click', done);
     view.querySelector('#wel-retry')?.addEventListener('click', () => location.reload());
+    view.querySelector('#wel-diag')?.addEventListener('click', async () => {
+      const d = await sync.diagnose();
+      const line = (label, r) => `<div class="setting"><span>${label}</span><b class="mut sm">${esc(r?.erreur ? '✗ ' + r.erreur : '✓ HTTP ' + r.statut)}</b></div>`;
+      const sh = sheet(`
+        <p class="mut sm">Résultat des tests vers le serveur (${esc(d.url)}) :</p>
+        ${line('Réseau', { statut: d.enLigne ? 'en ligne' : 'HORS-LIGNE' })}
+        ${line('Test GET', d.get)}${line('Test POST', d.post)}
+        <p class="mut sm">${d.get?.statut && d.post?.erreur ? 'Le serveur répond en GET mais pas en POST : un bloqueur de contenu Safari, un VPN/DNS filtrant ou le réseau mobile bloque les envois. Essaie en WiFi, ou désactive les bloqueurs pour ce site.' : d.get?.erreur && d.post?.erreur ? 'Le serveur est injoignable depuis cet appareil : vérifie ta connexion, ou essaie WiFi ↔ 4G.' : 'Le serveur répond — appuie sur Réessayer.'}</p>
+        <button class="btn primary full" id="diag-retry">Réessayer</button>
+        <button class="btn ghost full" id="diag-copy">Copier le rapport</button>`, { title: '🔎 Diagnostic serveur' });
+      sh.root.querySelector('#diag-retry').onclick = () => { try { localStorage.removeItem('sync-api-ok'); } catch {} location.reload(); };
+      sh.root.querySelector('#diag-copy').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(d)); toast('Rapport copié ✓'); } catch { toast('Copie impossible', { type: 'error' }); } };
+    });
     if (online && navigator.onLine) mountGoogleButton(view.querySelector('#wel-gsi'), done, () => {}, { sep: 'after' });
   });
 }

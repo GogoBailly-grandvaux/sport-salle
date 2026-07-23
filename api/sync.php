@@ -20,6 +20,11 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+// ping en GET : certains réseaux mobiles/bloqueurs laissent passer les GET mais pas
+// les POST — ce ping permet à l'app de savoir que le serveur EXISTE malgré tout.
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET' && isset($_GET['ping'])) {
+  ok(['ok' => true, 'service' => 'sport-salle-sync', 'v' => 1, 'via' => 'get']);
+}
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { fail(405, 'POST uniquement'); }
 
 // ---- lecture du corps (limite 6 Mo) ----

@@ -1,5 +1,5 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v2.6.4';
+const VERSION = 'v2.6.5';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 

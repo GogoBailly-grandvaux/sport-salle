@@ -319,6 +319,14 @@ export async function init() {
       const probe = async () => {
         let ok = false;
         try { ok = (await api('ping', {}, { timeoutMs: 8000 }))?.ok === true; } catch {}
+        if (!ok) {
+          // repli GET : si le POST est bloqué (opérateur/bloqueur) mais que le GET
+          // répond, le serveur existe — on ne bascule pas en mode « sans serveur »
+          try {
+            const r = await fetch(apiUrl() + '?ping=1', { signal: AbortSignal.timeout?.(8000) });
+            ok = (await r.json())?.ok === true;
+          } catch {}
+        }
         if (ok) { try { localStorage.setItem(PROBE_FLAG, '1'); } catch {} }
         return ok;
       };
@@ -348,4 +356,18 @@ export async function init() {
   window.addEventListener('pagehide', () => { if (dirty.size) syncNow({ keepalive: true }); });
   on('account-changed', () => { startAuto(); syncNow(); });
   if (isEnabled() || await anyAccountLinked()) { startAuto(); syncNow(); }
+}
+
+// ---------- diagnostic réseau (affiché sur l'écran d'accueil sans serveur) ----------
+export async function diagnose() {
+  const out = { url: apiUrl(), enLigne: navigator.onLine, get: null, post: null };
+  try {
+    const r = await fetch(apiUrl() + '?ping=1', { signal: AbortSignal.timeout?.(8000) });
+    out.get = { statut: r.status, reponse: (await r.text()).slice(0, 100) };
+  } catch (e) { out.get = { erreur: String(e?.name || e) }; }
+  try {
+    const r = await fetch(apiUrl(), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'ping' }), signal: AbortSignal.timeout?.(8000) });
+    out.post = { statut: r.status, reponse: (await r.text()).slice(0, 100) };
+  } catch (e) { out.post = { erreur: String(e?.name || e) }; }
+  return out;
 }
