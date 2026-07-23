@@ -1,0 +1,76 @@
+// sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
+const VERSION = 'v1.0.0';
+const SHELL = 'shell-' + VERSION;
+const IMG = 'exercise-images';
+
+const ASSETS = [
+  './', './index.html', './offline.html', './app.webmanifest',
+  './css/app.css',
+  './js/app.js', './js/util.js', './js/db.js', './js/store.js', './js/data.js',
+  './js/model.js', './js/analytics.js', './js/charts.js', './js/ui.js',
+  './js/screens/common.js', './js/screens/picker.js', './js/screens/home.js',
+  './js/screens/library.js', './js/screens/routines.js', './js/screens/workout.js',
+  './js/screens/history.js', './js/screens/progress.js', './js/screens/profile.js',
+  './data/exercises.json',
+  './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png',
+];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil((async () => {
+    const c = await caches.open(SHELL);
+    await Promise.allSettled(ASSETS.map(u => c.add(u)));
+    self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== SHELL && k !== IMG).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('message', (e) => { if (e.data === 'skipWaiting') self.skipWaiting(); });
+
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+
+  // Navigations -> network first, fallback to cached shell / offline
+  if (req.mode === 'navigate') {
+    e.respondWith((async () => {
+      try { return await fetch(req); }
+      catch {
+        const c = await caches.open(SHELL);
+        return (await c.match('./index.html')) || (await c.match('./')) || (await c.match('./offline.html')) || Response.error();
+      }
+    })());
+    return;
+  }
+
+  // Exercise images (CDN) -> stale-while-revalidate
+  if (url.hostname.includes('jsdelivr.net') || url.hostname.includes('githubusercontent.com')) {
+    e.respondWith((async () => {
+      const c = await caches.open(IMG);
+      const cached = await c.match(req);
+      const net = fetch(req).then(r => { if (r && (r.ok || r.type === 'opaque')) c.put(req, r.clone()); return r; }).catch(() => null);
+      return cached || (await net) || Response.error();
+    })());
+    return;
+  }
+
+  // Same-origin -> cache first
+  if (url.origin === self.location.origin) {
+    e.respondWith((async () => {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      try {
+        const r = await fetch(req);
+        if (r && r.ok) { const c = await caches.open(SHELL); c.put(req, r.clone()); }
+        return r;
+      } catch { return Response.error(); }
+    })());
+  }
+});
