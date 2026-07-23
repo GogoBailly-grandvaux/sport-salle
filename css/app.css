@@ -633,6 +633,8 @@ body.welcome-mode .tabbar{display:none}
 .wel-body{position:relative;width:100%;max-width:380px;text-align:center}
 .wel-logo{width:92px;height:92px;border-radius:28px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;color:var(--accent);background:linear-gradient(145deg,var(--surface2),var(--surface));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));box-shadow:var(--shadow),0 0 40px color-mix(in srgb,var(--accent) 25%,transparent)}
 .wel-logo .ico{width:46px;height:46px}
+.wel-logo .fist{width:62px;height:62px}
+#splash .sp-ico .fist{width:44px;height:44px}
 .wel-title{font-size:2.6rem;font-weight:900;letter-spacing:-.04em;line-height:1}
 .wel-title span{color:var(--accent)}
 .wel-tag{color:var(--text2);margin:12px 0 0;font-size:1.05rem;line-height:1.5}

@@ -140,7 +140,7 @@ function welcome() {
     view.innerHTML = `<div class="welcome">
       <div class="wel-halo"></div>
       <div class="wel-body">
-        <div class="wel-logo">${icon('bolt')}</div>
+        <div class="wel-logo"><svg class="fist" viewBox="0 0 96 96" aria-hidden="true"><defs><linearGradient id="gwel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7bb55"/><stop offset="1" stop-color="#e8902e"/></linearGradient></defs><g transform="rotate(-5 48 48)"><g stroke="#f2a63c" stroke-width="4" stroke-linecap="round" opacity=".85"><line x1="7" y1="30" x2="15" y2="33"/><line x1="4" y1="46" x2="14" y2="47"/><line x1="8" y1="62" x2="15" y2="59"/></g><g fill="url(#gwel)"><rect x="24" y="17" width="14" height="30" rx="7"/><rect x="39" y="13" width="14" height="34" rx="7"/><rect x="54" y="16" width="14" height="31" rx="7"/><rect x="69" y="21" width="13" height="26" rx="6.5"/><rect x="24" y="36" width="58" height="34" rx="15"/><rect x="18" y="40" width="16" height="26" rx="8" transform="rotate(9 26 53)"/></g><g stroke="#0c0d10" stroke-width="3" stroke-linecap="round"><line x1="38.5" y1="22" x2="38.5" y2="42"/><line x1="53.5" y1="20" x2="53.5" y2="42"/><line x1="68.5" y1="25" x2="68.5" y2="42"/></g><rect x="30" y="66" width="48" height="9" rx="4.5" fill="#c9741f"/><rect x="46" y="66" width="7" height="9" fill="#0c0d10" opacity=".35"/></g></svg></div>
         <h1 class="wel-title">SPORT<span>SALLE</span></h1>
         <p class="wel-tag">${t('Ton coach de poche.','Your pocket coach.')}</p>
         <div class="wel-feats">
