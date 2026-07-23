@@ -54,8 +54,12 @@ export async function renderHub() {
     return `${hubHeader()}<div class="screen-pad">${emptyState('chart','Pas encore de données','Enregistre quelques séances et tes courbes de progression apparaîtront ici.',`<button class="btn primary" data-nav="#/home">Démarrer une séance</button>`)}</div>`;
   }
 
+  const { coachWeekly } = await import('../coach.js');
+  const weekly = coachWeekly(workouts, state.libraryById, ps('weeklyGoal'));
+
   return `${hubHeader()}
     <div class="screen-pad">
+      ${weekly ? `<section class="card coach-card"><div class="coach-head"><span class="coach-emoji">${weekly.emoji}</span><b>${esc(weekly.title)}</b></div><p>${esc(weekly.text)}</p></section>` : ''}
       <button class="btn primary full" id="pg-pick">${icon('search')} Progression d’un exercice</button>
 
       <section class="card">

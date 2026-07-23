@@ -18,6 +18,9 @@ import * as history from './screens/history.js';
 import * as progress from './screens/progress.js';
 import * as library from './screens/library.js';
 import * as profile from './screens/profile.js';
+import * as social from './screens/social.js';
+import { wireAuthEvents } from './screens/account.js';
+import { gate as appLockGate } from './applock.js';
 
 // ---------- routes ----------
 const R = [
@@ -33,7 +36,9 @@ const R = [
   { p:'#/progress', name:'progress', tab:'progress', render:progress.renderHub, mount:progress.mountHub },
   { p:'#/progress/exercise/:id', name:'progress-ex', render:progress.renderExercise, mount:progress.mountExercise },
   { p:'#/progress/body', name:'progress-body', render:progress.renderBody, mount:progress.mountBody },
-  { p:'#/profile', name:'profile', tab:'profile', render:profile.render, mount:profile.mount },
+  { p:'#/social', name:'social', tab:'social', render:social.render, mount:social.mount },
+  { p:'#/social/group/:id', name:'social-group', render:social.renderGroup, mount:social.mountGroup },
+  { p:'#/profile', name:'profile', render:profile.render, mount:profile.mount },
 ].map(r => {
   const keys = []; const rx = new RegExp('^' + r.p.replace(/:[^/]+/g, m => { keys.push(m.slice(1)); return '([^/]+)'; }) + '$');
   return { ...r, rx, keys };
@@ -80,8 +85,8 @@ function tabBar() {
     { id:'home', label:'Accueil', icon:'home', hash:'#/home' },
     { id:'routines', label:'Programmes', icon:'dumbbell', hash:'#/routines' },
     { id:'fab' },
+    { id:'social', label:'Social', icon:'users', hash:'#/social' },
     { id:'progress', label:'Progrès', icon:'chart', hash:'#/progress' },
-    { id:'profile', label:'Profil', icon:'user', hash:'#/profile' },
   ];
   return `<nav class="tabbar" id="tabbar">${tabs.map(t => t.id === 'fab'
     ? `<button class="fab" id="fab" aria-label="Démarrer une séance">${icon('bolt')}</button>`
@@ -171,6 +176,8 @@ async function boot() {
     if (navigator.storage && navigator.storage.persist) { try { await navigator.storage.persist(); } catch {} }
     await db.openDB();
     await loadGlobal();
+    await appLockGate(); // verrou biométrique éventuel (avant d'afficher quoi que ce soit)
+    wireAuthEvents();
     await loadProfiles();
     await loadLibrary();
 

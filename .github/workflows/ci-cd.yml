@@ -38,8 +38,7 @@ jobs:
 
       - name: Lint PHP (API de synchro)
         run: |
-          php -l api/sync.php
-          php -l api/config.sample.php
+          for f in api/*.php; do php -l "$f"; done
 
   # ---------- CD : déploiement o2switch ----------
   deploy:

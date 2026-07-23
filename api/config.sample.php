@@ -15,4 +15,10 @@ return [
   'db_name' => 'tonlogin_sportsalle',
   'db_user' => 'tonlogin_sportsalle',
   'db_pass' => 'LE_MOT_DE_PASSE_DE_LA_BASE',
+
+  // Optionnel — « Continuer avec Google » :
+  // console.cloud.google.com → APIs & Services → Credentials →
+  // Create OAuth client ID (Web) → Authorized JavaScript origins :
+  // https://sportsalle.hbaillyg.fr — puis colle l'ID client ci-dessous.
+  'google_client_id' => '',
 ];

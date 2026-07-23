@@ -5,7 +5,7 @@ import { icon, sheet, toast } from '../ui.js';
 import {
   searchExercises, getExercise, imageUrls, muscleFR, musclesFR,
   MUSCLE_FR, EQUIP_FR, CATEGORY_FR, LEVEL_FR, FORCE_FR,
-  loadFavorites, toggleFavorite,
+  loadFavorites, toggleFavorite, musclesMap,
 } from '../data.js';
 import { exImage, muscleChips, emptyState, backBtn, groupColor } from './common.js';
 import { listWorkouts, listRoutines, saveRoutine, getRoutine, mkRoutineItem } from '../model.js';
@@ -129,6 +129,31 @@ export async function renderDetail(params) {
     ex.category && CATEGORY_FR[ex.category], ex.force && FORCE_FR[ex.force],
   ].filter(Boolean).map(b => `<span class="badge">${esc(b)}</span>`).join('');
 
+  const video = ex.videoUrl ? `
+    <video class="ex-video" controls playsinline preload="none" src="${esc(ex.videoUrl)}"></video>
+    <p class="mut sm center">🎬 Vidéo du mouvement (wger, CC-BY-SA) — <a href="${esc(ex.videoUrl)}" target="_blank" rel="noopener">ouvrir</a> si la lecture échoue</p>` : '';
+
+  // carte musculaire (silhouettes wger + muscles ciblés)
+  let bodymap = '';
+  const mm = await musclesMap();
+  if (mm && mm.byOurName && mm.bodyImages) {
+    const ids = new Set();
+    for (const m of (ex.primaryMuscles || [])) for (const id of (mm.byOurName[m] || [])) ids.add(id);
+    const secIds = new Set();
+    for (const m of (ex.secondaryMuscles || [])) for (const id of (mm.byOurName[m] || [])) if (!ids.has(id)) secIds.add(id);
+    if (ids.size || secIds.size) {
+      const side = (front) => {
+        const base = front ? mm.bodyImages.front : mm.bodyImages.back;
+        let ov = '';
+        for (const id of ids) { const mu = mm.byWgerId[id]; if (mu && mu.isFront === front && mu.main) ov += `<img class="bm-overlay" src="${esc(mu.main)}" alt="" loading="lazy">`; }
+        for (const id of secIds) { const mu = mm.byWgerId[id]; if (mu && mu.isFront === front && mu.secondary) ov += `<img class="bm-overlay" src="${esc(mu.secondary)}" alt="" loading="lazy">`; }
+        return ov ? `<div><div class="bm-side"><img src="${esc(base)}" alt="" loading="lazy">${ov}</div><div class="bm-cap">${front ? 'Face' : 'Dos'}</div></div>` : '';
+      };
+      const both = side(true) + side(false);
+      if (both) bodymap = `<section class="card"><h3 class="card-t">Muscles ciblés</h3><div class="bodymap">${both}</div></section>`;
+    }
+  }
+
   const instr = (ex.instructions||[]).length ? `<section class="card"><h3 class="card-t">Exécution</h3><ol class="steps">${ex.instructions.map(i=>`<li>${esc(i)}</li>`).join('')}</ol></section>` : '';
 
   const hist = best.sessions ? `
@@ -149,11 +174,13 @@ export async function renderDetail(params) {
     </header>
     <div class="screen-pad">
       ${imgs}
+      ${video}
       <div class="detail-badges">${badges}</div>
       <div class="detail-muscles">
         ${(ex.primaryMuscles||[]).length ? `<div><span class="mut sm">Principaux</span>${muscleChips(ex, 6)}</div>` : ''}
         ${(ex.secondaryMuscles||[]).length ? `<div><span class="mut sm">Secondaires</span><div class="chips">${musclesFR(ex.secondaryMuscles).map(m=>`<span class="mchip alt">${esc(m)}</span>`).join('')}</div></div>` : ''}
       </div>
+      ${bodymap}
       ${hist}
       ${instr}
       <div class="detail-actions">

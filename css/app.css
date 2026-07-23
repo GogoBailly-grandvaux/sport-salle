@@ -471,4 +471,94 @@ body.immersive .tabbar{display:none}
 .confetti-host{position:fixed;inset:0;z-index:80;pointer-events:none;overflow:hidden}
 .confetti-host i{position:absolute;width:9px;height:9px;border-radius:2px;will-change:transform,opacity}
 
+/* ===== v2 : coach ===== */
+.coach-card{border-color:color-mix(in srgb,var(--accent) 38%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 10%,var(--surface)),var(--surface))}
+.coach-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.coach-emoji{font-size:1.5rem}
+.coach-card p{margin:0;color:var(--text2);font-size:.92rem}
+.coach-card .btn{margin-top:12px}
+.coach-chip{display:inline-flex;align-items:center;gap:6px;border:1px dashed color-mix(in srgb,var(--accent) 55%,transparent);background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent-2,var(--accent));font-weight:700;font-size:.82rem;border-radius:20px;padding:6px 12px;margin:0 0 10px}
+.coach-chip.applied{border-style:solid;background:color-mix(in srgb,var(--good) 15%,transparent);color:var(--good);border-color:var(--good)}
+
+/* plates */
+.calc-head{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:14px}
+.calc-val{text-align:center}
+.calc-val b{font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums}
+.calc-val span{display:block;font-size:.7rem;color:var(--muted);text-transform:uppercase}
+.stepbtn{width:56px;height:44px;border-radius:12px;border:1px solid var(--line2);background:var(--surface2);font-weight:700}
+.plates-row{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;padding:8px 0}
+.plate{display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.7rem;border-radius:6px;width:34px}
+.plate.p25{background:#d9342b;height:64px}.plate.p20{background:#2f68ad;height:60px}
+.plate.p15{background:#d9a520;height:54px}.plate.p10{background:#2f9e6b;height:48px}
+.plate.p5{background:#eee;color:#333;height:40px}.plate.p2_5{background:#333;height:34px}
+.plate.p1_25{background:#888;height:28px}
+
+/* ===== v2 : social ===== */
+.social-seg{width:100%;display:flex;margin-bottom:14px}
+.social-seg .seg{flex:1}
+.social-hero{text-align:center;padding:30px 8px}
+.social-hero-ico{width:76px;height:76px;border-radius:24px;background:color-mix(in srgb,var(--accent) 16%,var(--surface2));display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--accent)}
+.social-hero-ico .ico{width:38px;height:38px}
+.social-hero h2{font-size:1.5rem}
+.social-hero p{color:var(--text2);margin:10px 0 20px}
+.pending-banner{display:flex;align-items:center;gap:8px;width:100%;border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line));background:color-mix(in srgb,var(--accent) 12%,var(--surface));border-radius:14px;padding:12px 14px;font-weight:700;margin-bottom:12px;text-align:left}
+.pending-banner .ico{margin-left:auto}
+.friend-list{display:flex;flex-direction:column;gap:10px}
+.friend-card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+.friend-card>.ico{color:var(--muted)}
+.friend-row{display:flex;align-items:center;gap:12px;padding:9px 2px}
+.fr-info{flex:1;min-width:0}
+.fr-info b{display:block;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fr-info b .mut{font-weight:400;font-size:.8rem}
+.fr-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.fr-chip{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:14px;background:var(--surface2);color:var(--text2)}
+.fr-chip.hot{background:color-mix(in srgb,#f2a63c 18%,transparent);color:#dd8b23}
+.fr-actions{display:flex;align-items:center;gap:6px}
+.fr-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.avatar.big{width:52px;height:52px;font-size:1.4rem}
+.share-h{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:16px 0 8px;display:flex;align-items:center;gap:6px}
+.share-h .ico{width:16px;height:16px}
+.share-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.share-row:last-child{border-bottom:none}
+.share-row b{display:block;font-size:.92rem}
+.share-row .mut{display:block}
+.search-friend{margin-bottom:12px}
+.group-card{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow)}
+.group-ico{width:44px;height:44px;border-radius:12px;background:color-mix(in srgb,var(--accent) 14%,var(--surface2));display:flex;align-items:center;justify-content:center;color:var(--accent);flex:none}
+.group-card>.ico{color:var(--muted)}
+.lb-list{display:flex;flex-direction:column}
+.lb-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.lb-row:last-child{border-bottom:none}
+.lb-row.top{background:color-mix(in srgb,var(--accent) 5%,transparent);border-radius:10px;padding-left:6px;padding-right:6px}
+.lb-rank{width:28px;text-align:center;font-weight:800;font-size:1rem;flex:none}
+.lb-score{text-align:center;flex:none}
+.lb-score b{display:block;font-size:1.15rem;font-weight:800}
+.lb-score span{font-size:.62rem;color:var(--muted);text-transform:uppercase}
+
+/* ===== v2 : compte / auth ===== */
+.account-card{border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
+.acc-row{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.auth-swap{width:100%;display:flex;margin-bottom:6px}
+.auth-swap .seg{flex:1}
+.input-ico .at{position:absolute;left:14px;color:var(--muted);font-weight:700}
+.at-input{padding-left:34px!important}
+.gsi-sep{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.78rem;margin:14px 0 10px}
+.gsi-sep::before,.gsi-sep::after{content:"";flex:1;height:1px;background:var(--line2)}
+#gsi-btn{display:flex;justify-content:center}
+
+/* verrou biométrique */
+.lock-overlay{position:fixed;inset:0;z-index:300;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.lock-box{text-align:center;padding:24px}
+.lock-box .ico{width:56px;height:56px;color:var(--accent);margin-bottom:12px}
+.lock-box h2{margin-bottom:4px}
+.lock-box p{color:var(--muted);margin:0 0 18px}
+
+/* vidéo + carte musculaire (détail exercice) */
+.ex-video{width:100%;border-radius:14px;background:#000;margin-top:12px;aspect-ratio:16/10}
+.bodymap{display:flex;justify-content:center;gap:14px;margin-top:12px}
+.bm-side{position:relative;width:120px}
+.bm-side img{width:100%;display:block}
+.bm-side .bm-overlay{position:absolute;inset:0;width:100%}
+.bm-cap{text-align:center;font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.05ms!important}}

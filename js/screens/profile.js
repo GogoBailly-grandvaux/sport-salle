@@ -10,8 +10,10 @@ import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
 import { backBtn } from './common.js';
 import * as sync from '../sync.js';
 import { relDate } from '../util.js';
+import { accountCardHtml, mountAccountCard } from './account.js';
+import { appLockCardHtml, mountAppLockCard } from '../applock.js';
 
-const APP_VERSION = '1.3';
+const APP_VERSION = '2.0';
 
 export async function render() {
   const p = activeProfile();
@@ -45,6 +47,8 @@ export async function render() {
           : `<p class="mut sm">Sur iPhone : appuie sur <b>Partager</b> ${icon('upload')} puis <b>« Sur l’écran d’accueil »</b>.</p>`}
       </section>` : ''}
 
+      ${sync.isConfigured() ? accountCardHtml() : ''}
+      ${sync.isConfigured() ? appLockCardHtml() : ''}
       ${sync.isConfigured() ? renderSyncCard() : ''}
 
       <section class="card">
@@ -118,7 +122,9 @@ export function mount(root) {
     await savePSettings({ [key]: on }); b.classList.toggle('on', on); b.setAttribute('aria-checked', on);
   });
 
-  // sync
+  // compte + verrouillage + sync
+  mountAccountCard(root);
+  mountAppLockCard(root);
   mountSyncCard(root);
 
   // data
@@ -133,14 +139,14 @@ function renderSyncCard() {
   const cfg = sync.syncCfg();
   if (!cfg?.code) {
     return `<section class="card sync-card">
-      <h3 class="card-t">${icon('bolt')} Synchronisation entre téléphones</h3>
-      <p class="mut sm">Crée un <b>groupe</b> et partage son code avec tes proches : chacun voit les profils et les séances des autres, automatiquement.</p>
-      <button class="btn primary full" id="sync-create">Créer un groupe</button>
+      <h3 class="card-t">${icon('bolt')} Synchro locale par code (sans compte)</h3>
+      <p class="mut sm">Alternative sans compte : un code partagé entre téléphones. <b>Le compte (ci-dessus) est recommandé</b> — il fait mieux, avec amis et groupes.</p>
+      <button class="btn ghost full" id="sync-create">Créer un code partagé</button>
       <button class="btn ghost full" id="sync-join">Rejoindre avec un code</button>
     </section>`;
   }
   return `<section class="card sync-card">
-    <h3 class="card-t">${icon('bolt')} Synchronisation</h3>
+    <h3 class="card-t">${icon('bolt')} Synchro locale par code</h3>
     <div class="setting"><span>Groupe</span><button class="btn ghost sm" id="sync-show-code">Afficher le code</button></div>
     <div class="setting"><span>Dernière synchro</span><b class="mut sm">${cfg.lastSyncAt ? relDate(cfg.lastSyncAt) : 'jamais'}</b></div>
     <button class="btn primary full" id="sync-now">Synchroniser maintenant</button>

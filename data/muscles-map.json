@@ -1,0 +1,161 @@
+{
+ "byWgerId": {
+  "2": {
+   "nameEn": "Shoulders",
+   "nameLatin": "Anterior deltoid",
+   "isFront": true,
+   "main": "https://wger.de/static/images/muscles/main/muscle-2.e1e1205a3202.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-2.74ea636ad97b.svg"
+  },
+  "1": {
+   "nameEn": "Biceps",
+   "nameLatin": "Biceps brachii",
+   "isFront": true,
+   "main": "https://wger.de/static/images/muscles/main/muscle-1.8790f8a0b3b9.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-1.e08c58a194b9.svg"
+  },
+  "11": {
+   "nameEn": "Hamstrings",
+   "nameLatin": "Biceps femoris",
+   "isFront": false,
+   "main": "https://wger.de/static/images/muscles/main/muscle-11.54ef31755917.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-11.a2bc76fe157a.svg"
+  },
+  "13": {
+   "nameEn": "Brachialis",
+   "nameLatin": "Brachialis",
+   "isFront": true,
+   "main": "https://wger.de/static/images/muscles/main/muscle-13.3fd85231b089.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-13.0a7e5d52821b.svg"
+  },
+  "7": {
+   "nameEn": "Calves",
+   "nameLatin": "Gastrocnemius",
+   "isFront": false,
+   "main": "https://wger.de/static/images/muscles/main/muscle-7.edbd8c381b0c.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-7.2f836b0cd383.svg"
+  },
+  "8": {
+   "nameEn": "Glutes",
+   "nameLatin": "Gluteus maximus",
+   "isFront": false,
+   "main": "https://wger.de/static/images/muscles/main/muscle-8.fbdfb46f3bc0.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-8.605e4e1a0277.svg"
+  },
+  "12": {
+   "nameEn": "Lats",
+   "nameLatin": "Latissimus dorsi",
+   "isFront": false,
+   "main": "https://wger.de/static/images/muscles/main/muscle-12.6a5de7a0e373.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-12.974a8c6def63.svg"
+  },
+  "14": {
+   "nameEn": "Obliquus externus abdominis",
+   "nameLatin": "Obliquus externus abdominis",
+   "isFront": true,
+   "main": "https://wger.de/static/images/muscles/main/muscle-14.153978038d0b.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-14.afd582849ae9.svg"
+  },
+  "4": {
+   "nameEn": "Chest",
+   "nameLatin": "Pectoralis major",
+   "isFront": true,
+   "main": "https://wger.de/static/images/muscles/main/muscle-4.c9fa9a228bc8.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-4.955e74ea6083.svg"
+  },
+  "10": {
+   "nameEn": "Quads",
+   "nameLatin": "Quadriceps femoris",
+   "isFront": true,
+   "main": "https://wger.de/static/images/muscles/main/muscle-10.b1445ea1acf6.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-10.55e36d852778.svg"
+  },
+  "6": {
+   "nameEn": "Abs",
+   "nameLatin": "Rectus abdominis",
+   "isFront": true,
+   "main": "https://wger.de/static/images/muscles/main/muscle-6.592f938fa8c7.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-6.370f77c2860e.svg"
+  },
+  "3": {
+   "nameEn": "Serratus anterior",
+   "nameLatin": "Serratus anterior",
+   "isFront": true,
+   "main": "https://wger.de/static/images/muscles/main/muscle-3.356ffc861a30.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-3.4c09bf907827.svg"
+  },
+  "15": {
+   "nameEn": "Soleus",
+   "nameLatin": "Soleus",
+   "isFront": false,
+   "main": "https://wger.de/static/images/muscles/main/muscle-15.ae8e305fc9e4.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-15.9bdd8751b3e7.svg"
+  },
+  "9": {
+   "nameEn": "Trapezius",
+   "nameLatin": "Trapezius",
+   "isFront": false,
+   "main": "https://wger.de/static/images/muscles/main/muscle-9.b491050a7108.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-9.be1b5e41906b.svg"
+  },
+  "5": {
+   "nameEn": "Triceps",
+   "nameLatin": "Triceps brachii",
+   "isFront": false,
+   "main": "https://wger.de/static/images/muscles/main/muscle-5.8a2b934b5486.svg",
+   "secondary": "https://wger.de/static/images/muscles/secondary/muscle-5.68eb84d675a5.svg"
+  }
+ },
+ "byOurName": {
+  "abdominals": [
+   "6",
+   "14"
+  ],
+  "abductors": [
+   "8"
+  ],
+  "adductors": [],
+  "biceps": [
+   "1",
+   "13"
+  ],
+  "calves": [
+   "7",
+   "15"
+  ],
+  "chest": [
+   "4"
+  ],
+  "forearms": [],
+  "glutes": [
+   "8"
+  ],
+  "hamstrings": [
+   "11"
+  ],
+  "lats": [
+   "12"
+  ],
+  "lower back": [],
+  "middle back": [
+   "9"
+  ],
+  "neck": [],
+  "quadriceps": [
+   "10"
+  ],
+  "shoulders": [
+   "2"
+  ],
+  "traps": [
+   "9"
+  ],
+  "triceps": [
+   "5"
+  ]
+ },
+ "bodyImages": {
+  "front": "https://wger.de/static/images/muscles/muscular_system_front.svg",
+  "back": "https://wger.de/static/images/muscles/muscular_system_back.svg"
+ }
+}

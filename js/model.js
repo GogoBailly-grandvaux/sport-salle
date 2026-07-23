@@ -95,6 +95,7 @@ export async function startWorkout({ routine = null, name = null } = {}) {
         ex.sets.push(s);
       }
       ex._targetReps = item.targetRepsMin ? `${item.targetRepsMin}${item.targetRepsMax && item.targetRepsMax !== item.targetRepsMin ? '-' + item.targetRepsMax : ''}` : null;
+      ex._targetRepsMax = item.targetRepsMax ?? item.targetRepsMin ?? null;
       ex._restSec = item.restSec ?? ps('defaultRestSec');
       w.exercises.push(ex);
     }

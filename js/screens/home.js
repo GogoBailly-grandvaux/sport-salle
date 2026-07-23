@@ -2,10 +2,12 @@
 import { esc, fmtDate, relDate, fmtWeight, fmtDuration, sum } from '../util.js';
 import { state, ps, activeProfile, accentHex, nav } from '../store.js';
 import { icon } from '../ui.js';
-import { listWorkouts, getActiveWorkout, listRoutines, startWorkout, listMetrics } from '../model.js';
+import { listWorkouts, getActiveWorkout, listRoutines, startWorkout, listMetrics, getRoutine } from '../model.js';
 import { workoutStats, goalStreak, thisWeekCount, weekStart } from '../analytics.js';
 import { sparkline } from '../charts.js';
 import { statTile, exGroup } from './common.js';
+import { coachAdvice } from '../coach.js';
+import { beginRoutine } from './routines.js';
 
 export async function render() {
   const p = activeProfile();
@@ -74,6 +76,14 @@ export async function render() {
       <button class="quick-b" data-nav="#/history">${icon('history')}<span>Historique</span></button>
     </div>`;
 
+  const advice = active ? null : coachAdvice({ workouts, routines, libraryById: state.libraryById, weeklyGoal: goal });
+  const coachCard = advice ? `
+    <section class="card coach-card">
+      <div class="coach-head"><span class="coach-emoji">${advice.emoji}</span><b>${esc(advice.title)}</b></div>
+      <p>${esc(advice.text)}</p>
+      ${advice.routineId ? `<button class="btn primary full" id="coach-go" data-rid="${advice.routineId}">${icon('play')} Démarrer « ${esc(advice.routineName)} »</button>` : ''}
+    </section>` : '';
+
   return `
     <header class="topbar home-top">
       <div class="topbar-c"><span class="hello">${hello},</span><h1>${esc(p?.name || 'Athlète')}</h1></div>
@@ -81,6 +91,7 @@ export async function render() {
     </header>
     <div class="screen-pad">
       ${heroActive}
+      ${coachCard}
       ${momentum}
       ${quick}
       ${lastCard}
@@ -95,5 +106,11 @@ export function mount(root) {
     be.disabled = true;
     const w = await startWorkout({});
     nav.go(`#/workout/${w.id}`);
+  };
+  const cg = root.querySelector('#coach-go');
+  if (cg) cg.onclick = async () => {
+    cg.disabled = true;
+    const r = await getRoutine(cg.dataset.rid);
+    if (r) beginRoutine(r); else nav.go('#/routines');
   };
 }

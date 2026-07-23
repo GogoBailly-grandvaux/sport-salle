@@ -10,6 +10,7 @@ import {
   getActiveWorkout, startWorkout, deleteWorkout,
 } from '../model.js';
 import { TEMPLATES, addTemplate, routinePayload, importRoutinePayload } from '../templates.js';
+import { call, isLoggedIn } from '../api.js';
 
 // ---- shared: begin a routine as a live workout ----
 export async function beginRoutine(routine) {
@@ -125,6 +126,31 @@ function openTemplates() {
   });
 }
 
+// ---------------- publication (amis / groupes) ----------------
+async function publishRoutine(r) {
+  let groups = [];
+  try { groups = (await call('groups', 'mine')).groups; } catch {}
+  const s = sheet(`
+    <p class="mut sm">Où publier « ${esc(r.name)} » ?</p>
+    <button class="menu-row" data-dest="friends">${icon('users')} Visible par mes amis</button>
+    ${groups.map(g => `<button class="menu-row" data-dest="g-${g.id}">${icon('users')} Groupe « ${esc(g.name)} »</button>`).join('')}
+    ${!groups.length ? '<p class="mut sm center">Crée un groupe dans l’onglet Social pour publier dedans.</p>' : ''}`,
+    { title: 'Publier le programme' });
+  s.root.querySelectorAll('[data-dest]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const dest = b.dataset.dest;
+    try {
+      await call('programs', 'publish', {
+        name: r.name,
+        payload: routinePayload(r),
+        groupId: dest.startsWith('g-') ? +dest.slice(2) : null,
+      });
+      s.close();
+      toast(dest === 'friends' ? 'Publié — visible par tes amis ✓' : 'Publié dans le groupe ✓', { duration: 4000 });
+    } catch (e) { toast(e.message, { type: 'error' }); b.disabled = false; }
+  });
+}
+
 // ---------------- share ----------------
 async function shareRoutine(r) {
   const payload = routinePayload(r);
@@ -207,9 +233,16 @@ export function mountEdit(root, params) {
   root.querySelector('#e-start').onclick = async () => { await persistName(); const r = await getRoutine(id); beginRoutine(r); };
   root.querySelector('#e-menu').onclick = () => {
     const s = sheet(`
-      <button class="menu-row" id="m-share">${icon('upload')} Partager à un proche</button>
+      ${isLoggedIn() ? `<button class="menu-row" id="m-publish">${icon('users')} Publier (amis / groupe)</button>` : ''}
+      <button class="menu-row" id="m-share">${icon('upload')} Partager en fichier</button>
       <button class="menu-row" id="m-rename">${icon('edit')} Renommer</button>
       <button class="menu-row danger" id="m-del">${icon('trash')} Supprimer le programme</button>`, { title: 'Options' });
+    s.root.querySelector('#m-publish')?.addEventListener('click', async () => {
+      s.close(); await persistName();
+      const r = await getRoutine(id);
+      if (!(r.items || []).length) { toast('Ajoute des exercices avant de publier'); return; }
+      publishRoutine(r);
+    });
     s.root.querySelector('#m-share').onclick = async () => {
       s.close(); await persistName();
       const r = await getRoutine(id);

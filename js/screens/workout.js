@@ -1,11 +1,12 @@
 // screens/workout.js — live workout logging + summary
-import { esc, uid, debounce, vibrate, fmtDuration, fmtClock } from '../util.js';
+import { esc, uid, debounce, vibrate, fmtDuration, fmtClock, trimNum } from '../util.js';
 import { state, ps, nav } from '../store.js';
 import { icon, sheet, toast, confirmDialog, confetti } from '../ui.js';
 import { getExercise, muscleFR } from '../data.js';
 import { exImage, emptyState } from './common.js';
 import { openExercisePicker } from './picker.js';
 import { getWorkout, saveWorkout, deleteWorkout, finishWorkout, mkSet, mkExercise, lastPerformance } from '../model.js';
+import { overloadHint } from '../coach.js';
 
 let W = null;
 let prevMap = new Map();       // exerciseId -> [prev sets]
@@ -41,12 +42,17 @@ function exBlockHtml(ex) {
   const nmap = setNumberMap(ex);
   const rows = ex.sets.map(s => setRowHtml(ex, s, nmap[s.id])).join('');
   const target = ex._targetReps ? `<span class="ex-target">cible ${ex._targetReps} reps</span>` : '';
+  const hint = overloadHint(prevMap.get(ex.exerciseId), ex._targetRepsMax);
+  const coachChip = hint
+    ? `<button class="coach-chip" data-act="applysuggest" data-kg="${hint.suggestKg}" title="${esc(hint.reason)}">🎯 Coach : tente ${trimNum(hint.suggestKg)} kg</button>`
+    : '';
   return `<section class="wk-ex" data-ex="${ex.id}">
     <div class="wk-ex-head">
       ${exImage(meta)}
       <div class="wk-ex-t"><b data-nav="#/library/${encodeURIComponent(ex.exerciseId)}">${esc(meta ? meta.name : 'Exercice')}</b><span>${esc((meta?.primaryMuscles||[]).map(muscleFR).slice(0,2).join(', '))} ${target}</span></div>
       <button class="icon-btn" data-act="exmenu" aria-label="Options">${icon('more')}</button>
     </div>
+    ${coachChip}
     <div class="set-head"><span>Série</span><span>Préc.</span><span>kg</span><span>reps</span><span></span></div>
     <div class="set-list">${rows}</div>
     <button class="btn ghost sm add-set" data-act="addset">${icon('plus')} Série</button>
@@ -112,6 +118,7 @@ export function mount(root, params) {
     if (act === 'type') return typeMenu(t, ex);
     if (act === 'prev') return fillPrev(t, ex);
     if (act === 'exmenu') return exMenu(exEl, ex);
+    if (act === 'applysuggest') return applySuggest(t, exEl, ex);
   });
 
   // header actions
@@ -186,10 +193,79 @@ function rebuildExercise(ex) {
   exEl.replaceWith(tmp.content.firstElementChild);
 }
 
+// applique la suggestion du coach à toutes les séries non validées
+function applySuggest(btn, exEl, ex) {
+  const kg = parseFloat(btn.dataset.kg);
+  for (const s of ex.sets) { if (!s.done) s.weightKg = kg; }
+  exEl.querySelectorAll('.set-row').forEach(row => {
+    const s = findSet(ex, row.dataset.set);
+    if (s && !s.done) row.querySelector('.set-in.w').value = kg;
+  });
+  btn.classList.add('applied'); btn.textContent = `✓ ${trimNum(kg)} kg — allez !`;
+  vibrate(10); persist();
+}
+
+// calculateur de disques : charge -> disques par côté (barre olympique)
+function plateCalcSheet(targetKg) {
+  const bar = ps('barWeightKg') || 20;
+  const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
+  const compute = (total) => {
+    let side = (total - bar) / 2; const out = [];
+    if (side < 0) return null;
+    for (const p of PLATES) { while (side >= p - 1e-9) { out.push(p); side -= p; } }
+    return { plates: out, rest: Math.round(side * 100) / 100 };
+  };
+  const render = (total) => {
+    const r = compute(total);
+    if (!r) return `<p class="mut center">Charge inférieure à la barre (${bar} kg)</p>`;
+    const chips = r.plates.length ? r.plates.map(p => `<span class="plate p${String(p).replace('.', '_')}">${trimNum(p)}</span>`).join('') : '<span class="mut">barre à vide</span>';
+    return `<div class="plates-row">${chips}</div>
+      <p class="mut sm center">par côté · barre ${bar} kg${r.rest ? ` · reste ${r.rest} kg non chargeable` : ''}</p>`;
+  };
+  const s = sheet(`
+    <div class="calc-head"><button class="stepbtn" data-d="-2.5">−2,5</button>
+      <div class="calc-val"><b id="pc-val">${trimNum(targetKg)}</b><span>kg total</span></div>
+      <button class="stepbtn" data-d="2.5">+2,5</button></div>
+    <div id="pc-out">${render(targetKg)}</div>`, { title: '🧮 Chargement de la barre' });
+  let cur = targetKg;
+  s.root.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
+    cur = Math.max(bar, cur + parseFloat(b.dataset.d));
+    s.root.querySelector('#pc-val').textContent = trimNum(cur);
+    s.root.querySelector('#pc-out').innerHTML = render(cur);
+  });
+}
+
+// génère des séries d'échauffement à partir de la charge de travail
+function addWarmupSets(exEl, ex) {
+  const working = ex.sets.find(s => !s.done && s.weightKg);
+  const w = working?.weightKg || ex.sets.find(s => s.weightKg)?.weightKg;
+  if (!w) { toast('Renseigne d’abord la charge de travail'); return; }
+  const scheme = [[0.4, 10], [0.6, 6], [0.8, 3]];
+  const warmups = scheme.map(([pct, reps]) => {
+    const s = mkSet(null);
+    s.type = 'warmup';
+    s.weightKg = Math.max(0, Math.round(w * pct / 2.5) * 2.5);
+    s.reps = reps;
+    return s;
+  });
+  ex.sets = [...warmups, ...ex.sets];
+  rebuildExercise(ex);
+  toast('Échauffement ajouté : 40 % ×10 · 60 % ×6 · 80 % ×3');
+  persist();
+}
+
 function exMenu(exEl, ex) {
   const s = sheet(`
+    <button class="menu-row" data-a="warmup">🔥 Générer l’échauffement</button>
+    <button class="menu-row" data-a="plates">${icon('calc')} Chargement de la barre</button>
     <button class="menu-row" data-a="note">${icon('edit')} Note d’exercice</button>
     <button class="menu-row danger" data-a="remove">${icon('trash')} Retirer l’exercice</button>`, { title: 'Exercice' });
+  s.root.querySelector('[data-a="warmup"]').onclick = () => { s.close(); addWarmupSets(exEl, ex); };
+  s.root.querySelector('[data-a="plates"]').onclick = () => {
+    s.close();
+    const w = ex.sets.find(x => !x.done && x.weightKg)?.weightKg || ex.sets.find(x => x.weightKg)?.weightKg || (ps('barWeightKg') || 20);
+    plateCalcSheet(w);
+  };
   s.root.querySelector('[data-a="remove"]').onclick = async () => {
     s.close();
     W.exercises = W.exercises.filter(e => e.id !== ex.id);

@@ -38,12 +38,21 @@ export const musclesFR = (arr=[]) => arr.map(muscleFR);
 
 export function imageUrls(ex) {
   if (!ex || !ex.images) return [];
-  return ex.images.map(p => CDN + p);
+  return ex.images.map(p => p.startsWith('http') ? p : CDN + p);
+}
+
+// carte musculaire wger (silhouettes + overlays), chargée à la demande
+let _musclesMap = null;
+export async function musclesMap() {
+  if (_musclesMap !== null) return _musclesMap;
+  try { _musclesMap = await (await fetch('./data/muscles-map.json?v=' + DATA_VERSION)).json(); }
+  catch { _musclesMap = false; }
+  return _musclesMap;
 }
 
 let _loaded = false;
 let _baseLib = []; // bibliothèque intégrée (partagée entre profils)
-export const DATA_VERSION = '2'; // à incrémenter à chaque mise à jour de data/exercises.json (voir aussi sw.js)
+export const DATA_VERSION = '3'; // à incrémenter à chaque mise à jour de data/exercises.json (voir aussi sw.js)
 
 // Recharge les exercices perso du profil actif (les anciens sans profileId restent visibles par tous).
 export async function refreshCustoms() {

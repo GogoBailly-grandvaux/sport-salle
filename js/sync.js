@@ -5,9 +5,11 @@
 import { SYNC_URL } from './sync-config.js';
 import { mergeSnapshots, SYNC_STORES } from './sync-merge.js';
 import * as db from './db.js';
-import { state, emit, loadProfiles, saveGlobal } from './store.js';
+import { state, emit, on, loadProfiles, saveGlobal } from './store.js';
 import { refreshCustoms } from './data.js';
 import { uid, nowTs } from './util.js';
+import { call, ApiError } from './api.js';
+import { workoutStats, thisWeekCount, goalStreak, weekStart } from './analytics.js';
 
 let dirty = new Set();      // profileIds à pousser
 let applying = false;       // écritures internes (pas de re-marquage dirty)
@@ -87,8 +89,108 @@ async function applySnapshot(pid, snap) {
   }
 }
 
-// ---------- cycle de synchro ----------
-export async function syncNow({ keepalive = false } = {}) {
+// ---------- synchro par COMPTE (multi-appareils, un instantané par utilisateur) ----------
+function computeStats(snap) {
+  const ws = (snap.stores?.workouts || []).filter(w => w.status === 'completed');
+  ws.sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
+  const last = ws[0] || null;
+  const goal = snap.settings?.data?.weeklyGoal || 3;
+  const wkStart = weekStart(Date.now());
+  let weekVolume = 0;
+  for (const w of ws) {
+    if (weekStart(w.completedAt || w.startedAt) === wkStart) weekVolume += Math.round(workoutStats(w).volume);
+  }
+  return {
+    lastWorkoutAt: last ? (last.completedAt || null) : null,
+    lastWorkout: last ? `${last.name} · ${workoutStats(last).sets} séries` : null,
+    weekStart: wkStart,
+    weekCount: thisWeekCount(ws),
+    weekVolume,
+    streak: goalStreak(ws, goal),
+    totalWorkouts: ws.length,
+  };
+}
+
+async function accountSyncProfile(pid, acc, { keepalive = false } = {}) {
+  try {
+    const remote = (await call('data', 'pull', {}, { token: acc.token, keepalive }))?.data || null;
+    const local = await collectSnapshot(pid);
+    // l'instantané distant peut venir d'un autre appareil où le profil a un autre id local :
+    // on aligne son profil sur notre id local avant fusion
+    if (remote?.profile && remote.profile.id !== pid) {
+      remote.profile = { ...remote.profile, id: pid };
+      for (const s of SYNC_STORES) for (const r of (remote.stores?.[s] || [])) r.profileId = pid;
+      if (remote.settings) remote.settings.id = 'p:' + pid;
+      for (const t of (remote.tombstones || [])) t.profileId = pid;
+    }
+    const merged = mergeSnapshots(local, remote);
+    if (!merged) return { ok: true, changed: false };
+    // jamais de marqueur "supprimé" pour un compte : le compte survit à la suppression locale
+    if (merged.deleted) return { ok: true, changed: false };
+    const mj = JSON.stringify(merged);
+    let changed = false;
+    if (JSON.stringify(local) !== mj) { await applySnapshot(pid, merged); changed = true; }
+    if (JSON.stringify(remote) !== mj || dirty.has(pid)) {
+      await call('data', 'push', { data: merged, stats: computeStats(merged) }, { token: acc.token, keepalive });
+    }
+    dirty.delete(pid);
+    return { ok: true, changed };
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) {
+      const sdoc = await db.get('settings', 'p:' + pid);
+      if (sdoc?.data?.account) { sdoc.data.account = null; await db.put('settings', sdoc); emit('account-changed'); }
+    }
+    return { ok: false, reason: e.message };
+  }
+}
+
+async function accountsSync(opts = {}) {
+  let changedAny = false, okAll = true, count = 0;
+  const profiles = await db.getAll('profiles');
+  for (const p of profiles) {
+    const sdoc = await db.get('settings', 'p:' + p.id);
+    const acc = sdoc?.data?.account;
+    if (!acc?.token) continue;
+    count++;
+    const r = await accountSyncProfile(p.id, acc, opts);
+    changedAny = changedAny || !!r.changed;
+    okAll = okAll && r.ok;
+  }
+  if (changedAny) {
+    await loadProfiles();
+    await refreshCustoms();
+    emit('profiles');
+    emit('sync-applied');
+  }
+  return { ok: okAll, changed: changedAny, accounts: count };
+}
+
+async function anyAccountLinked() {
+  const profiles = await db.getAll('profiles');
+  for (const p of profiles) {
+    const sdoc = await db.get('settings', 'p:' + p.id);
+    if (sdoc?.data?.account?.token) return true;
+  }
+  return false;
+}
+
+// ---------- cycle de synchro global (comptes + groupe hérité) ----------
+export async function syncNow(opts = {}) {
+  if (!_configured || syncing) return { ok: false, reason: syncing ? 'busy' : 'off' };
+  if (!navigator.onLine) return { ok: false, reason: 'offline' };
+  syncing = true;
+  try {
+    const acc = await accountsSync(opts);
+    let room = { ok: true, changed: false };
+    if (syncCfg()?.code) { syncing = false; room = await roomSyncNow(opts); syncing = true; }
+    return { ok: acc.ok && room.ok, changed: acc.changed || room.changed, accounts: acc.accounts, reason: (!acc.ok && 'compte') || (!room.ok && room.reason) || undefined };
+  } finally {
+    syncing = false;
+  }
+}
+
+// ---------- synchro par CODE DE GROUPE (héritée, profils sans compte) ----------
+async function roomSyncNow({ keepalive = false } = {}) {
   if (!isEnabled() || syncing) return { ok: false, reason: syncing ? 'busy' : 'off' };
   if (!navigator.onLine) return { ok: false, reason: 'offline' };
   syncing = true;
@@ -97,7 +199,13 @@ export async function syncNow({ keepalive = false } = {}) {
     const rows = (await api('pull', { code: cfg.code }, { keepalive })) || [];
     const remote = new Map(rows.map(r => [r.profile_id, r.data]));
 
-    const localProfiles = (await db.getAll('profiles')).map(p => p.id);
+    // les profils liés à un compte sont synchronisés par le compte, pas par le groupe
+    const allProfiles = await db.getAll('profiles');
+    const localProfiles = [];
+    for (const p of allProfiles) {
+      const sdoc = await db.get('settings', 'p:' + p.id);
+      if (!sdoc?.data?.account?.token) localProfiles.push(p.id);
+    }
     const tombedProfiles = (await db.getAll('deletions')).filter(t => t.store === 'profiles').map(t => t.recordId);
     const ids = new Set([...localProfiles, ...remote.keys(), ...tombedProfiles]);
 
@@ -173,7 +281,7 @@ function scheduleDirtyPush() {
 }
 
 function onDbWrite(storeName, obj) {
-  if (applying || !isEnabled()) return;
+  if (applying || !_configured) return;
   if (storeName === 'deletions') { scheduleDirtyPush(); return; }
   let pid = null;
   if (obj && typeof obj === 'object' && obj.profileId) pid = obj.profileId;
@@ -221,5 +329,6 @@ export async function init() {
   db.setOnWrite(onDbWrite);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
   window.addEventListener('pagehide', () => { if (dirty.size) syncNow({ keepalive: true }); });
-  if (isEnabled()) { startAuto(); syncNow(); }
+  on('account-changed', () => { startAuto(); syncNow(); });
+  if (isEnabled() || await anyAccountLinked()) { startAuto(); syncNow(); }
 }
