@@ -146,13 +146,17 @@ async function publishRoutine(r) {
     b.disabled = true;
     const dest = b.dataset.dest;
     try {
-      await call('programs', 'publish', {
+      const pub = await call('programs', 'publish', {
         name: r.name,
         payload: routinePayload(r),
         groupId: dest.startsWith('g-') ? +dest.slice(2) : null,
       });
+      // publication aux amis -> le programme apparaît aussi dans le fil
+      if (dest === 'friends' && pub?.id) {
+        try { await call('posts', 'publish', { kind: 'program', content: { sharedId: pub.id, name: r.name, exos: (r.items || []).length } }); } catch {}
+      }
       s.close();
-      toast(dest === 'friends' ? 'Publié — visible par tes amis ✓' : 'Publié dans le groupe ✓', { duration: 4000 });
+      toast(dest === 'friends' ? t('Publié — visible par tes amis et dans le fil ✓','Published — visible to your friends and in the feed ✓') : t('Publié dans le groupe ✓','Published to the group ✓'), { duration: 4000 });
     } catch (e) { toast(e.message, { type: 'error' }); b.disabled = false; }
   });
 }

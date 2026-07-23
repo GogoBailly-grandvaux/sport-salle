@@ -76,25 +76,136 @@ function header() {
 }
 
 // ---------------- FIL ----------------
-async function renderFeed() {
-  const d = await call('social', 'list');
-  const { friends, incoming } = d;
-  if (!friends.length && !incoming.length) {
-    return emptyState('users', t('Ton fil est vide','Your feed is empty'), t('Ajoute tes premiers amis pour voir leurs séances et partager tes programmes.','Add your first friends to see their workouts and share programs.'),
-      `<button class="btn primary" data-seg-go="amis">${icon('plus')} ${t('Ajouter des amis','Add friends')}</button>`);
+const EMOJIS = ['👊', '🔥', '💪', '👏'];
+
+function ago(ts) {
+  const s = Math.max(0, Math.round(Date.now() / 1000 - ts));
+  if (s < 60) return t('à l’instant','just now');
+  const m = Math.round(s / 60);
+  if (m < 60) return t(`il y a ${m} min`,`${m} min ago`);
+  const h = Math.round(m / 60);
+  if (h < 24) return t(`il y a ${h} h`,`${h} h ago`);
+  const d = Math.round(h / 24);
+  return d === 1 ? t('hier','yesterday') : t(`il y a ${d} j`,`${d} d ago`);
+}
+
+const fmtDur = (sec) => {
+  const m = Math.round((sec || 0) / 60);
+  return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m} min`;
+};
+
+function postBody(p) {
+  const c = p.content || {};
+  if (p.kind === 'workout') {
+    const chips = [
+      c.sets ? `<span class="fr-chip">${c.sets} ${t('séries','sets')}</span>` : '',
+      c.volume ? `<span class="fr-chip">${Number(c.volume).toLocaleString(t('fr-FR','en-US'))} kg</span>` : '',
+      c.durationSec ? `<span class="fr-chip">${fmtDur(c.durationSec)}</span>` : '',
+      c.prs ? `<span class="fr-chip hot">🏆 ${c.prs} PR${c.prs > 1 ? 's' : ''}</span>` : '',
+    ].filter(Boolean).join('');
+    return `<div class="post-wk"><b>💪 ${esc(c.name || t('Séance','Workout'))}</b>
+      <div class="fr-chips">${chips}</div>
+      ${c.note ? `<p class="post-note">${esc(c.note)}</p>` : ''}</div>`;
   }
+  if (p.kind === 'program') {
+    return `<div class="post-prog">
+      <div class="post-prog-l"><b>📋 ${esc(c.name || t('Programme','Program'))}</b>
+      ${c.exos ? `<span class="mut sm">${c.exos} ${t('exercice','exercise')}${c.exos > 1 ? 's' : ''}</span>` : ''}</div>
+      ${p.isMine ? '' : `<button class="btn primary sm" data-import="${+c.sharedId}">${icon('download')} ${t('Importer','Import')}</button>`}
+    </div>`;
+  }
+  return `<p class="post-text">${esc(c.text || '')}</p>`;
+}
+
+function postCard(p) {
+  const a = p.author || {};
+  const reacts = EMOJIS.map(e => {
+    const n = (p.reactions && p.reactions[e]) || 0;
+    const on = p.myReaction === e;
+    return `<button class="react-chip ${on ? 'on' : ''}" data-react="${e}" data-post="${p.id}" aria-label="${t('Réagir','React')} ${e}">${e}${n ? ` <b>${n}</b>` : ''}</button>`;
+  }).join('');
+  return `<article class="post-card" data-pid="${p.id}">
+    <div class="post-head">
+      ${avatarHtml(a)}
+      <div class="post-who"><b>${esc(a.displayName || '')}</b><span class="mut sm">@${esc(a.username || '')} · ${ago(p.ts)}</span></div>
+      ${p.isMine ? `<button class="icon-btn sm post-del" data-del="${p.id}" aria-label="${t('Supprimer le post','Delete post')}">${icon('trash')}</button>` : ''}
+    </div>
+    ${postBody(p)}
+    <div class="react-bar">${reacts}</div>
+  </article>`;
+}
+
+async function renderFeed() {
+  const [d, soc] = await Promise.all([call('posts', 'feed'), call('social', 'list')]);
+  const { incoming, friends } = soc;
   const pending = incoming.length ? `<button class="pending-banner" data-seg-go="amis">👋 ${incoming.length} ${t('demande','friend request')}${incoming.length > 1 ? 's' : ''} ${t('d’ami en attente','pending')} ${icon('right')}</button>` : '';
-  const cards = friends.map(f => `
-    <button class="friend-card" data-friend='${esc(JSON.stringify({ id: f.id, username: f.username, displayName: f.displayName }))}'>
-      ${avatarHtml(f)}
-      <div class="fr-info">
-        <b>${esc(f.displayName)} <span class="mut">@${esc(f.username)}</span></b>
-        ${statsLine(f.stats)}
-        ${statChips(f.stats)}
-      </div>
-      ${icon('right')}
-    </button>`).join('');
-  return pending + `<div class="friend-list">${cards}</div>`;
+  const acc = account();
+  const composer = `<button class="feed-composer" id="feed-compose">
+    ${avatarHtml({ emoji: acc?.user?.emoji, displayName: acc?.user?.displayName, username: acc?.user?.username, accent: acc?.user?.accent })}
+    <span>${t('Quoi de neuf à la salle ?','What’s new at the gym?')}</span>
+  </button>`;
+  let list;
+  if (d.posts.length) {
+    list = `<div class="feed-list" id="feed-list">${d.posts.map(postCard).join('')}</div>
+      ${d.hasMore ? `<button class="btn ghost full" id="feed-more" data-before="${d.posts[d.posts.length - 1].id}">${t('Voir plus','See more')}</button>` : ''}`;
+  } else if (!friends.length) {
+    list = emptyState('users', t('Ton fil est vide','Your feed is empty'), t('Ajoute tes premiers amis pour voir leurs séances, leurs posts et leurs programmes.','Add your first friends to see their workouts, posts and programs.'),
+      `<button class="btn primary" data-seg-go="amis">${icon('plus')} ${t('Ajouter des amis','Add friends')}</button>`);
+  } else {
+    list = emptyState('users', t('Rien pour l’instant','Nothing yet'), t('Termine une séance et partage-la, ou écris le premier post !','Finish a workout and share it, or write the first post!'), '');
+  }
+  return pending + composer + list;
+}
+
+function wireFeed(root) {
+  root.querySelector('#feed-compose')?.addEventListener('click', () => {
+    const s = sheet(`
+      <textarea class="input post-input" id="pc-text" rows="4" maxlength="500" placeholder="${t('Raconte ta séance, motive la team…','Tell about your workout, motivate the team…')}"></textarea>
+      <button class="btn primary full" id="pc-send">${t('Publier','Post')}</button>`,
+      { title: t('Nouveau post','New post') });
+    const ta = s.root.querySelector('#pc-text');
+    setTimeout(() => ta.focus(), 250);
+    s.root.querySelector('#pc-send').onclick = async () => {
+      const text = ta.value.trim();
+      if (!text) { ta.focus(); return; }
+      const btn = s.root.querySelector('#pc-send');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      try { await call('posts', 'publish', { kind: 'text', content: { text } }); s.close(); toast(t('Publié ✓','Posted ✓')); nav.refresh(); }
+      catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; btn.textContent = t('Publier','Post'); }
+    };
+  });
+  root.querySelectorAll('[data-react]').forEach(b => b.onclick = async () => {
+    const postId = +b.dataset.post;
+    const emoji = b.dataset.react;
+    const wasOn = b.classList.contains('on');
+    // optimiste : bascule immédiate, correction au refresh
+    const card = b.closest('.post-card');
+    card.querySelectorAll('.react-chip').forEach(x => { if (x !== b) x.classList.remove('on'); });
+    b.classList.toggle('on', !wasOn);
+    try { await call('posts', 'react', { postId, emoji: wasOn ? '' : emoji }); nav.refresh(); }
+    catch (e) { toast(e.message, { type: 'error' }); nav.refresh(); }
+  });
+  root.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    if (!(await confirmDialog({ title: t('Supprimer','Delete'), message: t('Supprimer ce post ?','Delete this post?'), confirmText: t('Supprimer','Delete'), danger: true }))) return;
+    try { await call('posts', 'delete', { postId: +b.dataset.del }); toast(t('Post supprimé','Post deleted')); nav.refresh(); }
+    catch (e) { toast(e.message, { type: 'error' }); }
+  });
+  root.querySelector('#feed-more')?.addEventListener('click', async () => {
+    const btn = root.querySelector('#feed-more');
+    btn.disabled = true;
+    try {
+      const d = await call('posts', 'feed', { before: +btn.dataset.before });
+      root.querySelector('#feed-list').insertAdjacentHTML('beforeend', d.posts.map(postCard).join(''));
+      if (d.hasMore && d.posts.length) { btn.dataset.before = d.posts[d.posts.length - 1].id; btn.disabled = false; }
+      else btn.remove();
+      wireFeed(root); // recâble les nouvelles cartes
+    } catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; }
+  });
+  root.querySelectorAll('[data-import]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    await importShared(+b.dataset.import);
+    b.disabled = false;
+  });
 }
 
 function openFriendSheet(f) {
@@ -238,6 +349,7 @@ export function mount(root) {
   root.querySelector('#soc-login')?.addEventListener('click', () => openAuthSheet('login', () => nav.refresh()));
   root.querySelectorAll('[data-seg]').forEach(b => b.onclick = () => { seg = b.dataset.seg; nav.refresh(); });
   wireActions(root);
+  if (seg === 'feed') wireFeed(root);
   if (seg === 'amis') wireAmis(root);
   if (seg === 'groupes') wireGroupes(root);
 }

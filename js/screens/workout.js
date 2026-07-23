@@ -9,6 +9,7 @@ import { openExercisePicker } from './picker.js';
 import { getWorkout, saveWorkout, deleteWorkout, finishWorkout, mkSet, mkExercise, lastPerformance } from '../model.js';
 import { overloadHint } from '../coach.js';
 import { praise } from '../voice.js';
+import { call, isLoggedIn } from '../api.js';
 
 let W = null;
 let prevMap = new Map();       // exerciseId -> [prev sets]
@@ -551,6 +552,7 @@ export async function renderSummary(params) {
       </div>
       ${prs ? `<section class="card pr-card"><h3 class="card-t">${icon('trophy')} ${(w.prs||[]).length} ${t('nouveau','new')}${(w.prs||[]).length>1 ? t('x','') :''} record${(w.prs||[]).length>1?'s':''} !</h3>${prs}</section>` : ''}
       <div class="summary-actions">
+        ${isLoggedIn() ? `<button class="btn ghost full" id="sum-share">👊 ${t('Partager à mes amis','Share with my friends')}</button>` : ''}
         <button class="btn ghost full" data-nav="#/history/${w.id}">${t('Voir le détail','View details')}</button>
         <button class="btn primary full" data-nav="#/home" id="sum-done">${t('Terminé','Done')}</button>
       </div>
@@ -561,4 +563,19 @@ export function mountSummary(root, params) {
     setTimeout(() => confetti(root.querySelector('.summary-badge')), 250);
     vibrate([80, 40, 80, 40, 120]);
   }
+  // partage de la séance dans le fil (opt-in : rien ne part sans ce geste)
+  root.querySelector('#sum-share')?.addEventListener('click', async () => {
+    const btn = root.querySelector('#sum-share');
+    btn.disabled = true;
+    try {
+      const w = await getWorkout(params.id);
+      const { workoutStats } = await import('../analytics.js');
+      const st = workoutStats(w);
+      await call('posts', 'publish', { kind: 'workout', content: {
+        name: w.name, sets: st.sets, volume: Math.round(st.volume),
+        durationSec: w.durationSec || 0, prs: (w.prs || []).length,
+      } });
+      btn.textContent = t('Partagé ✓ tes amis vont le voir','Shared ✓ your friends will see it');
+    } catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; }
+  });
 }
