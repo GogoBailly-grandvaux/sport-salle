@@ -97,7 +97,9 @@ export function generatePlans(input, library, seed = 1) {
   const nEx = exCountFor(input.durationMin || 45, level);
 
   // pool filtré une fois : catégorie force, niveau, matériel
+  const isStretch = e => /étirement|etirement|stretch/i.test((e.name || '') + ' ' + (e.nameEn || ''));
   const pool = library.filter(e =>
+    !isStretch(e) && // certains étirements sont mal catégorisés « strength » dans les données
     STRENGTH_CATS.has(e.category) &&
     lvlOk.has(e.level || 'intermediate') &&
     (!equip.allow || equip.allow.includes(e.equipment))
@@ -125,6 +127,7 @@ export function generatePlans(input, library, seed = 1) {
         let s = 0;
         if (e.mechanic === 'compound') s += slot < 3 ? 3 : 1;   // les gros mouvements d'abord
         if (prefEq.has(e.equipment)) s += 2;                      // matériel adapté au profil
+        if (level === 'beginner' && (e.level || '') === 'beginner') s += 2; // vrais mouvements de débutant d'abord
         if (e.name && e.nameEn && e.name !== e.nameEn) s += 2;    // nom français dispo
         if (e.images && e.images.length) s += 1;                  // illustré
         if (usedWeek.has(e.id)) s -= 2.5;                         // varie d'un jour à l'autre

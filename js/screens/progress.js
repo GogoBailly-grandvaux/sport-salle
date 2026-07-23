@@ -1,5 +1,5 @@
 // screens/progress.js — progress hub, per-exercise charts, body metrics
-import { esc, fmtDate, relDate, todayISO, fmtWeight, round } from '../util.js';
+import { esc, fmtDate, relDate, todayISO, fmtWeight, round , isoToTs } from '../util.js';
 import { ps, state, nav } from '../store.js';
 import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
 import { getExercise, muscleFR, MUSCLE_GROUP } from '../data.js';
@@ -48,7 +48,7 @@ export async function renderHub() {
   const freq = new Map();
   for (const w of workouts) for (const ex of (w.exercises||[])) if ((ex.sets||[]).some(isWorkingSet)) freq.set(ex.exerciseId, (freq.get(ex.exerciseId)||0)+1);
   const top = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const topList = top.map(([id,n]) => { const ex = getExercise(id); return `<button class="ex-mini" data-nav="#/progress/exercise/${encodeURIComponent(id)}">${exImage(ex)}<div><b>${esc(ex?ex.name:'')}</b><span>${n} séance(s)</span></div>${icon('right')}</button>`; }).join('');
+  const topList = top.map(([id,n]) => { const ex = getExercise(id); return `<button class="ex-mini" data-nav="#/progress/exercise/${encodeURIComponent(id)}">${exImage(ex)}<div><b>${esc(ex?ex.name:'')}</b><span>${n} séances</span></div>${icon('right')}</button>`; }).join('');
 
   if (!workouts.length) {
     return `${hubHeader()}<div class="screen-pad">${emptyState('chart','Pas encore de données','Enregistre quelques séances et tes courbes de progression apparaîtront ici.',`<button class="btn primary" data-nav="#/home">Démarrer une séance</button>`)}</div>`;
@@ -117,7 +117,7 @@ export async function renderExercise(params) {
     ` : emptyState('chart','Aucune donnée','Tu n’as pas encore fait cet exercice en séance.','');
 
   return `
-    <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div><div class="topbar-c"><h1 class="ell">${esc(ex?ex.name:'Exercice')}</h1></div><div class="topbar-r"><button class="icon-btn" data-nav="#/library/${encodeURIComponent(id)}">${icon('info')}</button></div></header>
+    <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div><div class="topbar-c"><h1 class="ell">${esc(ex?ex.name:'Exercice')}</h1></div><div class="topbar-r"><button class="icon-btn" data-nav="#/library/${encodeURIComponent(id)}" aria-label="Fiche de l’exercice">${icon('info')}</button></div></header>
     <div class="screen-pad">${body}</div>`;
 }
 export function mountExercise() {}
@@ -129,10 +129,10 @@ let bodyType = 'weight';
 export async function renderBody() {
   const rows = await listMetrics(bodyType);
   const meta = METRICS[bodyType];
-  const pts = rows.map(m => ({ ts: new Date(m.date).getTime(), value: m.value }));
+  const pts = rows.map(m => ({ ts: isoToTs(m.date), value: m.value }));
   const trend = emaTrend(pts, 0.15);
   const seg = Object.entries(METRICS).map(([k,v]) => `<button class="seg ${k===bodyType?'on':''}" data-type="${k}">${v.label}</button>`).join('');
-  const list = rows.slice().reverse().slice(0,30).map(m => `<div class="metric-row"><span>${fmtDate(new Date(m.date).getTime(),{year:true})}</span><b>${m.value} ${meta.unit}</b><button class="icon-btn sm danger" data-del="${m.id}">${icon('trash')}</button></div>`).join('');
+  const list = rows.slice().reverse().slice(0,30).map(m => `<div class="metric-row"><span>${fmtDate(isoToTs(m.date),{year:true})}</span><b>${m.value} ${meta.unit}</b><button class="icon-btn sm danger" data-del="${m.id}" aria-label="Supprimer la mesure">${icon('trash')}</button></div>`).join('');
 
   return `
     <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div><div class="topbar-c"><h1>Mesures</h1></div><div class="topbar-r"><button class="icon-btn" id="bm-add" aria-label="Ajouter">${icon('plus')}</button></div></header>

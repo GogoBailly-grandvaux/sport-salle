@@ -1,7 +1,7 @@
 /* ===== Sport Salle v2 — design system « Charbon & Volt » ===== */
 :root{
   --bg:#f2f0ea; --bg2:#faf9f5; --surface:#ffffff; --surface2:#f3f1e9;
-  --line:#e6e3d8; --line2:#d3cfc0; --text:#171a21; --text2:#4c5361; --muted:#8b8fa0;
+  --line:#e6e3d8; --line2:#d3cfc0; --text:#171a21; --text2:#4c5361; --muted:#6d7280;
   --accent:#b5760f; --accent-2:#b5760f; --on-accent:#fff8ec;
   --danger:#d1493a; --good:#2f9e6b;
   --radius:18px; --radius-sm:12px; --tap:54px;
@@ -19,7 +19,7 @@
 }}
 :root[data-theme="light"]{
   --bg:#f2f0ea; --bg2:#faf9f5; --surface:#ffffff; --surface2:#f3f1e9;
-  --line:#e6e3d8; --line2:#d3cfc0; --text:#171a21; --text2:#4c5361; --muted:#8b8fa0;
+  --line:#e6e3d8; --line2:#d3cfc0; --text:#171a21; --text2:#4c5361; --muted:#6d7280;
   --on-accent:#fff8ec; --danger:#d1493a; --good:#2f9e6b;
   --shadow:0 1px 2px rgba(24,20,10,.04),0 10px 30px rgba(24,20,10,.07);
 }
@@ -79,7 +79,7 @@ body.immersive #view{padding-bottom:calc(70px + var(--safe-b))}
 
 .icon-btn{width:40px;height:40px;border:none;background:transparent;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text)}
 .icon-btn:active{background:var(--surface2)}
-.icon-btn.sm{width:34px;height:34px}
+.icon-btn.sm{width:40px;height:40px}
 .icon-btn.sm .ico{width:19px;height:19px}
 .icon-btn.active{color:var(--accent)}
 .icon-btn.danger{color:var(--danger)}
@@ -174,7 +174,7 @@ body.immersive #view{padding-bottom:calc(70px + var(--safe-b))}
 .lib-info{flex:1;min-width:0}
 .lib-info b{display:block;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lib-info span{font-size:.76rem;color:var(--muted);text-transform:capitalize}
-.fav-btn{width:38px;height:38px;border:none;background:transparent;border-radius:10px;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.fav-btn{width:42px;height:42px;border:none;background:transparent;border-radius:10px;color:var(--muted);display:flex;align-items:center;justify-content:center}
 .fav-btn.on{color:#f2b23c}
 .fav-btn.big .ico{width:24px;height:24px}
 .filter-tags{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
@@ -388,7 +388,7 @@ textarea.input{height:auto;padding:12px 14px}
 .setting:last-child{border-bottom:none}
 .setting>span{font-size:.92rem}
 .stepper{display:flex;align-items:center;gap:6px}
-.stepper button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line2);background:var(--surface2);color:var(--text);display:flex;align-items:center;justify-content:center}
+.stepper button{width:40px;height:40px;border-radius:9px;border:1px solid var(--line2);background:var(--surface2);color:var(--text);display:flex;align-items:center;justify-content:center}
 .stepper button .ico{width:18px;height:18px}
 .stepper b{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
 .switch{width:50px;height:30px;border-radius:16px;border:none;background:var(--line2);position:relative;transition:background .15s}
@@ -648,5 +648,8 @@ body.welcome-mode .tabbar{display:none}
 .wel-actions{animation:welUp .45s .24s cubic-bezier(.2,.8,.2,1) both}
 @keyframes welPop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
 @keyframes welUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.list-more{height:40px}
 
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.05ms!important}}

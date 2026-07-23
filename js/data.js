@@ -67,6 +67,7 @@ export async function refreshCustoms() {
 
 export async function loadLibrary() {
   const res = await fetch('./data/exercises.json?v=' + DATA_VERSION);
+  if (!res.ok) throw new Error('Bibliothèque d’exercices introuvable (' + res.status + ')');
   const raw = await res.json();
   // Nom FR en priorité s'il existe (enrichissement wger) ; la recherche matche FR + EN.
   _baseLib = raw.map(e => {

@@ -13,19 +13,59 @@ import { allTimeBests } from '../analytics.js';
 
 const F = { q: '', muscle: '', equipment: '', category: '', favOnly: false };
 let favSet = new Set();
+const CHUNK = 120;           // rendu par tranches : 1214 lignes d'un coup = gel sur mobile
+let listLimit = CHUNK;
+
+const rowHtml = (ex) => `
+    <button class="lib-row" data-nav="#/library/${encodeURIComponent(ex.id)}">
+      ${exImage(ex)}
+      <div class="lib-info"><b>${esc(ex.name)}</b><span>${esc(musclesFR(ex.primaryMuscles).join(', ') || '—')}</span></div>
+      <button class="fav-btn ${favSet.has(ex.id)?'on':''}" data-fav="${esc(ex.id)}" aria-label="Favori" aria-pressed="${favSet.has(ex.id)}">${icon(favSet.has(ex.id)?'starfill':'star')}</button>
+    </button>`;
+
+function wireFavs(scope) {
+  scope.querySelectorAll('[data-fav]:not([data-wired])').forEach(b => {
+    b.dataset.wired = '1';
+    b.addEventListener('click', async e => {
+      e.stopPropagation(); e.preventDefault();
+      const id = b.dataset.fav; const on = !favSet.has(id);
+      if (on) favSet.add(id); else favSet.delete(id);
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+      b.innerHTML = icon(on ? 'starfill' : 'star');
+      await toggleFavorite(state.activeProfileId, id, on);
+    });
+  });
+}
+
+// sentinelle en bas de liste : charge la tranche suivante à l'approche du bas
+// (déclencheur scroll : fonctionne partout, y compris document caché où l'IntersectionObserver se tait)
+function observeMore(root) {
+  if (!root.querySelector('#lib-more')) return;
+  const check = () => {
+    const m = root.querySelector('#lib-more');
+    if (!m) { removeEventListener('scroll', check); return; } // écran quitté / liste complète
+    if (m.getBoundingClientRect().top > innerHeight + 300) return;
+    const res = searchExercises({ ...F, favSet: F.favOnly ? favSet : null });
+    const next = res.slice(listLimit, listLimit + CHUNK);
+    listLimit += CHUNK;
+    m.insertAdjacentHTML('beforebegin', next.map(rowHtml).join(''));
+    wireFavs(root.querySelector('.lib-list'));
+    if (listLimit >= res.length) m.remove();
+  };
+  if (root._libScroll) removeEventListener('scroll', root._libScroll); // pas de doublon entre re-rendus
+  root._libScroll = check;
+  addEventListener('scroll', check, { passive: true });
+  check();
+}
 
 export async function renderList() {
   favSet = await loadFavorites(state.activeProfileId);
   const res = searchExercises({ ...F, favSet: F.favOnly ? favSet : null });
-  const shown = res;
+  listLimit = CHUNK;
+  const shown = res.slice(0, listLimit);
   const activeFilters = [F.muscle && muscleFR(F.muscle), F.equipment && EQUIP_FR[F.equipment], F.category && CATEGORY_FR[F.category]].filter(Boolean);
 
-  const rows = shown.length ? shown.map(ex => `
-    <button class="lib-row" data-nav="#/library/${encodeURIComponent(ex.id)}">
-      ${exImage(ex)}
-      <div class="lib-info"><b>${esc(ex.name)}</b><span>${esc(musclesFR(ex.primaryMuscles).join(', ') || '—')}</span></div>
-      <button class="fav-btn ${favSet.has(ex.id)?'on':''}" data-fav="${esc(ex.id)}" aria-label="Favori">${icon(favSet.has(ex.id)?'starfill':'star')}</button>
-    </button>`).join('')
+  const rows = shown.length ? shown.map(rowHtml).join('') + (res.length > listLimit ? '<div class="list-more" id="lib-more"></div>' : '')
     : emptyState('search', 'Aucun résultat', 'Essaie un autre mot ou enlève les filtres.',
         `<button class="btn ghost" id="lib-clear">Réinitialiser</button>`);
 
@@ -41,7 +81,7 @@ export async function renderList() {
         <button class="icon-btn ${activeFilters.length?'active':''}" id="lib-filter" aria-label="Filtres">${icon('filter')}</button>
       </div>
       ${activeFilters.length ? `<div class="filter-tags">${activeFilters.map(f=>`<span class="tag">${esc(f)}</span>`).join('')}<button class="tag clear" id="lib-clear2">Effacer ${icon('x')}</button></div>` : ''}
-      <p class="mut sm count">${res.length} exercice(s)</p>
+      <p class="mut sm count">${res.length} exercice${res.length>1?'s':''}</p>
       <div class="lib-list">${rows}</div>
     </div>`;
 }
@@ -53,13 +93,8 @@ export function mountList(root) {
   root.querySelector('#lib-filter').onclick = openFilters;
   root.querySelector('#lib-clear')?.addEventListener('click', clearF);
   root.querySelector('#lib-clear2')?.addEventListener('click', clearF);
-  root.querySelectorAll('[data-fav]').forEach(b => b.addEventListener('click', async e => {
-    e.stopPropagation(); e.preventDefault();
-    const id = b.dataset.fav; const on = !favSet.has(id);
-    if (on) favSet.add(id); else favSet.delete(id);
-    b.classList.toggle('on', on); b.innerHTML = icon(on ? 'starfill' : 'star');
-    await toggleFavorite(state.activeProfileId, id, on);
-  }));
+  wireFavs(root);
+  observeMore(root);
 }
 
 function clearF() { F.q=''; F.muscle=''; F.equipment=''; F.category=''; F.favOnly=false; nav.refresh(); }
@@ -68,23 +103,13 @@ function clearF() { F.q=''; F.muscle=''; F.equipment=''; F.category=''; F.favOnl
 function softRefresh(root) {
   const res = searchExercises({ ...F, favSet: F.favOnly ? favSet : null });
   const list = root.querySelector('.lib-list');
-  const shown = res;
-  root.querySelector('.count').textContent = `${res.length} exercice(s)`;
-  list.innerHTML = shown.length ? shown.map(ex => `
-    <button class="lib-row" data-nav="#/library/${encodeURIComponent(ex.id)}">
-      ${exImage(ex)}
-      <div class="lib-info"><b>${esc(ex.name)}</b><span>${esc(musclesFR(ex.primaryMuscles).join(', ') || '—')}</span></div>
-      <button class="fav-btn ${favSet.has(ex.id)?'on':''}" data-fav="${esc(ex.id)}">${icon(favSet.has(ex.id)?'starfill':'star')}</button>
-    </button>`).join('')
+  listLimit = CHUNK;
+  const shown = res.slice(0, listLimit);
+  root.querySelector('.count').textContent = `${res.length} exercice${res.length>1?'s':''}`;
+  list.innerHTML = shown.length ? shown.map(rowHtml).join('') + (res.length > listLimit ? '<div class="list-more" id="lib-more"></div>' : '')
     : emptyState('search', 'Aucun résultat', 'Essaie un autre mot.', '');
-  // re-wire nav + fav for new nodes
-  list.querySelectorAll('[data-fav]').forEach(b => b.addEventListener('click', async e => {
-    e.stopPropagation(); e.preventDefault();
-    const id = b.dataset.fav; const on = !favSet.has(id);
-    if (on) favSet.add(id); else favSet.delete(id);
-    b.classList.toggle('on', on); b.innerHTML = icon(on ? 'starfill' : 'star');
-    await toggleFavorite(state.activeProfileId, id, on);
-  }));
+  wireFavs(list);
+  observeMore(root);
 }
 
 function openFilters() {
@@ -170,7 +195,7 @@ export async function renderDetail(params) {
     <header class="topbar">
       <div class="topbar-l">${backBtn('#/library')}</div>
       <div class="topbar-c"><h1 class="ell">${esc(ex.name)}</h1>${ex.nameEn && ex.nameEn !== ex.name ? `<span class="topbar-sub">${esc(ex.nameEn)}</span>` : ''}</div>
-      <div class="topbar-r"><button class="fav-btn big ${isFav?'on':''}" id="d-fav">${icon(isFav?'starfill':'star')}</button></div>
+      <div class="topbar-r"><button class="fav-btn big ${isFav?'on':''}" id="d-fav" aria-label="Favori" aria-pressed="${isFav}">${icon(isFav?'starfill':'star')}</button></div>
     </header>
     <div class="screen-pad">
       ${imgs}

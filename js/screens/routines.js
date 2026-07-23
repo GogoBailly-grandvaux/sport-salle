@@ -41,7 +41,7 @@ export async function renderList() {
     return `
       <div class="rt-card">
         <button class="rt-main" data-nav="#/routines/${r.id}/edit">
-          <div class="rt-head"><h3>${esc(r.name)}</h3><span class="mut sm">${(r.items||[]).length} exercice(s)${r.lastPerformedAt ? ' · ' + relDate(r.lastPerformedAt).toLowerCase() : ''}</span></div>
+          <div class="rt-head"><h3>${esc(r.name)}</h3><span class="mut sm">${(r.items||[]).length} exercice${(r.items||[]).length>1?'s':''}${r.lastPerformedAt ? ' · ' + relDate(r.lastPerformedAt).toLowerCase() : ''}</span></div>
           <div class="rt-exs">${preview || '<span class="mut sm">Vide — ajoute des exercices</span>'}${more}</div>
         </button>
         <button class="btn primary rt-start" data-start="${r.id}">${icon('play')} Démarrer</button>
@@ -63,7 +63,7 @@ export async function renderList() {
         ${icon('right')}
       </button>
       <button class="tpl-banner" id="rt-templates">
-        <div class="tpl-banner-t"><b>✨ Modèles prêts à l'emploi</b><span>Full body, Push/Pull/Legs, maison… à personnaliser</span></div>
+        <div class="tpl-banner-t"><b>✨ Modèles prêts à l’emploi</b><span>Full body, Push/Pull/Legs, maison… à personnaliser</span></div>
         ${icon('right')}
       </button>
       ${routines.length ? `<div class="rt-list">${cards}</div>
@@ -113,7 +113,7 @@ function openTemplates() {
   const card = (t) => `
     <div class="tpl-card">
       <div class="tpl-head">
-        <div><b>${esc(t.name)}</b><div class="tpl-meta"><span class="tpl-pill">${esc(t.level)}</span><span class="tpl-pill alt">${esc(t.goal)}</span><span class="mut sm">${t.items.length} exos</span></div></div>
+        <div><b>${esc(t.name)}</b><div class="tpl-meta"><span class="tpl-pill">${esc(t.level)}</span><span class="tpl-pill alt">${esc(t.goal)}</span><span class="mut sm">${t.items.length} exercices</span></div></div>
         <button class="btn primary sm" data-add="${t.id}">${icon('plus')} Ajouter</button>
       </div>
       <p class="tpl-tag">${esc(t.tagline)}</p>

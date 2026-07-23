@@ -153,6 +153,10 @@ export function coachWeekly(workouts, libraryById, weeklyGoal = 3) {
   let text = `${thisW.length}/${weeklyGoal} séance${thisW.length > 1 ? 's' : ''} cette semaine`;
   if (delta !== null) text += `, volume ${delta >= 0 ? '+' : ''}${delta} % vs semaine dernière`;
   text += '.';
-  if (missing.length && thisW.length) text += ` Pense ${missing.length > 1 ? 'aux' : missing[0] === 'Dos' ? 'au' : 'aux'} ${missing.map(m => m.toLowerCase()).join(' et ')} 😉`;
+  if (missing.length && thisW.length) {
+    const list = missing.map(m => m.toLowerCase());
+    const joined = list.length > 1 ? list.slice(0, -1).join(', ') + ' et ' + list[list.length - 1] : list[0];
+    text += ` Pense ${missing.length === 1 && missing[0] === 'Dos' ? 'au' : 'aux'} ${joined} 😉`;
+  }
   return { emoji: thisW.length >= weeklyGoal ? '🏆' : '📊', title: 'Bilan de la semaine', text };
 }

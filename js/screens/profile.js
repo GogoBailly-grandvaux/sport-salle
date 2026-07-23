@@ -6,14 +6,13 @@ import {
   savePSettings, saveGlobal, applyTheme,
 } from '../store.js';
 import * as db from '../db.js';
-import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
+import { icon, sheet, confirmDialog, toast } from '../ui.js';
 import { backBtn } from './common.js';
 import * as sync from '../sync.js';
-import { relDate } from '../util.js';
 import { accountCardHtml, mountAccountCard } from './account.js';
 import { appLockCardHtml, mountAppLockCard } from '../applock.js';
 
-const APP_VERSION = '2.0';
+const APP_VERSION = '2.4';
 
 export async function render() {
   const p = activeProfile();
@@ -49,14 +48,13 @@ export async function render() {
 
       ${sync.isConfigured() ? accountCardHtml() : ''}
       ${sync.isConfigured() ? appLockCardHtml() : ''}
-      ${sync.isConfigured() ? renderSyncCard() : ''}
 
       <section class="card">
         <h3 class="card-t">Réglages</h3>
         <div class="setting"><span>Unité de poids</span>${seg('unit', ps('weightUnit'), [['kg','kg'],['lb','lb']])}</div>
         <div class="setting"><span>Thème</span>${seg('theme', theme, [['system','Auto'],['dark','Sombre'],['light','Clair']])}</div>
-        <div class="setting"><span>Objectif / semaine</span><div class="stepper"><button data-goal="-1">${icon('minus')}</button><b id="goal-v">${ps('weeklyGoal')}</b><button data-goal="1">${icon('plus')}</button></div></div>
-        <div class="setting"><span>Repos par défaut</span><div class="stepper"><button data-rest="-15">${icon('minus')}</button><b id="rest-v">${ps('defaultRestSec')}s</b><button data-rest="15">${icon('plus')}</button></div></div>
+        <div class="setting"><span>Objectif / semaine</span><div class="stepper"><button data-goal="-1" aria-label="Diminuer l’objectif">${icon('minus')}</button><b id="goal-v">${ps('weeklyGoal')}</b><button data-goal="1" aria-label="Augmenter l’objectif">${icon('plus')}</button></div></div>
+        <div class="setting"><span>Repos par défaut</span><div class="stepper"><button data-rest="-15" aria-label="Réduire le repos">${icon('minus')}</button><b id="rest-v">${ps('defaultRestSec')}s</b><button data-rest="15" aria-label="Augmenter le repos">${icon('plus')}</button></div></div>
         <div class="setting"><span>Formule 1RM</span>${seg('formula', ps('e1rmFormula'), [['epley','Epley'],['brzycki','Brzycki']])}</div>
         <div class="setting"><span>Son (fin de repos)</span>${sw('sound', ps('sound'))}</div>
         <div class="setting"><span>Vibrations</span>${sw('vibration', ps('vibration'))}</div>
@@ -72,7 +70,7 @@ export async function render() {
 
       <section class="card">
         <h3 class="card-t">À propos</h3>
-        <p class="mut sm">Sport Salle — v${APP_VERSION}. Application de suivi de musculation, gratuite et sans compte : tes données restent sur ton téléphone.</p>
+        <p class="mut sm">Sport Salle — v${APP_VERSION}. Ton coach de musculation : programmes, séances, records et amis. Tes données vivent sur ton téléphone et te suivent avec ton compte.</p>
         <p class="mut sm">Données d’exercices open source : free-exercise-db (domaine public) · wger.de (CC-BY-SA 4.0, noms français). Ceci n’est pas un avis médical.</p>
       </section>
     </div>`;
@@ -84,7 +82,9 @@ export function mount(root) {
     if (e.target.closest('[data-edit]')) return;
     const id = b.dataset.switch;
     if (id === state.activeProfileId) return;
-    await setActiveProfile(id); toast(`Profil : ${activeProfile().name}`); nav.go('#/home');
+    await setActiveProfile(id);
+    if (sync.isConfigured() && !ps('account')) { location.hash = ''; location.reload(); return; } // ce profil n'a pas de compte → écran de connexion
+    toast(`Profil : ${activeProfile().name}`); nav.go('#/home');
   }));
   root.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); editProfile(b.dataset.edit); }));
   root.querySelector('#add-prof').onclick = addProfile;
@@ -125,78 +125,12 @@ export function mount(root) {
   // compte + verrouillage + sync
   mountAccountCard(root);
   mountAppLockCard(root);
-  mountSyncCard(root);
 
   // data
   root.querySelector('#export-btn').onclick = exportData;
   const fileInput = root.querySelector('#import-file');
   root.querySelector('#import-btn').onclick = () => fileInput.click();
   fileInput.onchange = () => importData(fileInput.files[0]);
-}
-
-// ---------------- synchro cloud ----------------
-function renderSyncCard() {
-  const cfg = sync.syncCfg();
-  if (!cfg?.code) {
-    return `<section class="card sync-card">
-      <h3 class="card-t">${icon('bolt')} Synchro locale par code (sans compte)</h3>
-      <p class="mut sm">Alternative sans compte : un code partagé entre téléphones. <b>Le compte (ci-dessus) est recommandé</b> — il fait mieux, avec amis et groupes.</p>
-      <button class="btn ghost full" id="sync-create">Créer un code partagé</button>
-      <button class="btn ghost full" id="sync-join">Rejoindre avec un code</button>
-    </section>`;
-  }
-  return `<section class="card sync-card">
-    <h3 class="card-t">${icon('bolt')} Synchro locale par code</h3>
-    <div class="setting"><span>Groupe</span><button class="btn ghost sm" id="sync-show-code">Afficher le code</button></div>
-    <div class="setting"><span>Dernière synchro</span><b class="mut sm">${cfg.lastSyncAt ? relDate(cfg.lastSyncAt) : 'jamais'}</b></div>
-    <button class="btn primary full" id="sync-now">Synchroniser maintenant</button>
-    <button class="btn danger-ghost full sm" id="sync-leave">Quitter le groupe (les données restent sur ce téléphone)</button>
-  </section>`;
-}
-
-function mountSyncCard(root) {
-  root.querySelector('#sync-create')?.addEventListener('click', async (e) => {
-    e.target.disabled = true;
-    const r = await sync.createGroup();
-    if (!r.ok) { toast('Impossible de joindre le serveur — réessaie', { type: 'error' }); await sync.leaveGroup(); nav.refresh(); return; }
-    showCodeSheet(r.code, true);
-  });
-  root.querySelector('#sync-join')?.addEventListener('click', async () => {
-    const code = await promptDialog({ title: 'Rejoindre un groupe', label: 'Code du groupe', placeholder: 'SALLE-XXXXX-XXXXX-XXXXX', confirmText: 'Rejoindre' });
-    if (code == null || !code.trim()) return;
-    const r = await sync.joinGroup(code);
-    if (!r.ok) { toast(`Échec : ${r.reason || 'serveur injoignable'}`, { type: 'error' }); return; }
-    toast(r.found ? 'Groupe rejoint — profils synchronisés ✓' : 'Groupe rejoint (encore vide — vérifie le code si tu attendais des données)', { duration: 5000 });
-    nav.refresh();
-  });
-  root.querySelector('#sync-show-code')?.addEventListener('click', () => showCodeSheet(sync.syncCfg().code, false));
-  root.querySelector('#sync-now')?.addEventListener('click', async (e) => {
-    e.target.disabled = true; e.target.textContent = 'Synchronisation…';
-    const r = await sync.syncNow();
-    toast(r.ok ? (r.changed ? 'Synchronisé — nouveautés reçues ✓' : 'Déjà à jour ✓') : `Échec : ${r.reason}`, r.ok ? {} : { type: 'error' });
-    nav.refresh();
-  });
-  root.querySelector('#sync-leave')?.addEventListener('click', async () => {
-    if (await confirmDialog({ title: 'Quitter le groupe', message: 'Ce téléphone ne synchronisera plus. Tes données locales sont conservées.', confirmText: 'Quitter', danger: true })) {
-      await sync.leaveGroup(); toast('Synchronisation désactivée'); nav.refresh();
-    }
-  });
-}
-
-function showCodeSheet(code, isNew) {
-  const s = sheet(`
-    ${isNew ? '<p class="mut sm">Groupe créé ! Partage ce code avec tes proches — ils font « Rejoindre avec un code » sur leur téléphone :</p>' : '<p class="mut sm">Toute personne avec ce code rejoint le groupe et voit les données partagées. Ne le publie pas.</p>'}
-    <div class="sync-code mono">${esc(code)}</div>
-    <button class="btn primary full" id="code-share">${icon('upload')} Partager le code</button>
-    <button class="btn ghost full" id="code-copy">Copier</button>`,
-    { title: 'Code du groupe' });
-  s.root.querySelector('#code-share').onclick = async () => {
-    try { await navigator.share({ title: 'Sport Salle', text: `Rejoins mon groupe Sport Salle 💪\nCode : ${code}\nApp : https://gogobailly-grandvaux.github.io/sport-salle/` }); }
-    catch {}
-  };
-  s.root.querySelector('#code-copy').onclick = async () => {
-    try { await navigator.clipboard.writeText(code); toast('Code copié ✓'); } catch { toast('Copie impossible', { type: 'error' }); }
-  };
 }
 
 const AVATAR_EMOJIS = ['💪','🏋️','🔥','⚡','🚀','🦁','🐺','😤','🌸','👑','🎯','🥇'];
@@ -230,7 +164,9 @@ async function addProfile() {
   s.root.querySelector('#np-save').onclick = async () => {
     const name = s.root.querySelector('#np-name').value.trim() || 'Athlète';
     const p = await createProfile({ name, accent, emoji: getEmoji() });
-    s.close(); await setActiveProfile(p.id); toast(`Bienvenue ${name} !`); nav.go('#/home');
+    s.close(); await setActiveProfile(p.id);
+    if (sync.isConfigured()) { location.hash = ''; location.reload(); return; } // nouveau profil → son compte (connexion/inscription)
+    toast(`Bienvenue ${name} !`); nav.go('#/home');
   };
 }
 
@@ -258,7 +194,10 @@ function editProfile(id) {
     s.close();
     if (await confirmDialog({ title:'Supprimer le profil', message:`Supprimer « ${p.name} » et toutes ses données ? Irréversible.`, confirmText:'Supprimer', danger:true })) {
       await deleteProfile(id);
-      if (state.activeProfileId === id) await setActiveProfile(state.profiles[0].id);
+      if (state.activeProfileId === id) {
+        await setActiveProfile(state.profiles[0].id);
+        if (sync.isConfigured() && !ps('account')) { location.hash = ''; location.reload(); return; }
+      }
       toast('Profil supprimé'); nav.go('#/profile');
     }
   });

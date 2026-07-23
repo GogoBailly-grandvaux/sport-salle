@@ -31,8 +31,8 @@ function setRowHtml(ex, s, numLabel) {
   return `<div class="set-row ${s.done ? 'done' : ''} type-${s.type}" data-set="${s.id}">
     <button class="set-n" data-act="type" title="Type de série">${numLabel}</button>
     <button class="set-prev" data-act="prev" ${pv ? '' : 'disabled'}>${pv || '—'}</button>
-    <input class="set-in w" data-f="w" type="number" inputmode="decimal" value="${s.weightKg ?? ''}" placeholder="${prev && prev[idx] ? prev[idx].weightKg ?? 'kg' : 'kg'}">
-    <input class="set-in r" data-f="r" type="number" inputmode="numeric" value="${s.reps ?? ''}" placeholder="${prev && prev[idx] ? prev[idx].reps ?? 'reps' : 'reps'}">
+    <input class="set-in w" data-f="w" type="number" inputmode="decimal" aria-label="Poids (kg)" value="${s.weightKg ?? ''}" placeholder="${prev && prev[idx] ? prev[idx].weightKg ?? 'kg' : 'kg'}">
+    <input class="set-in r" data-f="r" type="number" inputmode="numeric" aria-label="Répétitions" value="${s.reps ?? ''}" placeholder="${prev && prev[idx] ? prev[idx].reps ?? 'reps' : 'reps'}">
     <button class="set-do" data-act="done" aria-label="Valider la série">${icon('check')}</button>
   </div>`;
 }

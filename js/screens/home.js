@@ -30,7 +30,7 @@ export async function render() {
     <div class="hero resume" data-nav="#/workout/${active.id}">
       <div class="hero-tag">${icon('bolt')} Séance en cours</div>
       <h2>${esc(active.name)}</h2>
-      <p>${(active.exercises||[]).length} exercice(s) · démarrée ${relDate(active.startedAt).toLowerCase()}</p>
+      <p>${(active.exercises||[]).length} exercices · démarrée ${relDate(active.startedAt).toLowerCase()}</p>
       <span class="hero-cta">Reprendre ${icon('right')}</span>
     </div>` : `
     <div class="hero">

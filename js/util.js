@@ -88,3 +88,6 @@ export function vibrate(pattern) {
 }
 
 export function pluralS(n, one, many) { return n === 1 ? one : (many || one + 's'); }
+
+// 'YYYY-MM-DD' → timestamp à minuit LOCAL (new Date(iso) parserait en UTC → décalage d'un jour possible)
+export const isoToTs = (iso) => { const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, m - 1, d).getTime(); };

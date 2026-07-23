@@ -1,5 +1,5 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v2.3.1';
+const VERSION = 'v2.4.0';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 
@@ -16,6 +16,7 @@ const ASSETS = [
   './js/screens/history.js', './js/screens/progress.js', './js/screens/profile.js',
   './data/exercises.json?v=3', './data/muscles-map.json?v=3',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png',
+  './icons/apple-touch-icon.png', './icons/maskable-192.png', './icons/maskable-512.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -38,6 +39,17 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('message', (e) => { if (e.data === 'skipWaiting') self.skipWaiting(); });
 
+// borne le cache d'images (sinon il grossit sans limite → risque de quota)
+let _trimming = false;
+async function trimImages(cache) {
+  if (_trimming) return; _trimming = true;
+  try {
+    const keys = await cache.keys();
+    const excess = keys.length - 600;
+    for (let i = 0; i < excess; i++) await cache.delete(keys[i]); // FIFO approximatif
+  } catch {} finally { _trimming = false; }
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -55,12 +67,13 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Exercise images (CDN) -> stale-while-revalidate
-  if (url.hostname.includes('jsdelivr.net') || url.hostname.includes('githubusercontent.com')) {
+  // Images d'exercices (CDN) + médias wger (silhouettes/overlays SVG, images) -> stale-while-revalidate
+  const isWgerMedia = url.hostname.endsWith('wger.de') && (req.destination === 'image' || url.pathname.endsWith('.svg'));
+  if (url.hostname.includes('jsdelivr.net') || url.hostname.includes('githubusercontent.com') || isWgerMedia) {
     e.respondWith((async () => {
       const c = await caches.open(IMG);
       const cached = await c.match(req);
-      const net = fetch(req).then(r => { if (r && (r.ok || r.type === 'opaque')) c.put(req, r.clone()); return r; }).catch(() => null);
+      const net = fetch(req).then(r => { if (r && (r.ok || r.type === 'opaque')) { c.put(req, r.clone()); trimImages(c); } return r; }).catch(() => null);
       return cached || (await net) || Response.error();
     })());
     return;

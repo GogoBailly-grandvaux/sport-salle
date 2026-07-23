@@ -118,7 +118,7 @@ async function fabAction() {
   if (active) { nav.go(`#/workout/${active.id}`); return; }
   const rs = await listRoutines();
   const body = `<button class="menu-row big" id="fab-empty">${icon('play')} Séance libre</button>
-    ${rs.length ? `<div class="fab-sep">ou un programme</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} exos</span></button>`).join('') : `<p class="mut sm center">Aucun programme. <a data-nav="#/routines">En créer un</a> · <a data-nav="#/coach">le coach s’en charge 🧙</a></p>`}`;
+    ${rs.length ? `<div class="fab-sep">ou un programme</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} exercice${(r.items||[]).length>1?'s':''}</span></button>`).join('') : `<p class="mut sm center">Aucun programme. <a data-nav="#/routines">En créer un</a> · <a data-nav="#/coach">le coach s’en charge 🧙</a></p>`}`;
   const s = sheet(body, { title: 'Démarrer' });
   s.root.querySelector('#fab-empty').onclick = async () => { s.close(); const w = await startWorkout({}); nav.go(`#/workout/${w.id}`); };
   s.root.querySelectorAll('[data-r]').forEach(b => b.onclick = async () => {
@@ -146,10 +146,14 @@ function welcome() {
           <span>${icon('users')} Amis & groupes</span>
         </div>
         <div class="wel-actions">
-          ${online ? `
+          ${online && !navigator.onLine ? `
+          <p class="wel-offline">📡 Tu es hors-ligne — impossible de se connecter pour l’instant.</p>
+          ${state.profiles.length ? `<button class="btn primary full big" id="wel-offgo">Continuer hors-ligne</button>` : ''}
+          <button class="btn ghost full" id="wel-retry">Réessayer</button>`
+          : online ? `
           <div id="wel-gsi"></div>
           <button class="btn primary full big" id="wel-register">Créer un compte gratuit</button>
-          <button class="btn ghost full" id="wel-login">J'ai déjà un compte</button>`
+          <button class="btn ghost full" id="wel-login">J’ai déjà un compte</button>`
           : `<button class="btn primary full big" id="wel-guest">Commencer</button>`}
         </div>
       </div>
@@ -158,7 +162,9 @@ function welcome() {
     view.querySelector('#wel-register')?.addEventListener('click', () => openAuthSheet('register', done));
     view.querySelector('#wel-login')?.addEventListener('click', () => openAuthSheet('login', done));
     view.querySelector('#wel-guest')?.addEventListener('click', async () => { await onboarding(); done(); });
-    if (online) mountGoogleButton(view.querySelector('#wel-gsi'), done, () => {}, { sep: 'after' });
+    view.querySelector('#wel-offgo')?.addEventListener('click', done);
+    view.querySelector('#wel-retry')?.addEventListener('click', () => location.reload());
+    if (online && navigator.onLine) mountGoogleButton(view.querySelector('#wel-gsi'), done, () => {}, { sep: 'after' });
   });
 }
 
@@ -237,7 +243,7 @@ async function boot() {
     await appLockGate(); // verrou biométrique éventuel (avant d'afficher quoi que ce soit)
     wireAuthEvents();
     await loadProfiles();
-    await loadLibrary();
+    const libReady = loadLibrary(); // en parallèle : l'accueil s'affiche sans attendre le 1,1 Mo
 
     document.body.insertAdjacentHTML('beforeend', tabBar());
     document.getElementById('fab').onclick = fabAction;
@@ -251,10 +257,12 @@ async function boot() {
       await setActiveProfile(active ? active.id : state.profiles[0].id);
       // compte OBLIGATOIRE dès que le serveur existe : sans session, on ne rentre pas.
       // (une fois connecté, le jeton local de 90 jours suffit → l'app marche hors-ligne)
-      if (sync.isConfigured() && !ps('account')) { applyTheme(); await welcome(); }
+      // hors-ligne, on ne bloque personne hors de SES données locales — le mur reviendra en ligne
+      if (sync.isConfigured() && !ps('account') && navigator.onLine) { applyTheme(); await welcome(); }
     }
     applyTheme();
 
+    await libReady;
     window.addEventListener('hashchange', () => router());
     await router();
 

@@ -53,7 +53,7 @@ export async function enableLock() {
     toast('Verrouillage par empreinte activé 🔒');
     return true;
   } catch (e) {
-    if (e?.name !== 'NotAllowedError') toast('Activation impossible : ' + (e?.message || e), { type: 'error' });
+    if (e?.name !== 'NotAllowedError') { console.error('applock:', e); toast('Activation impossible sur cet appareil — réessaie', { type: 'error' }); }
     return false;
   }
 }

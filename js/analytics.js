@@ -129,6 +129,7 @@ export function sessionsByWeek(workouts) {
 }
 
 export function goalStreak(workouts, weeklyGoal = 3) {
+  weeklyGoal = Math.max(1, weeklyGoal | 0); // un objectif 0/invalide (import, synchro) bouclerait à l'infini
   const byWeek = sessionsByWeek(workouts);
   let streak = 0;
   let cursor = weekStart(Date.now());
@@ -183,12 +184,3 @@ export function emaTrend(points, alpha = 0.1) {
   return points.map(p => { t = t + alpha * (p.value - t); return { ts: p.ts, value: p.value, trend: t }; });
 }
 
-export function usNavyBodyFat({ sex, waistCm, neckCm, heightCm, hipCm }) {
-  if (!waistCm || !neckCm || !heightCm) return null;
-  const log10 = Math.log10;
-  if (sex === 'female') {
-    if (!hipCm) return null;
-    return 495 / (1.29579 - 0.35004 * log10(waistCm + hipCm - neckCm) + 0.22100 * log10(heightCm)) - 450;
-  }
-  return 495 / (1.0324 - 0.19077 * log10(waistCm - neckCm) + 0.15456 * log10(heightCm)) - 450;
-}

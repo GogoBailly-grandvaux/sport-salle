@@ -39,7 +39,7 @@ export async function render() {
     <div class="screen-pad">
       <div class="social-hero">
         <div class="social-hero-ico">${icon('users')}</div>
-        <h2>Entraînez-vous ensemble</h2>
+        <h2>Entraîne-toi avec tes potes</h2>
         <p>Crée ton compte gratuit pour ajouter tes amis, voir leurs séances, partager tes programmes et créer des groupes avec classement hebdo.</p>
         <button class="btn primary full big" id="soc-register">Créer mon compte</button>
         <button class="btn ghost full" id="soc-login">J’ai déjà un compte</button>
@@ -139,12 +139,12 @@ async function renderAmis() {
       <div class="fr-actions">${actions}</div>
     </div>`;
   return `
-    <div class="input-ico search-friend">${icon('search')}<input class="input" id="soc-search" placeholder="Chercher un @pseudo à ajouter" autocomplete="off"></div>
+    <div class="input-ico search-friend">${icon('search')}<input class="input" id="soc-search" placeholder="Chercher un @pseudo à ajouter" aria-label="Chercher un ami par pseudo" autocomplete="off"></div>
     <div id="soc-results"></div>
     ${incoming.length ? `<h4 class="share-h">Demandes reçues</h4>` + incoming.map(u => row(u,
-      `<button class="btn primary sm" data-accept="${u.id}">Accepter</button><button class="icon-btn sm" data-decline="${u.id}">${icon('x')}</button>`)).join('') : ''}
+      `<button class="btn primary sm" data-accept="${u.id}">Accepter</button><button class="icon-btn sm" data-decline="${u.id}" aria-label="Refuser la demande">${icon('x')}</button>`)).join('') : ''}
     ${friends.length ? `<h4 class="share-h">Mes amis (${friends.length})</h4>` + friends.map(u => row(u,
-      `<button class="icon-btn sm" data-open='${esc(JSON.stringify({ id: u.id, username: u.username, displayName: u.displayName, emoji: u.emoji, accent: u.accent }))}'>${icon('right')}</button>`)).join('') : ''}
+      `<button class="icon-btn sm" aria-label="Voir l’ami" data-open='${esc(JSON.stringify({ id: u.id, username: u.username, displayName: u.displayName, emoji: u.emoji, accent: u.accent }))}'>${icon('right')}</button>`)).join('') : ''}
     ${outgoing.length ? `<h4 class="share-h">Envoyées (en attente)</h4>` + outgoing.map(u => row(u, `<span class="mut sm">⏳</span>`)).join('') : ''}
     ${!friends.length && !incoming.length ? `<p class="hint">Cherche tes potes par leur @pseudo — ils reçoivent ta demande dans cet onglet.</p>` : ''}`;
 }
@@ -174,7 +174,7 @@ function wireAmis(root) {
 function wireActions(root) {
   root.querySelectorAll('[data-request]').forEach(b => b.onclick = async () => {
     b.disabled = true;
-    try { const r = await call('social', 'request', { username: b.dataset.request }); toast(r.accepted ? 'Vous êtes maintenant amis ! 🤝' : 'Demande envoyée ✓'); nav.refresh(); }
+    try { const r = await call('social', 'request', { username: b.dataset.request }); toast(r.accepted ? 'C’est fait, vous êtes amis ! 👊 🤝' : 'Demande envoyée ✓'); nav.refresh(); }
     catch (e) { toast(e.message, { type: 'error' }); b.disabled = false; }
   });
   root.querySelectorAll('[data-accept]').forEach(b => b.onclick = async () => {
@@ -257,7 +257,7 @@ export async function renderGroup(params) {
       <header class="topbar">
         <div class="topbar-l">${backBtn('#/social')}</div>
         <div class="topbar-c"><h1 class="ell">${esc(d.group.name)}</h1><span class="topbar-sub">${d.members.length} membre${d.members.length > 1 ? 's' : ''}</span></div>
-        <div class="topbar-r"><button class="icon-btn" id="grp-menu">${icon('more')}</button></div>
+        <div class="topbar-r"><button class="icon-btn" id="grp-menu" aria-label="Options du groupe">${icon('more')}</button></div>
       </header>
       <div class="screen-pad">
         <section class="card"><h3 class="card-t">🏆 Classement de la semaine</h3><div class="lb-list">${rows}</div></section>

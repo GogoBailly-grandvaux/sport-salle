@@ -19,7 +19,7 @@ export async function renderList() {
     const st = workoutStats(w);
     html += `<button class="hist-row" data-nav="#/history/${w.id}">
       <div class="hist-date"><b>${d.getDate()}</b><span>${['dim','lun','mar','mer','jeu','ven','sam'][d.getDay()]}</span></div>
-      <div class="hist-info"><b>${esc(w.name)}</b><span>${st.exercises} exos · ${st.sets} séries · ${Math.round(st.volume).toLocaleString('fr-FR')} ${unit}</span></div>
+      <div class="hist-info"><b>${esc(w.name)}</b><span>${st.exercises} exercices · ${st.sets} séries · ${Math.round(st.volume).toLocaleString('fr-FR')} ${unit}</span></div>
       ${(w.prs||[]).length ? `<span class="pr-pill">${icon('trophy')}${w.prs.length}</span>` : `<span class="hist-dur">${fmtDuration(w.durationSec)}</span>`}
     </button>`;
   }
