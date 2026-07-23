@@ -1,12 +1,12 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v2.6.6';
+const VERSION = 'v2.7.0';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 
 const ASSETS = [
   './', './index.html', './offline.html', './legal.html', './app.webmanifest',
   './css/app.css',
-  './js/app.js', './js/util.js', './js/version.js', './js/db.js', './js/store.js', './js/data.js',
+  './js/app.js', './js/util.js', './js/version.js', './js/i18n.js', './js/db.js', './js/store.js', './js/data.js',
   './js/model.js', './js/analytics.js', './js/charts.js', './js/ui.js', './js/templates.js',
   './js/sync.js', './js/sync-merge.js', './js/sync-config.js',
   './js/api.js', './js/coach.js', './js/applock.js', './js/generator.js', './js/voice.js',

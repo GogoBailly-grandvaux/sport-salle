@@ -1,4 +1,5 @@
 // ui.js — icons, toast, bottom sheet, dialogs, confetti
+import { t } from './i18n.js';
 import { esc } from './util.js';
 
 const P = {
@@ -68,7 +69,7 @@ export function sheet(contentHtml, opts = {}) {
   back.className = 'sheet-back';
   back.innerHTML = `<div class="sheet ${opts.cls||''}" role="dialog" aria-modal="true">
     <div class="sheet-grip"></div>
-    ${opts.title ? `<div class="sheet-head"><h3>${esc(opts.title)}</h3><button class="icon-btn sheet-x" aria-label="Fermer">${icon('x')}</button></div>` : ''}
+    ${opts.title ? `<div class="sheet-head"><h3>${esc(opts.title)}</h3><button class="icon-btn sheet-x" aria-label="${t('Fermer','Close')}">${icon('x')}</button></div>` : ''}
     <div class="sheet-body">${contentHtml}</div>
   </div>`;
   document.body.appendChild(back);
@@ -117,7 +118,7 @@ export function sheet(contentHtml, opts = {}) {
 
 // Résout true (confirm), false (bouton annuler explicite) ou null (fermeture X/backdrop/Échap).
 // Tous les appels « if (await confirmDialog(...)) » traitent null comme falsy — sans danger.
-export function confirmDialog({ title = 'Confirmer', message = '', confirmText = 'Confirmer', cancelText = 'Annuler', danger = false } = {}) {
+export function confirmDialog({ title = t('Confirmer','Confirm'), message = '', confirmText = t('Confirmer','Confirm'), cancelText = t('Annuler','Cancel'), danger = false } = {}) {
   return new Promise(resolve => {
     const s = sheet(
       `<p class="dialog-msg">${esc(message)}</p>
@@ -138,7 +139,7 @@ export function promptDialog({ title = '', label = '', value = '', placeholder =
       `${label ? `<label class="field-label">${esc(label)}</label>` : ''}
        <input class="input" id="prompt-input" type="${type}" value="${esc(value)}" placeholder="${esc(placeholder)}" ${type==='number'?'inputmode="decimal"':''}>
        <div class="dialog-actions">
-         <button class="btn ghost" data-a="cancel">Annuler</button>
+         <button class="btn ghost" data-a="cancel">${t('Annuler','Cancel')}</button>
          <button class="btn primary" data-a="ok">${esc(confirmText)}</button>
        </div>`,
       { title, onClose: () => resolve(null) }

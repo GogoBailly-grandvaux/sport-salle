@@ -2,6 +2,7 @@
 import * as db from './db.js';
 import { state, on } from './store.js';
 import { uid, nowTs } from './util.js';
+import { locale, t } from './i18n.js';
 
 const CDN = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/';
 
@@ -33,7 +34,13 @@ export const MUSCLE_GROUP = {
   abductors:'Jambes', adductors:'Jambes',
   abdominals:'Abdos',
 };
-export const muscleFR = m => MUSCLE_FR[m] || m;
+const MUSCLE_EN = {
+  abdominals:'Abs', abductors:'Abductors', adductors:'Adductors', biceps:'Biceps',
+  calves:'Calves', chest:'Chest', forearms:'Forearms', glutes:'Glutes',
+  hamstrings:'Hamstrings', lats:'Lats', 'lower back':'Lower back', 'middle back':'Middle back',
+  neck:'Neck', quadriceps:'Quads', shoulders:'Shoulders', traps:'Traps', triceps:'Triceps',
+};
+export const muscleFR = m => (locale() === 'en' ? (MUSCLE_EN[m] || m) : (MUSCLE_FR[m] || m));
 export const musclesFR = (arr=[]) => arr.map(muscleFR);
 
 export function imageUrls(ex) {
@@ -70,14 +77,15 @@ export async function loadLibrary() {
   if (!res.ok) throw new Error('Bibliothèque d’exercices introuvable (' + res.status + ')');
   const raw = await res.json();
   // Nom FR en priorité s'il existe (enrichissement wger) ; la recherche matche FR + EN.
+  const en_ = locale() === 'en';
   _baseLib = raw.map(e => {
     const en = e.name || '';
     const fr = e.nameFr || null;
     return {
       ...e,
-      name: fr || en,
-      nameEn: en,
-      nameLower: (en + ' ' + (fr || '')).toLowerCase(),
+      name: en_ ? en : (fr || en),   // le nom affiché suit la langue de l'app
+      nameFr: fr, nameEn: en,
+      nameLower: (en + ' ' + (fr || '')).toLowerCase(), // la recherche matche FR + EN
       source: 'library',
     };
   });

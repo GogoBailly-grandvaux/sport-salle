@@ -1,4 +1,5 @@
 // screens/workout.js — live workout logging + summary
+import { t } from '../i18n.js';
 import { esc, uid, debounce, vibrate, fmtDuration, fmtClock, trimNum } from '../util.js';
 import { state, ps, nav } from '../store.js';
 import { icon, sheet, toast, confirmDialog, confetti } from '../ui.js';
@@ -30,7 +31,7 @@ function setRowHtml(ex, s, numLabel) {
   const idx = ex.sets.indexOf(s);
   const pv = prev && prev[idx] ? `${prev[idx].weightKg ?? '–'}×${prev[idx].reps ?? '–'}` : '';
   return `<div class="set-row ${s.done ? 'done' : ''} type-${s.type}" data-set="${s.id}">
-    <button class="set-n" data-act="type" title="Type de série">${numLabel}</button>
+    <button class="set-n" data-act="type" title="${t('Type de série','Set type')}">${numLabel}</button>
     <button class="set-prev" data-act="prev" ${pv ? '' : 'disabled'}>${pv || '—'}</button>
     <input class="set-in w" data-f="w" type="number" inputmode="decimal" aria-label="Poids (kg)" value="${s.weightKg ?? ''}" placeholder="${prev && prev[idx] ? prev[idx].weightKg ?? 'kg' : 'kg'}">
     <input class="set-in r" data-f="r" type="number" inputmode="numeric" aria-label="Répétitions" value="${s.reps ?? ''}" placeholder="${prev && prev[idx] ? prev[idx].reps ?? 'reps' : 'reps'}">
@@ -42,10 +43,10 @@ function exBlockHtml(ex) {
   const meta = getExercise(ex.exerciseId);
   const nmap = setNumberMap(ex);
   const rows = ex.sets.map(s => setRowHtml(ex, s, nmap[s.id])).join('');
-  const target = ex._targetReps ? `<span class="ex-target">cible ${ex._targetReps} reps</span>` : '';
+  const target = ex._targetReps ? `<span class="ex-target">${t('cible','target')} ${ex._targetReps} reps</span>` : '';
   const hint = overloadHint(prevMap.get(ex.exerciseId), ex._targetRepsMax);
   const coachChip = hint
-    ? `<button class="coach-chip" data-act="applysuggest" data-kg="${hint.suggestKg}" title="${esc(hint.reason)}">🎯 Coach : tente ${trimNum(hint.suggestKg)} kg</button>`
+    ? `<button class="coach-chip" data-act="applysuggest" data-kg="${hint.suggestKg}" title="${esc(hint.reason)}">🎯 ${t('Coach : tente','Coach: try')} ${trimNum(hint.suggestKg)} kg</button>`
     : '';
   return `<section class="wk-ex" data-ex="${ex.id}">
     <div class="wk-ex-head">
@@ -54,15 +55,15 @@ function exBlockHtml(ex) {
       <button class="icon-btn" data-act="exmenu" aria-label="Options">${icon('more')}</button>
     </div>
     ${coachChip}
-    <div class="set-head"><span>Série</span><span>Préc.</span><span>kg</span><span>reps</span><span></span></div>
+    <div class="set-head"><span>${t('Série','Set')}</span><span>${t('Préc.','Prev.')}</span><span>kg</span><span>reps</span><span></span></div>
     <div class="set-list">${rows}</div>
-    <button class="btn ghost sm add-set" data-act="addset">${icon('plus')} Série</button>
+    <button class="btn ghost sm add-set" data-act="addset">${icon('plus')} ${t('Série','Set')}</button>
   </section>`;
 }
 
 export async function render(params) {
   W = await getWorkout(params.id);
-  if (!W) return `<div class="screen-pad">${emptyState('info','Séance introuvable','Elle a peut-être été terminée.',`<button class="btn ghost" data-nav="#/home">Accueil</button>`)}</div>`;
+  if (!W) return `<div class="screen-pad">${emptyState('info',t('Séance introuvable','Workout not found'),t('Elle a peut-être été terminée.','It may have been finished.'),`<button class="btn ghost" data-nav="#/home">${t('Accueil','Home')}</button>`)}</div>`;
   if (W.status === 'completed') { nav.go(`#/workout/${W.id}/summary`); return '<div></div>'; }
   prevMap = new Map();
   for (const ex of W.exercises) {
@@ -72,18 +73,18 @@ export async function render(params) {
     }
   }
   const blocks = W.exercises.length ? W.exercises.map(exBlockHtml).join('')
-    : `<div class="wk-empty">${emptyState('dumbbell','Séance vide','Ajoute ton premier exercice pour commencer.','')}</div>`;
+    : `<div class="wk-empty">${emptyState('dumbbell',t('Séance vide','Empty workout'),t('Ajoute ton premier exercice pour commencer.','Add your first exercise to get going.'),'')}</div>`;
 
   return `
     <header class="topbar wk-top">
-      <div class="topbar-l"><button class="icon-btn" data-act="min" aria-label="Réduire">${icon('down')}</button></div>
+      <div class="topbar-l"><button class="icon-btn" data-act="min" aria-label="${t('Réduire','Minimize')}">${icon('down')}</button></div>
       <div class="topbar-c"><h1 class="ell" id="wk-name">${esc(W.name)}</h1><span class="wk-elapsed" id="wk-elapsed">0:00</span></div>
-      <div class="topbar-r"><button class="btn primary sm" data-act="finish">Terminer</button></div>
+      <div class="topbar-r"><button class="btn primary sm" data-act="finish">${t('Terminer','Finish')}</button></div>
     </header>
     <div class="screen-pad wk-body">
       <div id="wk-exs">${blocks}</div>
-      <button class="btn ghost full" data-act="addex">${icon('plus')} Ajouter un exercice</button>
-      <button class="btn danger-ghost full mt sm" data-act="discard">Abandonner la séance</button>
+      <button class="btn ghost full" data-act="addex">${icon('plus')} ${t('Ajouter un exercice','Add an exercise')}</button>
+      <button class="btn danger-ghost full mt sm" data-act="discard">${t('Abandonner la séance','Discard workout')}</button>
     </div>`;
 }
 
@@ -171,9 +172,9 @@ function addSet(exEl, ex) {
 
 function typeMenu(btn, ex) {
   const s = findSet(ex, btn.closest('.set-row').dataset.set);
-  const opts = [['normal','Série normale'],['warmup','Échauffement'],['failure','Jusqu’à l’échec'],['dropset','Dropset']];
+  const opts = [['normal',t('Série normale','Normal set')],['warmup',t('Échauffement','Warm-up')],['failure',t('Jusqu’à l’échec','To failure')],['dropset','Dropset']];
   const s2 = sheet(opts.map(([v,l]) => `<button class="menu-row ${s.type===v?'sel':''}" data-t="${v}">${l}</button>`).join('')
-    + `<button class="menu-row danger" data-del-set>${icon('trash')} Supprimer la série</button>`, { title: 'Type de série' });
+    + `<button class="menu-row danger" data-del-set>${icon('trash')} ${t('Supprimer la série','Delete set')}</button>`, { title: t('Type de série','Set type') });
   s2.root.querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
     s.type = b.dataset.t; s2.close(); persist();
     // re-render this exercise block's rows numbering
@@ -188,8 +189,8 @@ function removeSet(ex, setId) {
   if (idx < 0) return;
   const [removed] = ex.sets.splice(idx, 1);
   rebuildExercise(ex); vibrate(10); persist();
-  toast('Série supprimée', {
-    actionText: 'Annuler', duration: 5000,
+  toast(t('Série supprimée','Set deleted'), {
+    actionText: t('Annuler','Undo'), duration: 5000,
     onAction: () => { ex.sets.splice(Math.min(idx, ex.sets.length), 0, removed); rebuildExercise(ex); persist(); },
   });
 }
@@ -270,16 +271,16 @@ function plateCalcSheet(targetKg) {
   };
   const render = (total) => {
     const r = compute(total);
-    if (!r) return `<p class="mut center">Charge inférieure à la barre (${bar} kg)</p>`;
-    const chips = r.plates.length ? r.plates.map(p => `<span class="plate p${String(p).replace('.', '_')}">${trimNum(p)}</span>`).join('') : '<span class="mut">barre à vide</span>';
+    if (!r) return `<p class="mut center">${t('Charge inférieure à la barre','Load below the bar')} (${bar} kg)</p>`;
+    const chips = r.plates.length ? r.plates.map(p => `<span class="plate p${String(p).replace('.', '_')}">${trimNum(p)}</span>`).join('') : `<span class="mut">${t('barre à vide','empty bar')}</span>`;
     return `<div class="plates-row">${chips}</div>
-      <p class="mut sm center">par côté · barre ${bar} kg${r.rest ? ` · reste ${r.rest} kg non chargeable` : ''}</p>`;
+      <p class="mut sm center">${t('par côté · barre','per side · bar')} ${bar} kg${r.rest ? ` · ${t('reste','remainder')} ${r.rest} kg` : ''}</p>`;
   };
   const s = sheet(`
     <div class="calc-head"><button class="stepbtn" data-d="-2.5">−2,5</button>
-      <div class="calc-val"><b id="pc-val">${trimNum(targetKg)}</b><span>kg total</span></div>
+      <div class="calc-val"><b id="pc-val">${trimNum(targetKg)}</b><span>${t('kg total','total kg')}</span></div>
       <button class="stepbtn" data-d="2.5">+2,5</button></div>
-    <div id="pc-out">${render(targetKg)}</div>`, { title: '🧮 Chargement de la barre' });
+    <div id="pc-out">${render(targetKg)}</div>`, { title: t('🧮 Chargement de la barre','🧮 Barbell loading') });
   let cur = targetKg;
   s.root.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
     cur = Math.max(bar, cur + parseFloat(b.dataset.d));
@@ -292,7 +293,7 @@ function plateCalcSheet(targetKg) {
 function addWarmupSets(exEl, ex) {
   const working = ex.sets.find(s => !s.done && s.weightKg);
   const w = working?.weightKg || ex.sets.find(s => s.weightKg)?.weightKg;
-  if (!w) { toast('Renseigne d’abord la charge de travail'); return; }
+  if (!w) { toast(t('Renseigne d’abord la charge de travail','Enter your working weight first')); return; }
   const scheme = [[0.4, 10], [0.6, 6], [0.8, 3]];
   const warmups = scheme.map(([pct, reps]) => {
     const s = mkSet(null);
@@ -303,16 +304,16 @@ function addWarmupSets(exEl, ex) {
   });
   ex.sets = [...warmups, ...ex.sets];
   rebuildExercise(ex);
-  toast('Échauffement ajouté : 40 % ×10 · 60 % ×6 · 80 % ×3');
+  toast(t('Échauffement ajouté : 40 % ×10 · 60 % ×6 · 80 % ×3','Warm-up added: 40% ×10 · 60% ×6 · 80% ×3'));
   persist();
 }
 
 function exMenu(exEl, ex) {
   const s = sheet(`
-    <button class="menu-row" data-a="warmup">🔥 Générer l’échauffement</button>
-    <button class="menu-row" data-a="plates">${icon('calc')} Chargement de la barre</button>
-    <button class="menu-row" data-a="note">${icon('edit')} Note d’exercice</button>
-    <button class="menu-row danger" data-a="remove">${icon('trash')} Retirer l’exercice</button>`, { title: 'Exercice' });
+    <button class="menu-row" data-a="warmup">🔥 ${t('Générer l’échauffement','Generate warm-up')}</button>
+    <button class="menu-row" data-a="plates">${icon('calc')} ${t('Chargement de la barre','Barbell loading')}</button>
+    <button class="menu-row" data-a="note">${icon('edit')} ${t('Note d’exercice','Exercise note')}</button>
+    <button class="menu-row danger" data-a="remove">${icon('trash')} ${t('Retirer l’exercice','Remove exercise')}</button>`, { title: t('Exercice','Exercise') });
   s.root.querySelector('[data-a="warmup"]').onclick = () => { s.close(); addWarmupSets(exEl, ex); };
   s.root.querySelector('[data-a="plates"]').onclick = () => {
     s.close();
@@ -325,8 +326,8 @@ function exMenu(exEl, ex) {
     W.exercises = W.exercises.filter(e => e.id !== ex.id);
     exEl.remove(); persist();
     const meta = getExercise(ex.exerciseId);
-    toast(`« ${meta ? meta.name : 'Exercice'} » retiré`, {
-      actionText: 'Annuler', duration: 5000,
+    toast(`« ${meta ? meta.name : t('Exercice','Exercise')} » ${t('retiré','removed')}`, {
+      actionText: t('Annuler','Undo'), duration: 5000,
       onAction: () => {
         W.exercises.splice(Math.min(idx, W.exercises.length), 0, ex);
         const exsEl = document.querySelector('#wk-exs'); if (!exsEl) { persist(); return; }
@@ -340,7 +341,7 @@ function exMenu(exEl, ex) {
   s.root.querySelector('[data-a="note"]').onclick = async () => {
     s.close();
     const { promptDialog } = await import('../ui.js');
-    const n = await promptDialog({ title: 'Note', value: ex.notes || '', placeholder: 'Ressenti, réglage machine…' });
+    const n = await promptDialog({ title: t('Note','Note'), value: ex.notes || '', placeholder: t('Ressenti, réglage machine…','How it felt, machine setting…') });
     if (n != null) { ex.notes = n; persist(); }
   };
 }
@@ -366,12 +367,12 @@ function addExercise() {
 
 async function renameSession() {
   const { promptDialog } = await import('../ui.js');
-  const n = await promptDialog({ title: 'Nom de la séance', value: W.name, confirmText: 'OK' });
+  const n = await promptDialog({ title: t('Nom de la séance','Workout name'), value: W.name, confirmText: 'OK' });
   if (n != null && n.trim()) { W.name = n.trim(); document.querySelector('#wk-name').textContent = W.name; persist(); }
 }
 
 async function discard() {
-  if (await confirmDialog({ title: 'Abandonner ?', message: 'La séance en cours sera supprimée. Sûr ?', confirmText: 'Abandonner', danger: true })) {
+  if (await confirmDialog({ title: t('Abandonner ?','Discard?'), message: t('La séance en cours sera supprimée. Sûr ?','The current workout will be deleted. Sure?'), confirmText: t('Abandonner','Discard'), danger: true })) {
     await deleteWorkout(W.id); const id = W.id; W = null;
     nav.go('#/home');
   }
@@ -381,7 +382,7 @@ async function finish() {
   // Rien de validé ? On demande SANS toucher au modèle vivant.
   const anyDone = W.exercises.some(ex => ex.sets.some(s => s.done));
   if (!anyDone) {
-    if (await confirmDialog({ title: 'Aucune série validée', message: 'Rien n’a été validé. Abandonner la séance ?', confirmText: 'Abandonner', danger: true })) {
+    if (await confirmDialog({ title: t('Aucune série validée','No sets completed'), message: t('Rien n’a été validé. Abandonner la séance ?','Nothing was checked off. Discard the workout?'), confirmText: t('Abandonner','Discard'), danger: true })) {
       await deleteWorkout(W.id); nav.go('#/home');
     }
     return; // annulation : la séance continue, intacte
@@ -405,7 +406,7 @@ function ensureRestBar() {
       <button class="rest-adj" data-r="-15">−15s</button>
       <div class="rest-time" id="rest-time">0:00</div>
       <button class="rest-adj" data-r="15">+15s</button>
-      <button class="rest-skip" id="rest-skip">Passer</button>`;
+      <button class="rest-skip" id="rest-skip">${t('Passer','Skip')}</button>`;
     document.body.appendChild(bar);
     bar.querySelectorAll('[data-r]').forEach(b => b.onclick = () => adjustRest(parseInt(b.dataset.r, 10)));
     bar.querySelector('#rest-skip').onclick = () => clearRest();
@@ -445,7 +446,7 @@ function restDone() {
     rest.hideTimeout = setTimeout(() => { bar.classList.remove('show','done','ending'); rest.hideTimeout = null; }, 900);
   }
   if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-    try { new Notification('Repos terminé 💪', { body: 'Série suivante !', silent: false }); } catch {}
+    try { new Notification(t('Repos terminé 💪','Rest over 💪'), { body: t('Série suivante !','Next set!'), silent: false }); } catch {}
   }
 }
 function clearRest(keepBar) {
@@ -476,8 +477,8 @@ export async function renderSummary(params) {
   const unit = ps('weightUnit');
   const prs = (w.prs || []).map(pr => {
     const ex = getExercise(pr.exerciseId);
-    const label = pr.type === 'estimated1rm' ? '1RM estimé' : pr.type === 'maxWeight' ? 'Charge max'
-      : pr.type === 'first' ? 'Première fois — la base est posée !' : 'Volume/série';
+    const label = pr.type === 'estimated1rm' ? t('1RM estimé','Est. 1RM') : pr.type === 'maxWeight' ? t('Charge max','Max weight')
+      : pr.type === 'first' ? t('Première fois — la base est posée !','First time — baseline set!') : t('Volume/série','Set volume');
     const val = pr.type === 'first' ? (pr.value ? ` · ${Math.round(pr.value)} ${unit}` : '') : ` · ${Math.round(pr.value)} ${unit}`;
     return `<div class="pr-row">${icon('trophy')}<div><b>${esc(ex ? ex.name : '')}</b><span>${label}${val}</span></div></div>`;
   }).join('');
@@ -486,20 +487,20 @@ export async function renderSummary(params) {
     <div class="summary">
       <div class="summary-hero">
         <div class="summary-badge">${icon('check')}</div>
-        <h1>Séance terminée !</h1>
+        <h1>${t('Séance terminée !','Workout complete!')}</h1>
         <p>${esc(w.name)}</p>
         <p class="summary-praise">${esc(praise({ prs: (w.prs||[]).length, volume: st.volume, sets: st.sets, durationSec: w.durationSec }))}</p>
       </div>
       <div class="summary-stats">
-        <div><b>${fmtDuration(w.durationSec)}</b><span>durée</span></div>
-        <div><b>${st.sets}</b><span>séries</span></div>
+        <div><b>${fmtDuration(w.durationSec)}</b><span>${t('durée','duration')}</span></div>
+        <div><b>${st.sets}</b><span>${t('séries','sets')}</span></div>
         <div><b>${st.reps}</b><span>reps</span></div>
-        <div><b>${Math.round(st.volume).toLocaleString('fr-FR')}</b><span>volume ${unit}</span></div>
+        <div><b>${Math.round(st.volume).toLocaleString(t('fr-FR','en-US'))}</b><span>volume ${unit}</span></div>
       </div>
-      ${prs ? `<section class="card pr-card"><h3 class="card-t">${icon('trophy')} ${(w.prs||[]).length} nouveau${(w.prs||[]).length>1?'x':''} record${(w.prs||[]).length>1?'s':''} !</h3>${prs}</section>` : ''}
+      ${prs ? `<section class="card pr-card"><h3 class="card-t">${icon('trophy')} ${(w.prs||[]).length} ${t('nouveau','new')}${(w.prs||[]).length>1 ? t('x','') :''} record${(w.prs||[]).length>1?'s':''} !</h3>${prs}</section>` : ''}
       <div class="summary-actions">
-        <button class="btn ghost full" data-nav="#/history/${w.id}">Voir le détail</button>
-        <button class="btn primary full" data-nav="#/home" id="sum-done">Terminé</button>
+        <button class="btn ghost full" data-nav="#/history/${w.id}">${t('Voir le détail','View details')}</button>
+        <button class="btn primary full" data-nav="#/home" id="sum-done">${t('Terminé','Done')}</button>
       </div>
     </div>`;
 }

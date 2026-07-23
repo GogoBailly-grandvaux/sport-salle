@@ -1,4 +1,5 @@
 // screens/coach-gen.js — wizard « le coach génère ton programme »
+import { t, locale } from '../i18n.js';
 // (inspiré des générateurs du marché : une question par écran, grandes cartes)
 import { esc } from '../util.js';
 import { state, nav } from '../store.js';
@@ -8,6 +9,7 @@ import { generatePlans, GOALS, LEVELS, EQUIPMENTS, DURATIONS } from '../generato
 import { addTemplate } from '../templates.js';
 import { exImage } from './common.js';
 
+const en = () => locale() === 'en';
 const S = { step: 0, goal: null, level: null, days: null, equipment: null, durationMin: null, seed: 1, plans: null };
 const STEPS = 5; // objectif, niveau, jours, matériel, durée → puis aperçu
 
@@ -31,7 +33,7 @@ function draw(host) {
 
 const head = (title) => `
   <div class="cg-top">
-    <button class="icon-btn" id="cg-back" aria-label="Retour">${icon('back')}</button>
+    <button class="icon-btn" id="cg-back" aria-label="${t('Retour','Back')}">${icon('back')}</button>
     ${S.plans ? '' : `<div class="cg-progress"><div class="cg-bar"><i style="width:${((S.step + 1) / STEPS) * 100}%"></i></div><span>${S.step + 1}/${STEPS}</span></div>`}
   </div>
   <h1 class="cg-q">${title}</h1>`;
@@ -42,19 +44,19 @@ function stepHtml() {
       <span class="cg-emoji">${emoji}</span><b>${label}</b>${hint ? `<span class="cg-hint">${hint}</span>` : ''}
     </button>`;
 
-  if (S.step === 0) return head('Quel est ton objectif ?') + `<div class="cg-opts">
-    ${Object.entries(GOALS).map(([k, g]) => card(k, g.emoji, g.label, '', S.goal === k)).join('')}</div>`;
+  if (S.step === 0) return head(t('Quel est ton objectif ?','What’s your goal?')) + `<div class="cg-opts">
+    ${Object.entries(GOALS).map(([k, g]) => card(k, g.emoji, en() ? g.labelEn : g.label, '', S.goal === k)).join('')}</div>`;
 
-  if (S.step === 1) return head('Ton niveau en musculation ?') + `<div class="cg-opts col">
-    ${Object.entries(LEVELS).map(([k, l]) => card(k, k === 'beginner' ? '🌱' : k === 'intermediate' ? '⚡' : '🔥', l.label, l.hint, S.level === k)).join('')}</div>`;
+  if (S.step === 1) return head(t('Ton niveau en musculation ?','Your training level?')) + `<div class="cg-opts col">
+    ${Object.entries(LEVELS).map(([k, l]) => card(k, k === 'beginner' ? '🌱' : k === 'intermediate' ? '⚡' : '🔥', en() ? l.labelEn : l.label, en() ? l.hintEn : l.hint, S.level === k)).join('')}</div>`;
 
-  if (S.step === 2) return head('Combien de jours par semaine ?') + `<div class="cg-opts days">
-    ${[1, 2, 3, 4, 5, 6].map(d => card(d, '', `${d} jour${d > 1 ? 's' : ''}`, '', S.days === d)).join('')}</div>`;
+  if (S.step === 2) return head(t('Combien de jours par semaine ?','How many days per week?')) + `<div class="cg-opts days">
+    ${[1, 2, 3, 4, 5, 6].map(d => card(d, '', `${d} ${t('jour','day')}${d > 1 ? 's' : ''}`, '', S.days === d)).join('')}</div>`;
 
-  if (S.step === 3) return head('Ton matériel ?') + `<div class="cg-opts col">
-    ${Object.entries(EQUIPMENTS).map(([k, e]) => card(k, e.emoji, e.label, k === 'gym' ? 'Machines, barres, haltères, poulies' : k === 'dumbbells' ? 'Un banc et des haltères suffisent' : 'Poids du corps et élastiques', S.equipment === k)).join('')}</div>`;
+  if (S.step === 3) return head(t('Ton matériel ?','Your equipment?')) + `<div class="cg-opts col">
+    ${Object.entries(EQUIPMENTS).map(([k, e]) => card(k, e.emoji, en() ? e.labelEn : e.label, k === 'gym' ? t('Machines, barres, haltères, poulies','Machines, barbells, dumbbells, cables') : k === 'dumbbells' ? t('Un banc et des haltères suffisent','A bench and dumbbells are enough') : t('Poids du corps et élastiques','Bodyweight and bands'), S.equipment === k)).join('')}</div>`;
 
-  return head('Durée d’une séance ?') + `<div class="cg-opts days">
+  return head(t('Durée d’une séance ?','Workout duration?')) + `<div class="cg-opts days">
     ${DURATIONS.map(d => card(d, '', `${d} min`, '', S.durationMin === d)).join('')}</div>`;
 }
 
@@ -67,15 +69,15 @@ function previewHtml() {
         const ex = getExercise(it.ex);
         return `<div class="cg-ex">${exImage(ex, 'sm')}
           <div class="cg-ex-t"><b>${esc(ex ? ex.name : it.ex)}</b>
-          <span>${it.sets} × ${it.reps[0]}–${it.reps[1]} reps · repos ${it.rest}s</span></div></div>`;
+          <span>${it.sets} × ${it.reps[0]}–${it.reps[1]} reps · ${t('repos','rest')} ${it.rest}s</span></div></div>`;
       }).join('')}
     </section>`).join('');
-  return head('Ta semaine est prête 💪') + `
-    <p class="cg-sub">${g.emoji} ${g.label} · ${LEVELS[S.level].label} · ${S.days}×/semaine · ~${S.durationMin} min. ${esc(g.tagline)}</p>
+  return head(t('Ta semaine est prête 💪','Your week is ready 💪')) + `
+    <p class="cg-sub">${g.emoji} ${en() ? g.labelEn : g.label} · ${en() ? LEVELS[S.level].labelEn : LEVELS[S.level].label} · ${S.days}×/${t('semaine','week')} · ~${S.durationMin} min. ${esc(en() ? g.taglineEn : g.tagline)}</p>
     <div class="cg-days-list">${days}</div>
     <div class="cg-foot">
-      <button class="btn ghost" id="cg-regen">↻ Régénérer</button>
-      <button class="btn primary" id="cg-save">Ajouter mes ${S.plans.length} programme${S.plans.length > 1 ? 's' : ''}</button>
+      <button class="btn ghost" id="cg-regen">↻ ${t('Régénérer','Regenerate')}</button>
+      <button class="btn primary" id="cg-save">${t('Ajouter mes','Add my')} ${S.plans.length} program${S.plans.length > 1 ? 's' : ''}${t('','')}</button>
     </div>`;
 }
 
@@ -105,7 +107,7 @@ function wire(el) {
     const btn = el.querySelector('#cg-save');
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     for (const p of S.plans) await addTemplate(p);
-    toast(`${S.plans.length} programme${S.plans.length > 1 ? 's' : ''} ajouté${S.plans.length > 1 ? 's' : ''} — bonne semaine ! 💪`, { duration: 4500 });
+    toast(`${S.plans.length} ${t('programme','program')}${S.plans.length > 1 ? 's' : ''} ${t('ajouté','added')}${S.plans.length > 1 ? 's' : ''} — ${t('bonne semaine !','have a great week!')} 💪`, { duration: 4500 });
     nav.go('#/routines');
   });
 }
@@ -113,7 +115,7 @@ function wire(el) {
 function generate(el) {
   S.plans = generatePlans(
     { goal: S.goal, level: S.level, days: S.days, equipment: S.equipment, durationMin: S.durationMin },
-    state.library, S.seed
+    state.library, S.seed, locale()
   );
   draw(el);
 }

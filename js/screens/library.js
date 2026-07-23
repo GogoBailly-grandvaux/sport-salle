@@ -1,4 +1,5 @@
 // screens/library.js — exercise library browse + detail
+import { t } from '../i18n.js';
 import { esc, debounce } from '../util.js';
 import { state, nav } from '../store.js';
 import { icon, sheet, toast } from '../ui.js';
@@ -66,22 +67,22 @@ export async function renderList() {
   const activeFilters = [F.muscle && muscleFR(F.muscle), F.equipment && EQUIP_FR[F.equipment], F.category && CATEGORY_FR[F.category]].filter(Boolean);
 
   const rows = shown.length ? shown.map(rowHtml).join('') + (res.length > listLimit ? '<div class="list-more" id="lib-more"></div>' : '')
-    : emptyState('search', 'Aucun résultat', 'Essaie un autre mot ou enlève les filtres.',
-        `<button class="btn ghost" id="lib-clear">Réinitialiser</button>`);
+    : emptyState('search', t('Aucun résultat','No results'), t('Essaie un autre mot ou enlève les filtres.','Try another word or clear the filters.'),
+        `<button class="btn ghost" id="lib-clear">${t('Réinitialiser','Reset')}</button>`);
 
   return `
     <header class="topbar">
       <div class="topbar-l">${backBtn('#/home')}</div>
-      <div class="topbar-c"><h1>Exercices</h1></div>
-      <div class="topbar-r"><button class="icon-btn ${F.favOnly?'active':''}" id="lib-fav" aria-label="Favoris">${icon(F.favOnly?'starfill':'star')}</button></div>
+      <div class="topbar-c"><h1>${t('Exercices','Exercises')}</h1></div>
+      <div class="topbar-r"><button class="icon-btn ${F.favOnly?'active':''}" id="lib-fav" aria-label="${t('Favoris','Favorites')}">${icon(F.favOnly?'starfill':'star')}</button></div>
     </header>
     <div class="screen-pad">
       <div class="lib-search">
-        <div class="input-ico">${icon('search')}<input class="input" id="lib-q" placeholder="Rechercher parmi ${state.library.length} exercices" value="${esc(F.q)}" autocomplete="off"></div>
-        <button class="icon-btn ${activeFilters.length?'active':''}" id="lib-filter" aria-label="Filtres">${icon('filter')}</button>
+        <div class="input-ico">${icon('search')}<input class="input" id="lib-q" placeholder="${t('Rechercher parmi','Search')} ${state.library.length} ${t('exercices','exercises')}" value="${esc(F.q)}" autocomplete="off"></div>
+        <button class="icon-btn ${activeFilters.length?'active':''}" id="lib-filter" aria-label="${t('Filtres','Filters')}">${icon('filter')}</button>
       </div>
-      ${activeFilters.length ? `<div class="filter-tags">${activeFilters.map(f=>`<span class="tag">${esc(f)}</span>`).join('')}<button class="tag clear" id="lib-clear2">Effacer ${icon('x')}</button></div>` : ''}
-      <p class="mut sm count">${res.length} exercice${res.length>1?'s':''}</p>
+      ${activeFilters.length ? `<div class="filter-tags">${activeFilters.map(f=>`<span class="tag">${esc(f)}</span>`).join('')}<button class="tag clear" id="lib-clear2">${t('Effacer','Clear')} ${icon('x')}</button></div>` : ''}
+      <p class="mut sm count">${res.length} ${t('exercice','exercise')}${res.length>1?'s':''}</p>
       <div class="lib-list">${rows}</div>
     </div>`;
 }
@@ -105,9 +106,9 @@ function softRefresh(root) {
   const list = root.querySelector('.lib-list');
   listLimit = CHUNK;
   const shown = res.slice(0, listLimit);
-  root.querySelector('.count').textContent = `${res.length} exercice${res.length>1?'s':''}`;
+  root.querySelector('.count').textContent = `${res.length} ${t('exercice','exercise')}${res.length>1?'s':''}`;
   list.innerHTML = shown.length ? shown.map(rowHtml).join('') + (res.length > listLimit ? '<div class="list-more" id="lib-more"></div>' : '')
-    : emptyState('search', 'Aucun résultat', 'Essaie un autre mot.', '');
+    : emptyState('search', t('Aucun résultat','No results'), t('Essaie un autre mot.','Try another word.'), '');
   wireFavs(list);
   observeMore(root);
 }
@@ -118,12 +119,12 @@ function openFilters() {
   const s = sheet(`
     <label class="field-label">Muscle</label>
     <select class="input select" id="f-muscle">${opt(MUSCLE_FR, F.muscle)}</select>
-    <label class="field-label">Matériel</label>
+    <label class="field-label">${t('Matériel','Equipment')}</label>
     <select class="input select" id="f-equip">${opt(EQUIP_FR, F.equipment)}</select>
-    <label class="field-label">Catégorie</label>
+    <label class="field-label">${t('Catégorie','Category')}</label>
     <select class="input select" id="f-cat">${opt(CATEGORY_FR, F.category)}</select>
-    <div class="dialog-actions"><button class="btn ghost" id="f-reset">Réinitialiser</button><button class="btn primary" id="f-apply">Appliquer</button></div>`,
-    { title: 'Filtres' });
+    <div class="dialog-actions"><button class="btn ghost" id="f-reset">${t('Réinitialiser','Reset')}</button><button class="btn primary" id="f-apply">${t('Appliquer','Apply')}</button></div>`,
+    { title: t('Filtres','Filters') });
   s.root.querySelector('#f-apply').onclick = () => {
     F.muscle = s.root.querySelector('#f-muscle').value;
     F.equipment = s.root.querySelector('#f-equip').value;
@@ -137,7 +138,7 @@ function openFilters() {
 export async function renderDetail(params) {
   const id = decodeURIComponent(params.id);
   const ex = getExercise(id);
-  if (!ex) return `<div class="screen-pad">${emptyState('info','Introuvable','Cet exercice n’existe plus.', `<button class="btn ghost" data-nav="#/library">Retour</button>`)}</div>`;
+  if (!ex) return `<div class="screen-pad">${emptyState('info',t('Introuvable','Not found'),t('Cet exercice n’existe plus.','This exercise no longer exists.'), `<button class="btn ghost" data-nav="#/library">${t('Retour','Back')}</button>`)}</div>`;
   favSet = await loadFavorites(state.activeProfileId);
   const workouts = await listWorkouts();
   const best = allTimeBests(workouts, id);
@@ -156,7 +157,7 @@ export async function renderDetail(params) {
 
   const video = ex.videoUrl ? `
     <video class="ex-video" controls playsinline preload="none" src="${esc(ex.videoUrl)}"></video>
-    <p class="mut sm center">🎬 Vidéo du mouvement (wger, CC-BY-SA) — <a href="${esc(ex.videoUrl)}" target="_blank" rel="noopener">ouvrir</a> si la lecture échoue</p>` : '';
+    <p class="mut sm center">🎬 ${t('Vidéo du mouvement','Movement video')} (wger, CC-BY-SA) — <a href="${esc(ex.videoUrl)}" target="_blank" rel="noopener">${t('ouvrir','open')}</a> ${t('si la lecture échoue','if playback fails')}</p>` : '';
 
   // carte musculaire (silhouettes wger + muscles ciblés)
   let bodymap = '';
@@ -175,7 +176,7 @@ export async function renderDetail(params) {
         return ov ? `<div><div class="bm-side"><img src="${esc(base)}" alt="" loading="lazy">${ov}</div><div class="bm-cap">${front ? 'Face' : 'Dos'}</div></div>` : '';
       };
       const both = side(true) + side(false);
-      if (both) bodymap = `<section class="card"><h3 class="card-t">Muscles ciblés</h3><div class="bodymap">${both}</div></section>`;
+      if (both) bodymap = `<section class="card"><h3 class="card-t">${t('Muscles ciblés','Targeted muscles')}</h3><div class="bodymap">${both}</div></section>`;
     }
   }
 
@@ -202,8 +203,8 @@ export async function renderDetail(params) {
       ${video}
       <div class="detail-badges">${badges}</div>
       <div class="detail-muscles">
-        ${(ex.primaryMuscles||[]).length ? `<div><span class="mut sm">Principaux</span>${muscleChips(ex, 6)}</div>` : ''}
-        ${(ex.secondaryMuscles||[]).length ? `<div><span class="mut sm">Secondaires</span><div class="chips">${musclesFR(ex.secondaryMuscles).map(m=>`<span class="mchip alt">${esc(m)}</span>`).join('')}</div></div>` : ''}
+        ${(ex.primaryMuscles||[]).length ? `<div><span class="mut sm">${t('Principaux','Primary')}</span>${muscleChips(ex, 6)}</div>` : ''}
+        ${(ex.secondaryMuscles||[]).length ? `<div><span class="mut sm">${t('Secondaires','Secondary')}</span><div class="chips">${musclesFR(ex.secondaryMuscles).map(m=>`<span class="mchip alt">${esc(m)}</span>`).join('')}</div></div>` : ''}
       </div>
       ${bodymap}
       ${hist}
@@ -227,7 +228,7 @@ export function mountDetail(root, params) {
 async function addToRoutine(exerciseId) {
   const routines = await listRoutines();
   if (!routines.length) { toast('Crée d’abord un programme'); nav.go('#/routines'); return; }
-  const s = sheet(routines.map(r => `<button class="pick-row simple" data-r="${r.id}"><div class="pick-info"><b>${esc(r.name)}</b><span>${(r.items||[]).length} exercice(s)</span></div>${icon('plus')}</button>`).join(''),
+  const s = sheet(routines.map(r => `<button class="pick-row simple" data-r="${r.id}"><div class="pick-info"><b>${esc(r.name)}</b><span>${(r.items||[]).length} ${t('exercices','exercises')}</span></div>${icon('plus')}</button>`).join(''),
     { title: 'Ajouter à…' });
   s.root.querySelectorAll('[data-r]').forEach(b => b.onclick = async () => {
     const r = await getRoutine(b.dataset.r);

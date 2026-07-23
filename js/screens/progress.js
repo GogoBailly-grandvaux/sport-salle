@@ -1,4 +1,5 @@
 // screens/progress.js — progress hub, per-exercise charts, body metrics
+import { t } from '../i18n.js';
 import { esc, fmtDate, relDate, todayISO, fmtWeight, round , isoToTs } from '../util.js';
 import { ps, state, nav } from '../store.js';
 import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
@@ -24,7 +25,7 @@ export async function renderHub() {
   prs.sort((a, b) => b.ts - a.ts);
   const prFeed = prs.slice(0, 12).map(pr => {
     const ex = getExercise(pr.exerciseId);
-    const label = pr.type === 'estimated1rm' ? '1RM est.' : pr.type === 'maxWeight' ? 'Charge max' : 'Volume/série';
+    const label = pr.type === 'estimated1rm' ? t('1RM est.','Est. 1RM') : pr.type === 'maxWeight' ? t('Charge max','Max weight') : t('Volume/série','Set volume');
     return `<div class="pr-row" data-nav="#/progress/exercise/${encodeURIComponent(pr.exerciseId)}">${icon('trophy')}<div><b>${esc(ex?ex.name:'')}</b><span>${label} · ${Math.round(pr.value)} ${unit} · ${relDate(pr.ts).toLowerCase()}</span></div></div>`;
   }).join('');
 
@@ -48,10 +49,10 @@ export async function renderHub() {
   const freq = new Map();
   for (const w of workouts) for (const ex of (w.exercises||[])) if ((ex.sets||[]).some(isWorkingSet)) freq.set(ex.exerciseId, (freq.get(ex.exerciseId)||0)+1);
   const top = [...freq.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const topList = top.map(([id,n]) => { const ex = getExercise(id); return `<button class="ex-mini" data-nav="#/progress/exercise/${encodeURIComponent(id)}">${exImage(ex)}<div><b>${esc(ex?ex.name:'')}</b><span>${n} séances</span></div>${icon('right')}</button>`; }).join('');
+  const topList = top.map(([id,n]) => { const ex = getExercise(id); return `<button class="ex-mini" data-nav="#/progress/exercise/${encodeURIComponent(id)}">${exImage(ex)}<div><b>${esc(ex?ex.name:'')}</b><span>${n} ${t('séances','sessions')}</span></div>${icon('right')}</button>`; }).join('');
 
   if (!workouts.length) {
-    return `${hubHeader()}<div class="screen-pad">${emptyState('chart','Pas encore de données','Enregistre quelques séances et tes courbes de progression apparaîtront ici.',`<button class="btn primary" data-nav="#/home">Démarrer une séance</button>`)}</div>`;
+    return `${hubHeader()}<div class="screen-pad">${emptyState('chart',t('Pas encore de données','No data yet'),t('Enregistre quelques séances et tes courbes de progression apparaîtront ici.','Log a few workouts and your progress charts will appear here.'),`<button class="btn primary" data-nav="#/home">${t('Démarrer une séance','Start a workout')}</button>`)}</div>`;
   }
 
   const { coachWeekly } = await import('../coach.js');
@@ -60,10 +61,10 @@ export async function renderHub() {
   return `${hubHeader()}
     <div class="screen-pad">
       ${weekly ? `<section class="card coach-card"><div class="coach-head"><span class="coach-emoji">${weekly.emoji}</span><b>${esc(weekly.title)}</b></div><p>${esc(weekly.text)}</p></section>` : ''}
-      <button class="btn primary full" id="pg-pick">${icon('search')} Progression d’un exercice</button>
+      <button class="btn primary full" id="pg-pick">${icon('search')} ${t('Progression d’un exercice','Exercise progression')}</button>
 
       <section class="card">
-        <h3 class="card-t">Volume par semaine</h3>
+        <h3 class="card-t">${t('Volume par semaine','Weekly volume')}</h3>
         ${hasVol ? barChart(wv, { valueKey:'value', height:140 }) : `<p class="mut sm">Pas assez de données.</p>`}
       </section>
 
@@ -72,18 +73,18 @@ export async function renderHub() {
         ${muscleBars}
       </section>
 
-      ${prFeed ? `<section class="card"><h3 class="card-t">${icon('trophy')} Records récents</h3>${prFeed}</section>` : ''}
+      ${prFeed ? `<section class="card"><h3 class="card-t">${icon('trophy')} ${t('Records récents','Recent records')}</h3>${prFeed}</section>` : ''}
 
       ${topList ? `<section class="card"><h3 class="card-t">Exercices suivis</h3>${topList}</section>` : ''}
 
       <section class="card bw" data-nav="#/progress/body">
-        <div class="recap-h"><span class="mut">Mesures corporelles</span>${icon('right')}</div>
+        <div class="recap-h"><span class="mut">${t('Mesures corporelles','Body measurements')}</span>${icon('right')}</div>
         ${bw.length ? `<div class="bw-row"><b>${fmtWeight(bw[bw.length-1].value, unit)}</b>${sparkline(bw.map(m=>m.value))}</div>` : `<p class="mut sm">Ajoute ton poids pour suivre ta transformation.</p>`}
       </section>
     </div>`;
 }
 function hubHeader() {
-  return `<header class="topbar"><div class="topbar-l">${backBtn('#/home')}</div><div class="topbar-c"><h1>Progrès</h1></div><div class="topbar-r"></div></header>`;
+  return `<header class="topbar"><div class="topbar-l">${backBtn('#/home')}</div><div class="topbar-c"><h1>${t('Progrès','Progress')}</h1></div><div class="topbar-r"></div></header>`;
 }
 export function mountHub(root) {
   root.querySelector('#pg-pick')?.addEventListener('click', () => openExercisePicker({ multi:false, onPick: ids => nav.go(`#/progress/exercise/${encodeURIComponent(ids[0])}`) }));
@@ -109,50 +110,50 @@ export async function renderExercise(params) {
     <div class="ex-kpis">
       <div><b>${best.maxWeight||'—'}${best.maxWeight?' '+unit:''}</b><span>Charge max</span></div>
       <div><b>${best.bestE1rm?Math.round(best.bestE1rm):'—'}${best.bestE1rm?' '+unit:''}</b><span>1RM estimé</span></div>
-      <div><b>${best.sessions}</b><span>séances</span></div>
+      <div><b>${best.sessions}</b><span>${t('séances','sessions')}</span></div>
     </div>
-    <section class="card"><h3 class="card-t">1RM estimé</h3>${hist.length>1?lineChart(hist,{valueKey:'bestE1rm',fmt:v=>Math.round(v),height:150}):`<p class="mut sm">Encore ${2-hist.length} séance pour tracer la courbe.</p>`}</section>
-    <section class="card"><h3 class="card-t">Volume par séance</h3>${barChart(hist,{valueKey:'volume',height:130})}</section>
-    ${rmRows?`<section class="card"><h3 class="card-t">Records par répétitions</h3><div class="rm-grid">${rmRows}</div></section>`:''}
-    ` : emptyState('chart','Aucune donnée','Tu n’as pas encore fait cet exercice en séance.','');
+    <section class="card"><h3 class="card-t">${t('1RM estimé','Estimated 1RM')}</h3>${hist.length>1?lineChart(hist,{valueKey:'bestE1rm',fmt:v=>Math.round(v),height:150}):`<p class="mut sm">${t('Encore','Just')} ${2-hist.length} ${t('séance pour tracer la courbe.','more session to draw the curve.')}</p>`}</section>
+    <section class="card"><h3 class="card-t">${t('Volume par séance','Volume per session')}</h3>${barChart(hist,{valueKey:'volume',height:130})}</section>
+    ${rmRows?`<section class="card"><h3 class="card-t">${t('Records par répétitions','Rep records')}</h3><div class="rm-grid">${rmRows}</div></section>`:''}
+    ` : emptyState('chart',t('Aucune donnée','No data'),t('Tu n’as pas encore fait cet exercice en séance.','You haven’t done this exercise in a workout yet.'),'');
 
   return `
-    <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div><div class="topbar-c"><h1 class="ell">${esc(ex?ex.name:'Exercice')}</h1></div><div class="topbar-r"><button class="icon-btn" data-nav="#/library/${encodeURIComponent(id)}" aria-label="Fiche de l’exercice">${icon('info')}</button></div></header>
+    <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div><div class="topbar-c"><h1 class="ell">${esc(ex?ex.name:'Exercice')}</h1></div><div class="topbar-r"><button class="icon-btn" data-nav="#/library/${encodeURIComponent(id)}" aria-label="${t('Fiche de l’exercice','Exercise page')}">${icon('info')}</button></div></header>
     <div class="screen-pad">${body}</div>`;
 }
 export function mountExercise() {}
 
 // ---------------- body metrics ----------------
-const METRICS = { weight: { label:'Poids', unit:'kg' }, bodyfat: { label:'Masse grasse', unit:'%' }, waist: { label:'Tour de taille', unit:'cm' } };
+const METRICS = () => ({ weight: { label:t('Poids','Weight'), unit:'kg' }, bodyfat: { label:t('Masse grasse','Body fat'), unit:'%' }, waist: { label:t('Tour de taille','Waist'), unit:'cm' } });
 let bodyType = 'weight';
 
 export async function renderBody() {
   const rows = await listMetrics(bodyType);
-  const meta = METRICS[bodyType];
+  const meta = METRICS()[bodyType];
   const pts = rows.map(m => ({ ts: isoToTs(m.date), value: m.value }));
   const trend = emaTrend(pts, 0.15);
-  const seg = Object.entries(METRICS).map(([k,v]) => `<button class="seg ${k===bodyType?'on':''}" data-type="${k}">${v.label}</button>`).join('');
+  const seg = Object.entries(METRICS()).map(([k,v]) => `<button class="seg ${k===bodyType?'on':''}" data-type="${k}">${v.label}</button>`).join('');
   const list = rows.slice().reverse().slice(0,30).map(m => `<div class="metric-row"><span>${fmtDate(isoToTs(m.date),{year:true})}</span><b>${m.value} ${meta.unit}</b><button class="icon-btn sm danger" data-del="${m.id}" aria-label="Supprimer la mesure">${icon('trash')}</button></div>`).join('');
 
   return `
-    <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div><div class="topbar-c"><h1>Mesures</h1></div><div class="topbar-r"><button class="icon-btn" id="bm-add" aria-label="Ajouter">${icon('plus')}</button></div></header>
+    <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div><div class="topbar-c"><h1>${t('Mesures','Measurements')}</h1></div><div class="topbar-r"><button class="icon-btn" id="bm-add" aria-label="${t('Ajouter','Add')}">${icon('plus')}</button></div></header>
     <div class="screen-pad">
       <div class="segmented">${seg}</div>
       <section class="card">
         <h3 class="card-t">${meta.label} (${meta.unit})</h3>
-        ${pts.length>1 ? lineChart(trend,{valueKey:'value',trendKey:'trend',fmt:v=>round(v,1),height:150}) : (pts.length?`<div class="single-val">${pts[0].value} ${meta.unit}</div>`:`<p class="mut sm">Aucune mesure. Appuie sur + pour commencer.</p>`)}
+        ${pts.length>1 ? lineChart(trend,{valueKey:'value',trendKey:'trend',fmt:v=>round(v,1),height:150}) : (pts.length?`<div class="single-val">${pts[0].value} ${meta.unit}</div>`:`<p class="mut sm">${t('Aucune mesure. Appuie sur + pour commencer.','No measurements. Tap + to start.')}</p>`)}
       </section>
-      ${rows.length?`<section class="card"><h3 class="card-t">Historique</h3><div class="metric-list">${list}</div></section>`:''}
+      ${rows.length?`<section class="card"><h3 class="card-t">${t('Historique','History')}</h3><div class="metric-list">${list}</div></section>`:''}
     </div>`;
 }
 export function mountBody(root) {
   root.querySelectorAll('[data-type]').forEach(b => b.onclick = () => { bodyType = b.dataset.type; nav.refresh(); });
   root.querySelector('#bm-add').onclick = async () => {
-    const meta = METRICS[bodyType];
-    const v = await promptDialog({ title: `Ajouter — ${meta.label}`, label: `Valeur (${meta.unit})`, type:'number', placeholder: meta.unit });
+    const meta = METRICS()[bodyType];
+    const v = await promptDialog({ title: `${t('Ajouter','Add')} — ${meta.label}`, label: `${t('Valeur','Value')} (${meta.unit})`, type:'number', placeholder: meta.unit });
     if (v == null || v === '' || isNaN(+v)) return;
     await addMetric({ type: bodyType, value: round(+v,2), date: todayISO() });
-    toast('Mesure enregistrée ✓'); nav.refresh();
+    toast(t('Mesure enregistrée ✓','Measurement saved ✓')); nav.refresh();
   };
   root.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { await deleteMetric(b.dataset.del); nav.refresh(); });
 }

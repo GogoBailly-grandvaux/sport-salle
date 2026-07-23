@@ -1,4 +1,5 @@
 // screens/history.js — session list + detail
+import { t } from '../i18n.js';
 import { esc, fmtDate, relDate, fmtTime, fmtDuration } from '../util.js';
 import { ps, nav } from '../store.js';
 import { icon, confirmDialog, toast } from '../ui.js';
@@ -20,25 +21,25 @@ export async function renderList() {
     const st = workoutStats(w);
     html += `<button class="hist-row" data-nav="#/history/${w.id}">
       <div class="hist-date"><b>${d.getDate()}</b><span>${['dim','lun','mar','mer','jeu','ven','sam'][d.getDay()]}</span></div>
-      <div class="hist-info"><b>${esc(w.name)}</b><span>${st.exercises} exercices · ${st.sets} séries · ${Math.round(st.volume).toLocaleString('fr-FR')} ${unit}</span></div>
+      <div class="hist-info"><b>${esc(w.name)}</b><span>${st.exercises} ${t('exercices','exercises')} · ${st.sets} ${t('séries','sets')} · ${Math.round(st.volume).toLocaleString(t('fr-FR','en-US'))} ${unit}</span></div>
       ${(w.prs||[]).length ? `<span class="pr-pill">${icon('trophy')}${w.prs.length}</span>` : `<span class="hist-dur">${fmtDuration(w.durationSec)}</span>`}
     </button>`;
   }
   return `
     <header class="topbar">
       <div class="topbar-l">${backBtn('#/home')}</div>
-      <div class="topbar-c"><h1>Historique</h1></div>
+      <div class="topbar-c"><h1>${t('Historique','History')}</h1></div>
       <div class="topbar-r"></div>
     </header>
     <div class="screen-pad">
-      ${ws.length ? html : emptyState('history','Aucune séance', emptyHistory(),`<button class="btn primary" data-nav="#/home">Démarrer</button>`)}
+      ${ws.length ? html : emptyState('history',t('Aucune séance','No workouts'), emptyHistory(),`<button class="btn primary" data-nav="#/home">${t('Démarrer','Start')}</button>`)}
     </div>`;
 }
 export function mountList() {}
 
 export async function renderDetail(params) {
   const w = await getWorkout(params.id);
-  if (!w) return `<div class="screen-pad">${emptyState('info','Introuvable','',`<button class="btn ghost" data-nav="#/history">Retour</button>`)}</div>`;
+  if (!w) return `<div class="screen-pad">${emptyState('info',t('Introuvable','Not found'),'',`<button class="btn ghost" data-nav="#/history">${t('Retour','Back')}</button>`)}</div>`;
   const unit = ps('weightUnit'); const st = workoutStats(w);
   const prIds = new Set((w.prs||[]).map(p => p.exerciseId));
 
@@ -62,23 +63,23 @@ export async function renderDetail(params) {
     <header class="topbar">
       <div class="topbar-l">${backBtn('#/history')}</div>
       <div class="topbar-c"><h1 class="ell">${esc(w.name)}</h1><span class="topbar-sub">${fmtDate(w.completedAt, {withDay:true})} · ${fmtTime(w.completedAt)}</span></div>
-      <div class="topbar-r"><button class="icon-btn danger" id="hd-del" aria-label="Supprimer">${icon('trash')}</button></div>
+      <div class="topbar-r"><button class="icon-btn danger" id="hd-del" aria-label="${t('Supprimer','Delete')}">${icon('trash')}</button></div>
     </header>
     <div class="screen-pad">
       <div class="summary-stats compact">
-        <div><b>${fmtDuration(w.durationSec)}</b><span>durée</span></div>
-        <div><b>${st.sets}</b><span>séries</span></div>
+        <div><b>${fmtDuration(w.durationSec)}</b><span>${t('durée','duration')}</span></div>
+        <div><b>${st.sets}</b><span>${t('séries','sets')}</span></div>
         <div><b>${st.reps}</b><span>reps</span></div>
         <div><b>${Math.round(st.volume).toLocaleString('fr-FR')}</b><span>${unit}</span></div>
       </div>
       ${w.notes ? `<p class="sess-note">${esc(w.notes)}</p>` : ''}
       ${blocks}
-      <button class="btn primary full mt" id="hd-redo">${icon('play')} Refaire cette séance</button>
+      <button class="btn primary full mt" id="hd-redo">${icon('play')} ${t('Refaire cette séance','Repeat this workout')}</button>
     </div>`;
 }
 export function mountDetail(root, params) {
   root.querySelector('#hd-del').onclick = async () => {
-    if (await confirmDialog({ title: 'Supprimer', message: 'Supprimer cette séance de l’historique ?', confirmText: 'Supprimer', danger: true })) {
+    if (await confirmDialog({ title: t('Supprimer','Delete'), message: t('Supprimer cette séance de l’historique ?','Delete this workout from history?'), confirmText: t('Supprimer','Delete'), danger: true })) {
       await deleteWorkout(params.id); nav.go('#/history');
     }
   };

@@ -1,4 +1,5 @@
 // screens/picker.js — exercise picker bottom sheet (single or multi-select)
+import { t } from '../i18n.js';
 import { esc, debounce } from '../util.js';
 import { sheet, icon, toast } from '../ui.js';
 import { searchExercises, muscleFR, MUSCLE_FR, EQUIP_FR, addCustomExercise } from '../data.js';
@@ -19,7 +20,7 @@ export function openExercisePicker({ multi = true, onPick } = {}) {
 
   const listHtml = () => {
     const res = searchExercises({ q, muscle });
-    if (!res.length) return `<div class="pick-empty">Aucun exercice.<br><button class="btn ghost sm" id="pk-new">+ Créer un exercice</button></div>`;
+    if (!res.length) return `<div class="pick-empty">${t('Aucun exercice.','No exercises.')}<br><button class="btn ghost sm" id="pk-new">+ ${t('Créer un exercice','Create an exercise')}</button></div>`;
     return res.slice(0, limit).map(rowHtml).join('') + (res.length > limit ? '<div class="list-more" id="pk-more"></div>' : '');
   };
 
@@ -42,23 +43,23 @@ export function openExercisePicker({ multi = true, onPick } = {}) {
   };
 
   const muscleOpts = ['', ...Object.keys(MUSCLE_FR)].map(m =>
-    `<option value="${m}">${m ? muscleFR(m) : 'Tous les muscles'}</option>`).join('');
+    `<option value="${m}">${m ? muscleFR(m) : t('Tous les muscles','All muscles')}</option>`).join('');
 
   const body = `
     <div class="pick-search">
-      <div class="input-ico">${icon('search')}<input class="input" id="pk-q" placeholder="Rechercher un exercice" aria-label="Rechercher un exercice" autocomplete="off"></div>
-      <select class="input select" id="pk-muscle" aria-label="Filtrer par muscle">${muscleOpts}</select>
+      <div class="input-ico">${icon('search')}<input class="input" id="pk-q" placeholder="${t('Rechercher un exercice','Search exercises')}" aria-label="${t('Rechercher un exercice','Search exercises')}" autocomplete="off"></div>
+      <select class="input select" id="pk-muscle" aria-label="${t('Filtrer par muscle','Filter by muscle')}">${muscleOpts}</select>
     </div>
     <div class="pick-list" id="pk-list">${listHtml()}</div>
-    ${multi ? `<div class="pick-foot"><button class="btn primary" id="pk-add" disabled>Ajouter</button></div>` : ''}`;
+    ${multi ? `<div class="pick-foot"><button class="btn primary" id="pk-add" disabled>${t('Ajouter','Add')}</button></div>` : ''}`;
 
-  const s = sheet(body, { title: 'Ajouter un exercice', cls: 'tall' });
+  const s = sheet(body, { title: t('Ajouter un exercice','Add an exercise'), cls: 'tall' });
   const listEl = s.root.querySelector('#pk-list');
   const addBtn = s.root.querySelector('#pk-add');
   const refresh = () => { limit = CHUNK; listEl.innerHTML = listHtml(); wireNew(); observeMore(); };
   const wireNew = () => { const n = s.root.querySelector('#pk-new'); if (n) n.onclick = createCustom; };
 
-  const updateFoot = () => { if (addBtn) { addBtn.disabled = selected.size === 0; addBtn.textContent = selected.size ? `Ajouter (${selected.size})` : 'Ajouter'; } };
+  const updateFoot = () => { if (addBtn) { addBtn.disabled = selected.size === 0; addBtn.textContent = selected.size ? `${t('Ajouter','Add')} (${selected.size})` : t('Ajouter','Add'); } };
 
   listEl.addEventListener('click', e => {
     const row = e.target.closest('.pick-row'); if (!row) return;
@@ -76,9 +77,9 @@ export function openExercisePicker({ multi = true, onPick } = {}) {
 
   async function createCustom() {
     const name = s.root.querySelector('#pk-q').value.trim();
-    if (!name) { toast('Tape un nom dans la recherche d’abord'); return; }
+    if (!name) { toast(t('Tape un nom dans la recherche d’abord','Type a name in the search first')); return; }
     const ex = await addCustomExercise({ name, primaryMuscles: muscle ? [muscle] : [] });
-    toast(`« ${ex.name} » créé`);
+    toast(`« ${ex.name} » ${t('créé','created')}`);
     if (!multi) { s.close(); onPick && onPick([ex.id]); }
     else { selected.add(ex.id); refresh(); updateFoot(); }
   }

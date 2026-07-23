@@ -5,22 +5,22 @@
 // et se créent donc via templates.addTemplate().
 
 export const GOALS = {
-  fatloss:  { label: 'Perte de poids',  emoji: '🔥', sets: 3, reps: [12, 15], rest: 45,  tagline: 'Densité et dépense : repos courts, reps hautes.' },
-  muscle:   { label: 'Prise de muscle', emoji: '💪', sets: 4, reps: [8, 12],  rest: 90,  tagline: 'Hypertrophie : volume maîtrisé, 8–12 reps.' },
-  strength: { label: 'Force',           emoji: '🏆', sets: 4, reps: [4, 6],   rest: 150, tagline: 'Charges lourdes, reps basses, repos longs.' },
-  fitness:  { label: 'Être en forme',   emoji: '❤️', sets: 3, reps: [10, 12], rest: 60,  tagline: 'Équilibre général : tout le corps, sans excès.' },
+  fatloss:  { label: 'Perte de poids',  labelEn: 'Fat loss',     emoji: '🔥', sets: 3, reps: [12, 15], rest: 45,  tagline: 'Densité et dépense : repos courts, reps hautes.', taglineEn: 'Density and burn: short rests, high reps.' },
+  muscle:   { label: 'Prise de muscle', labelEn: 'Muscle gain',  emoji: '💪', sets: 4, reps: [8, 12],  rest: 90,  tagline: 'Hypertrophie : volume maîtrisé, 8–12 reps.', taglineEn: 'Hypertrophy: controlled volume, 8–12 reps.' },
+  strength: { label: 'Force',           labelEn: 'Strength',     emoji: '🏆', sets: 4, reps: [4, 6],   rest: 150, tagline: 'Charges lourdes, reps basses, repos longs.', taglineEn: 'Heavy loads, low reps, long rests.' },
+  fitness:  { label: 'Être en forme',   labelEn: 'General fitness', emoji: '❤️', sets: 3, reps: [10, 12], rest: 60,  tagline: 'Équilibre général : tout le corps, sans excès.', taglineEn: 'Balanced full-body training, nothing extreme.' },
 };
 
 export const LEVELS = {
-  beginner:     { label: 'Débutant',      hint: 'Moins de 6 mois de pratique' },
-  intermediate: { label: 'Intermédiaire', hint: 'Entre 6 mois et 4 ans' },
-  advanced:     { label: 'Avancé',        hint: 'Plus de 4 ans de pratique' },
+  beginner:     { label: 'Débutant',      labelEn: 'Beginner',     hint: 'Moins de 6 mois de pratique', hintEn: 'Less than 6 months of training' },
+  intermediate: { label: 'Intermédiaire', labelEn: 'Intermediate', hint: 'Entre 6 mois et 4 ans',       hintEn: 'Between 6 months and 4 years' },
+  advanced:     { label: 'Avancé',        labelEn: 'Advanced',     hint: 'Plus de 4 ans de pratique',   hintEn: 'More than 4 years of training' },
 };
 
 export const EQUIPMENTS = {
-  gym:       { label: 'Salle complète',    emoji: '🏟️', allow: null }, // null = tout
-  dumbbells: { label: 'Haltères + banc',   emoji: '🏋️', allow: ['dumbbell', 'body only', 'bands'] },
-  home:      { label: 'Maison sans matos', emoji: '🏠', allow: ['body only', 'bands'] },
+  gym:       { label: 'Salle complète',    labelEn: 'Full gym',        emoji: '🏟️', allow: null }, // null = tout
+  dumbbells: { label: 'Haltères + banc',   labelEn: 'Dumbbells + bench', emoji: '🏋️', allow: ['dumbbell', 'body only', 'bands'] },
+  home:      { label: 'Maison sans matos', labelEn: 'Home, no gear',   emoji: '🏠', allow: ['body only', 'bands'] },
 };
 
 export const DURATIONS = [30, 45, 60, 75];
@@ -36,6 +36,7 @@ const DAY_MUSCLES = {
 };
 
 const DAY_LABELS = { full: 'Full body', push: 'Push · pousser', pull: 'Pull · tirer', legs: 'Jambes', upper: 'Haut du corps', lower: 'Bas du corps' };
+const DAY_LABELS_EN = { full: 'Full body', push: 'Push', pull: 'Pull', legs: 'Legs', upper: 'Upper body', lower: 'Lower body' };
 
 // répartition de la semaine selon les jours dispo (et le niveau)
 export function weekSplit(days, level) {
@@ -87,7 +88,8 @@ function preferredEquip(goal, level) {
  * @param {number} seed    graine (changer = régénérer une variante)
  * @returns {Array<{name, level, goal, tagline, items:[{ex,sets,reps,rest}]}>}
  */
-export function generatePlans(input, library, seed = 1) {
+export function generatePlans(input, library, seed = 1, lang = 'fr') {
+  const en = lang === 'en';
   const goal = GOALS[input.goal] || GOALS.fitness;
   const level = LEVELS[input.level] ? input.level : 'beginner';
   const equip = EQUIPMENTS[input.equipment] || EQUIPMENTS.gym;
@@ -144,12 +146,12 @@ export function generatePlans(input, library, seed = 1) {
         rest: isAbs ? Math.min(goal.rest, 60) : goal.rest,
       });
     });
-    const label = DAY_LABELS[kind];
+    const label = (en ? DAY_LABELS_EN : DAY_LABELS)[kind];
     return {
       name: `Coach ${letters[di]} · ${label}`,
-      level: LEVELS[level].label,
-      goal: goal.label,
-      tagline: `${goal.emoji} ${goal.label} · ${LEVELS[level].label} · ~${input.durationMin || 45} min. ${goal.tagline}`,
+      level: en ? LEVELS[level].labelEn : LEVELS[level].label,
+      goal: en ? goal.labelEn : goal.label,
+      tagline: `${goal.emoji} ${en ? goal.labelEn : goal.label} · ${en ? LEVELS[level].labelEn : LEVELS[level].label} · ~${input.durationMin || 45} min. ${en ? goal.taglineEn : goal.tagline}`,
       items,
     };
   });

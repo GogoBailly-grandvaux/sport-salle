@@ -1,4 +1,5 @@
 // screens/routines.js — routine list + builder + templates + sharing
+import { t } from '../i18n.js';
 import { esc, relDate } from '../util.js';
 import { nav } from '../store.js';
 import { icon, sheet, toast, confirmDialog, promptDialog } from '../ui.js';
@@ -17,9 +18,9 @@ export async function beginRoutine(routine) {
   const active = await getActiveWorkout();
   if (active) {
     const resume = await confirmDialog({
-      title: 'Séance déjà en cours',
-      message: `« ${active.name} » est en cours. La reprendre, ou la remplacer par ce programme ?`,
-      confirmText: 'Reprendre', cancelText: 'Remplacer',
+      title: t('Séance déjà en cours','Workout already in progress'),
+      message: `« ${active.name} » ${t('est en cours. La reprendre, ou la remplacer par ce programme ?','is in progress. Resume it, or replace it with this program?')}`,
+      confirmText: t('Reprendre','Resume'), cancelText: t('Remplacer','Replace'),
     });
     if (resume === null) return;                 // fermé (X/backdrop/Échap) → on ne touche à rien
     if (resume) { nav.go(`#/workout/${active.id}`); return; }
@@ -35,50 +36,50 @@ export async function renderList() {
   const cards = routines.map(r => {
     const preview = (r.items || []).slice(0, 4).map(it => {
       const ex = getExercise(it.exerciseId);
-      return `<span class="rt-ex">${esc(ex ? ex.name : 'Exercice supprimé')}</span>`;
+      return `<span class="rt-ex">${esc(ex ? ex.name : t('Exercice supprimé','Deleted exercise'))}</span>`;
     }).join('');
     const more = (r.items || []).length > 4 ? `<span class="rt-ex more">+${r.items.length - 4}</span>` : '';
     return `
       <div class="rt-card">
         <button class="rt-main" data-nav="#/routines/${r.id}/edit">
           <div class="rt-head"><h3>${esc(r.name)}</h3><span class="mut sm">${(r.items||[]).length} exercice${(r.items||[]).length>1?'s':''}${r.lastPerformedAt ? ' · ' + relDate(r.lastPerformedAt).toLowerCase() : ''}</span></div>
-          <div class="rt-exs">${preview || '<span class="mut sm">Vide — ajoute des exercices</span>'}${more}</div>
+          <div class="rt-exs">${preview || `<span class="mut sm">${t('Vide — ajoute des exercices','Empty — add exercises')}</span>`}${more}</div>
         </button>
-        <button class="btn primary rt-start" data-start="${r.id}">${icon('play')} Démarrer</button>
+        <button class="btn primary rt-start" data-start="${r.id}">${icon('play')} ${t('Démarrer','Start')}</button>
       </div>`;
   }).join('');
 
   return `
     <header class="topbar">
       <div class="topbar-l">${backBtn('#/home')}</div>
-      <div class="topbar-c"><h1>Programmes</h1></div>
+      <div class="topbar-c"><h1>${t('Programmes','Programs')}</h1></div>
       <div class="topbar-r">
-        <button class="icon-btn" id="rt-import" aria-label="Importer">${icon('upload')}</button>
-        <button class="icon-btn" id="rt-new" aria-label="Nouveau">${icon('plus')}</button>
+        <button class="icon-btn" id="rt-import" aria-label="${t('Importer','Import')}">${icon('upload')}</button>
+        <button class="icon-btn" id="rt-new" aria-label="${t('Nouveau','New')}">${icon('plus')}</button>
       </div>
     </header>
     <div class="screen-pad">
       <button class="tpl-banner coach" id="rt-coach">
-        <div class="tpl-banner-t"><b>🧙 Le coach génère TON programme</b><span>Objectif, niveau, jours, matériel → ta semaine prête en 30 s</span></div>
+        <div class="tpl-banner-t"><b>🧙 ${t('Le coach génère TON programme','The coach builds YOUR program')}</b><span>${t('Objectif, niveau, jours, matériel → ta semaine prête en 30 s','Goal, level, days, equipment → your week ready in 30 s')}</span></div>
         ${icon('right')}
       </button>
       <button class="tpl-banner" id="rt-templates">
-        <div class="tpl-banner-t"><b>✨ Modèles prêts à l’emploi</b><span>Full body, Push/Pull/Legs, maison… à personnaliser</span></div>
+        <div class="tpl-banner-t"><b>✨ ${t('Modèles prêts à l’emploi','Ready-made templates')}</b><span>${t('Full body, Push/Pull/Legs, maison… à personnaliser','Full body, Push/Pull/Legs, home… all customizable')}</span></div>
         ${icon('right')}
       </button>
       ${routines.length ? `<div class="rt-list">${cards}</div>
-      <button class="btn ghost full mt" id="rt-new3">${icon('plus')} Nouveau programme</button>` :
-        emptyState('dumbbell', 'Aucun programme', 'Pars d’un modèle prêt à l’emploi, ou crée ton circuit de zéro.',
-          `<button class="btn primary" id="rt-new2">${icon('plus')} Créer un programme</button>`)}
+      <button class="btn ghost full mt" id="rt-new3">${icon('plus')} ${t('Nouveau programme','New program')}</button>` :
+        emptyState('dumbbell', t('Aucun programme','No programs'), t('Pars d’un modèle prêt à l’emploi, ou crée ton circuit de zéro.','Start from a template, or build your own from scratch.'),
+          `<button class="btn primary" id="rt-new2">${icon('plus')} ${t('Créer un programme','Create a program')}</button>`)}
       <input type="file" id="rt-file" accept="application/json,.json" hidden>
     </div>`;
 }
 
 export function mountList(root) {
   const create = async () => {
-    const name = await promptDialog({ title: 'Nouveau programme', label: 'Nom', placeholder: 'Ex. Haut du corps A', confirmText: 'Créer' });
+    const name = await promptDialog({ title: t('Nouveau programme','New program'), label: t('Nom','Name'), placeholder: t('Ex. Haut du corps A','E.g. Upper body A'), confirmText: t('Créer','Create') });
     if (name == null) return;
-    const r = await newRoutine(name.trim() || 'Nouveau programme');
+    const r = await newRoutine(name.trim() || t('Nouveau programme','New program'));
     nav.go(`#/routines/${r.id}/edit`);
   };
   root.querySelector('#rt-new').onclick = create;
@@ -94,39 +95,39 @@ export function mountList(root) {
       const d = JSON.parse(await f.text());
       if (d.kind === 'routine') {
         const r = await importRoutinePayload(d);
-        toast(`« ${r.name} » importé ✓`); nav.refresh();
+        toast(`« ${r.name} » ${t('importé','imported')} ✓`); nav.refresh();
       } else if (d.app === 'sport-salle' && d.data) {
-        toast('Ceci est une sauvegarde complète — importe-la depuis Profil → Données', { duration: 5000 });
+        toast(t('Ceci est une sauvegarde complète — importe-la depuis Profil → Données','This is a full backup — import it from Profile → Data'), { duration: 5000 });
       } else throw new Error('format');
-    } catch { toast('Fichier de programme invalide', { type: 'error' }); }
+    } catch { toast(t('Fichier de programme invalide','Invalid program file'), { type: 'error' }); }
     fileInput.value = '';
   };
   root.querySelectorAll('[data-start]').forEach(b => b.onclick = async () => {
     const r = await getRoutine(b.dataset.start);
-    if (!(r.items || []).length) { toast('Ajoute des exercices d’abord'); nav.go(`#/routines/${r.id}/edit`); return; }
+    if (!(r.items || []).length) { toast(t('Ajoute des exercices d’abord','Add exercises first')); nav.go(`#/routines/${r.id}/edit`); return; }
     beginRoutine(r);
   });
 }
 
 // ---------------- template gallery ----------------
 function openTemplates() {
-  const card = (t) => `
+  const card = (t_) => `
     <div class="tpl-card">
       <div class="tpl-head">
-        <div><b>${esc(t.name)}</b><div class="tpl-meta"><span class="tpl-pill">${esc(t.level)}</span><span class="tpl-pill alt">${esc(t.goal)}</span><span class="mut sm">${t.items.length} exercices</span></div></div>
+        <div><b>${esc(t_.name)}</b><div class="tpl-meta"><span class="tpl-pill">${esc(t_.level)}</span><span class="tpl-pill alt">${esc(t_.goal)}</span><span class="mut sm">${t_.items.length} ${t('exercices','exercises')}</span></div></div>
         <button class="btn primary sm" data-add="${t.id}">${icon('plus')} Ajouter</button>
       </div>
-      <p class="tpl-tag">${esc(t.tagline)}</p>
-      <div class="rt-exs">${t.items.slice(0, 4).map(it => { const ex = getExercise(it.ex); return `<span class="rt-ex">${esc(ex ? ex.name : it.ex)}</span>`; }).join('')}${t.items.length > 4 ? `<span class="rt-ex more">+${t.items.length - 4}</span>` : ''}</div>
+      <p class="tpl-tag">${esc(t_.tagline)}</p>
+      <div class="rt-exs">${t_.items.slice(0, 4).map(it => { const ex = getExercise(it.ex); return `<span class="rt-ex">${esc(ex ? ex.name : it.ex)}</span>`; }).join('')}${t_.items.length > 4 ? `<span class="rt-ex more">+${t_.items.length - 4}</span>` : ''}</div>
     </div>`;
   const s = sheet(`<div class="tpl-list">${TEMPLATES.map(card).join('')}</div>
-    <p class="mut sm center" style="margin-top:10px">Chaque modèle devient TON programme : modifie exercices, séries et repos librement.</p>`,
-    { title: 'Modèles de programmes', cls: 'tall' });
+    <p class="mut sm center" style="margin-top:10px">${t('Chaque modèle devient TON programme : modifie exercices, séries et repos librement.','Every template becomes YOUR program: change exercises, sets and rests freely.')}</p>`,
+    { title: t('Modèles de programmes','Program templates'), cls: 'tall' });
   s.root.querySelectorAll('[data-add]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     const tpl = TEMPLATES.find(t => t.id === b.dataset.add);
     const r = await addTemplate(tpl);
-    s.close(); toast(`« ${r.name} » ajouté à tes programmes ✓`);
+    s.close(); toast(`« ${r.name} » ${t('ajouté à tes programmes','added to your programs')} ✓`);
     nav.refresh();
   });
 }
@@ -140,7 +141,7 @@ async function publishRoutine(r) {
     <button class="menu-row" data-dest="friends">${icon('users')} Visible par mes amis</button>
     ${groups.map(g => `<button class="menu-row" data-dest="g-${g.id}">${icon('users')} Groupe « ${esc(g.name)} »</button>`).join('')}
     ${!groups.length ? '<p class="mut sm center">Crée un groupe dans l’onglet Social pour publier dedans.</p>' : ''}`,
-    { title: 'Publier le programme' });
+    { title: t('Publier le programme','Publish program') });
   s.root.querySelectorAll('[data-dest]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     const dest = b.dataset.dest;
@@ -188,13 +189,13 @@ export async function renderEdit(params) {
       <div class="edit-item" data-i="${i}">
         ${exImage(ex)}
         <div class="edit-info" data-edit="${i}">
-          <b>${esc(ex ? ex.name : 'Exercice supprimé')}</b>
-          <span>${it.targetSets} × ${reps} reps · repos ${it.restSec||0}s</span>
+          <b>${esc(ex ? ex.name : t('Exercice supprimé','Deleted exercise'))}</b>
+          <span>${it.targetSets} × ${reps} reps · ${t('repos','rest')} ${it.restSec||0}s</span>
         </div>
         <div class="edit-ord">
-          <button class="icon-btn sm" data-up="${i}" ${i===0?'disabled':''} aria-label="Monter">${icon('arrowup')}</button>
-          <button class="icon-btn sm rot" data-down="${i}" ${i===r.items.length-1?'disabled':''} aria-label="Descendre">${icon('arrowup')}</button>
-          <button class="icon-btn sm danger" data-del="${i}" aria-label="Retirer">${icon('trash')}</button>
+          <button class="icon-btn sm" data-up="${i}" ${i===0?'disabled':''} aria-label="${t('Monter','Move up')}">${icon('arrowup')}</button>
+          <button class="icon-btn sm rot" data-down="${i}" ${i===r.items.length-1?'disabled':''} aria-label="${t('Descendre','Move down')}">${icon('arrowup')}</button>
+          <button class="icon-btn sm danger" data-del="${i}" aria-label="${t('Retirer','Remove')}">${icon('trash')}</button>
         </div>
       </div>`;
   }).join('');
@@ -202,21 +203,21 @@ export async function renderEdit(params) {
   return `
     <header class="topbar">
       <div class="topbar-l">${backBtn('#/routines')}</div>
-      <div class="topbar-c"><h1 class="ell">Programme</h1></div>
+      <div class="topbar-c"><h1 class="ell">${t('Programme','Program')}</h1></div>
       <div class="topbar-r"><button class="icon-btn" id="e-menu" aria-label="Options">${icon('more')}</button></div>
     </header>
     <div class="screen-pad">
-      <input class="input title-input" id="e-name" value="${esc(r.name)}" placeholder="Nom du programme">
-      <div class="edit-list">${items || `<p class="mut center pad">Aucun exercice pour l’instant.</p>`}</div>
+      <input class="input title-input" id="e-name" value="${esc(r.name)}" placeholder="${t('Nom du programme','Program name')}">
+      <div class="edit-list">${items || `<p class="mut center pad">${t('Aucun exercice pour l’instant.','No exercises yet.')}</p>`}</div>
       <button class="btn ghost full" id="e-add">${icon('plus')} Ajouter un exercice</button>
-      <button class="btn primary full mt" id="e-start" ${(r.items||[]).length?'':'disabled'}>${icon('play')} Démarrer cette séance</button>
+      <button class="btn primary full mt" id="e-start" ${(r.items||[]).length?'':'disabled'}>${icon('play')} ${t('Démarrer cette séance','Start this workout')}</button>
     </div>`;
 }
 
 export function mountEdit(root, params) {
   const id = params.id;
   const nameEl = root.querySelector('#e-name');
-  const persistName = async () => { const r = await getRoutine(id); if (r && r.name !== nameEl.value) { r.name = nameEl.value.trim() || 'Programme'; await saveRoutine(r); } };
+  const persistName = async () => { const r = await getRoutine(id); if (r && r.name !== nameEl.value) { r.name = nameEl.value.trim() || t('Programme','Program'); await saveRoutine(r); } };
   nameEl.addEventListener('change', persistName);
 
   root.querySelector('#e-add').onclick = () => openExercisePicker({
@@ -234,8 +235,8 @@ export function mountEdit(root, params) {
     const [removed] = r.items.splice(idx, 1);
     r.items.forEach((it, i) => it.order = i); await saveRoutine(r); nav.refresh();
     const ex = getExercise(removed.exerciseId);
-    toast(`« ${ex ? ex.name : 'Exercice'} » retiré`, {
-      actionText: 'Annuler', duration: 5000,
+    toast(`« ${ex ? ex.name : t('Exercice','Exercise')} » ${t('retiré','removed')}`, {
+      actionText: t('Annuler','Undo'), duration: 5000,
       onAction: async () => {
         const r2 = await getRoutine(id); if (!r2) return;
         r2.items.splice(Math.min(idx, r2.items.length), 0, removed);
@@ -250,30 +251,30 @@ export function mountEdit(root, params) {
   root.querySelector('#e-start').onclick = async () => { await persistName(); const r = await getRoutine(id); beginRoutine(r); };
   root.querySelector('#e-menu').onclick = () => {
     const s = sheet(`
-      ${isLoggedIn() ? `<button class="menu-row" id="m-publish">${icon('users')} Publier (amis / groupe)</button>` : ''}
-      <button class="menu-row" id="m-share">${icon('upload')} Partager en fichier</button>
-      <button class="menu-row" id="m-rename">${icon('edit')} Renommer</button>
-      <button class="menu-row danger" id="m-del">${icon('trash')} Supprimer le programme</button>`, { title: 'Options' });
+      ${isLoggedIn() ? `<button class="menu-row" id="m-publish">${icon('users')} ${t('Publier (amis / groupe)','Publish (friends / group)')}</button>` : ''}
+      <button class="menu-row" id="m-share">${icon('upload')} ${t('Partager en fichier','Share as file')}</button>
+      <button class="menu-row" id="m-rename">${icon('edit')} ${t('Renommer','Rename')}</button>
+      <button class="menu-row danger" id="m-del">${icon('trash')} ${t('Supprimer le programme','Delete program')}</button>`, { title: 'Options' });
     s.root.querySelector('#m-publish')?.addEventListener('click', async () => {
       s.close(); await persistName();
       const r = await getRoutine(id);
-      if (!(r.items || []).length) { toast('Ajoute des exercices avant de publier'); return; }
+      if (!(r.items || []).length) { toast(t('Ajoute des exercices avant de publier','Add exercises before publishing')); return; }
       publishRoutine(r);
     });
     s.root.querySelector('#m-share').onclick = async () => {
       s.close(); await persistName();
       const r = await getRoutine(id);
-      if (!(r.items || []).length) { toast('Ajoute des exercices avant de partager'); return; }
+      if (!(r.items || []).length) { toast(t('Ajoute des exercices avant de partager','Add exercises before sharing')); return; }
       shareRoutine(r);
     };
     s.root.querySelector('#m-rename').onclick = async () => {
       s.close();
-      const name = await promptDialog({ title: 'Renommer', value: nameEl.value, confirmText: 'OK' });
+      const name = await promptDialog({ title: t('Renommer','Rename'), value: nameEl.value, confirmText: 'OK' });
       if (name != null) { nameEl.value = name; await persistName(); nav.refresh(); }
     };
     s.root.querySelector('#m-del').onclick = async () => {
       s.close();
-      if (await confirmDialog({ title: 'Supprimer', message: 'Supprimer ce programme ? (ton historique de séances est conservé)', confirmText: 'Supprimer', danger: true })) {
+      if (await confirmDialog({ title: t('Supprimer','Delete'), message: t('Supprimer ce programme ? (ton historique de séances est conservé)','Delete this program? (your workout history is kept)'), confirmText: t('Supprimer','Delete'), danger: true })) {
         await deleteRoutine(id); nav.go('#/routines');
       }
     };
@@ -293,18 +294,18 @@ function editItem(id, i) {
     const s = sheet(`
       <div class="item-edit">
         <div class="field3">
-          <label>Séries<input class="input" id="it-sets" type="number" inputmode="numeric" value="${it.targetSets}" min="1" max="20"></label>
+          <label>${t('Séries','Sets')}<input class="input" id="it-sets" type="number" inputmode="numeric" value="${it.targetSets}" min="1" max="20"></label>
           <label>Reps min<input class="input" id="it-rmin" type="number" inputmode="numeric" value="${it.targetRepsMin ?? ''}"></label>
           <label>Reps max<input class="input" id="it-rmax" type="number" inputmode="numeric" value="${it.targetRepsMax ?? ''}"></label>
         </div>
         <div class="field2">
-          <label>Charge cible (kg)<input class="input" id="it-w" type="number" inputmode="decimal" value="${it.targetWeightKg ?? ''}" placeholder="—"></label>
+          <label>${t('Charge cible (kg)','Target weight (kg)')}<input class="input" id="it-w" type="number" inputmode="decimal" value="${it.targetWeightKg ?? ''}" placeholder="—"></label>
           <label>Repos (s)<input class="input" id="it-rest" type="number" inputmode="numeric" value="${it.restSec ?? 120}"></label>
         </div>
         <label class="field-label">Note</label>
         <input class="input" id="it-note" value="${esc(it.notes||'')}" placeholder="Ex. tempo lent, prise serrée…">
         <button class="btn primary full" id="it-save">Enregistrer</button>
-      </div>`, { title: ex ? ex.name : 'Exercice' });
+      </div>`, { title: ex ? ex.name : t('Exercice','Exercise') });
     s.root.querySelector('#it-save').onclick = async () => {
       const v = sel => s.root.querySelector(sel).value;
       it.targetSets = Math.max(1, +v('#it-sets') || 3);

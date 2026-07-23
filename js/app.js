@@ -1,4 +1,5 @@
 // app.js — boot, router, tab bar, service worker, onboarding
+import { t } from './i18n.js';
 import { $, esc } from './util.js';
 import {
   state, nav, emit, on, applyTheme, ACCENTS, ps,
@@ -67,7 +68,7 @@ async function router(isRefresh = false) {
     html = await r.render(params);
   } catch (e) {
     console.error(e);
-    html = `<div class="screen-pad"><div class="empty"><h3>Oups</h3><p>${esc(e.message||'Erreur')}</p><button class="btn ghost" onclick="location.hash='#/home'">Accueil</button></div></div>`;
+    html = `<div class="screen-pad"><div class="empty"><h3>${t('Oups','Oops')}</h3><p>${esc(e.message||'Erreur')}</p><button class="btn ghost" onclick="location.hash='#/home'">${t('Accueil','Home')}</button></div></div>`;
   }
   current = r;
   const apply = () => {
@@ -94,15 +95,16 @@ nav.refresh = () => router(true);
 // ---------- tab bar ----------
 function tabBar() {
   const tabs = [
-    { id:'home', label:'Accueil', icon:'home', hash:'#/home' },
-    { id:'routines', label:'Programmes', icon:'dumbbell', hash:'#/routines' },
+    { id:'home', label:t('Accueil','Home'), icon:'home', hash:'#/home' },
+    { id:'routines', label:t('Programmes','Programs'), icon:'dumbbell', hash:'#/routines' },
     { id:'fab' },
     { id:'social', label:'Social', icon:'users', hash:'#/social' },
-    { id:'progress', label:'Progrès', icon:'chart', hash:'#/progress' },
+    { id:'progress', label:t('Progrès','Progress'), icon:'chart', hash:'#/progress' },
   ];
-  return `<nav class="tabbar" id="tabbar">${tabs.map(t => t.id === 'fab'
-    ? `<button class="fab" id="fab" aria-label="Démarrer une séance">${icon('bolt')}</button>`
-    : `<button class="tab" data-tab="${t.id}" data-nav="${t.hash}"><span class="tab-ico">${icon(t.icon)}</span><span>${t.label}</span></button>`
+  const fabLabel = t('Démarrer une séance','Start a workout');
+  return `<nav class="tabbar" id="tabbar">${tabs.map(tb => tb.id === 'fab'
+    ? `<button class="fab" id="fab" aria-label="${fabLabel}">${icon('bolt')}</button>`
+    : `<button class="tab" data-tab="${tb.id}" data-nav="${tb.hash}"><span class="tab-ico">${icon(tb.icon)}</span><span>${tb.label}</span></button>`
   ).join('')}</nav>`;
 }
 function updateTabs(active) {
@@ -117,13 +119,13 @@ async function fabAction() {
   const active = await getActiveWorkout();
   if (active) { nav.go(`#/workout/${active.id}`); return; }
   const rs = await listRoutines();
-  const body = `<button class="menu-row big" id="fab-empty">${icon('play')} Séance libre</button>
-    ${rs.length ? `<div class="fab-sep">ou un programme</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} exercice${(r.items||[]).length>1?'s':''}</span></button>`).join('') : `<p class="mut sm center">Aucun programme. <a data-nav="#/routines">En créer un</a> · <a data-nav="#/coach">le coach s’en charge 🧙</a></p>`}`;
-  const s = sheet(body, { title: 'Démarrer' });
+  const body = `<button class="menu-row big" id="fab-empty">${icon('play')} ${t('Séance libre','Free workout')}</button>
+    ${rs.length ? `<div class="fab-sep">${t('ou un programme','or a program')}</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} ${t('exercice','exercise')}${(r.items||[]).length>1?'s':''}</span></button>`).join('') : `<p class="mut sm center">${t('Aucun programme.','No programs yet.')} <a data-nav="#/routines">${t('En créer un','Create one')}</a> · <a data-nav="#/coach">${t('le coach s’en charge 🧙','let the coach do it 🧙')}</a></p>`}`;
+  const s = sheet(body, { title: t('Démarrer','Start') });
   s.root.querySelector('#fab-empty').onclick = async () => { s.close(); const w = await startWorkout({}); nav.go(`#/workout/${w.id}`); };
   s.root.querySelectorAll('[data-r]').forEach(b => b.onclick = async () => {
     s.close(); const r = await getRoutine(b.dataset.r);
-    if (!(r.items||[]).length) { toast('Programme vide'); nav.go(`#/routines/${r.id}/edit`); return; }
+    if (!(r.items||[]).length) { toast(t('Programme vide','Empty program')); nav.go(`#/routines/${r.id}/edit`); return; }
     routines.beginRoutine(r);
   });
 }
@@ -139,26 +141,26 @@ function welcome() {
       <div class="wel-body">
         <div class="wel-logo">${icon('bolt')}</div>
         <h1 class="wel-title">SPORT<span>SALLE</span></h1>
-        <p class="wel-tag">Ton coach de poche.</p>
+        <p class="wel-tag">${t('Ton coach de poche.','Your pocket coach.')}</p>
         <div class="wel-feats">
-          <span>${icon('dumbbell')} Coach & programmes</span>
-          <span>${icon('trophy')} Records & progrès</span>
-          <span>${icon('users')} Amis & groupes</span>
+          <span>${icon('dumbbell')} ${t('Coach & programmes','Coach & programs')}</span>
+          <span>${icon('trophy')} ${t('Records & progrès','Records & progress')}</span>
+          <span>${icon('users')} ${t('Amis & groupes','Friends & groups')}</span>
         </div>
         <div class="wel-actions">
           ${online && !navigator.onLine ? `
-          <p class="wel-offline">📡 Tu es hors-ligne — impossible de se connecter pour l’instant.</p>
-          ${state.profiles.length ? `<button class="btn primary full big" id="wel-offgo">Continuer hors-ligne</button>` : ''}
-          <button class="btn ghost full" id="wel-retry">Réessayer</button>`
+          <p class="wel-offline">📡 ${t('Tu es hors-ligne — impossible de se connecter pour l’instant.','You’re offline — signing in isn’t possible right now.')}</p>
+          ${state.profiles.length ? `<button class="btn primary full big" id="wel-offgo">${t('Continuer hors-ligne','Continue offline')}</button>` : ''}
+          <button class="btn ghost full" id="wel-retry">${t('Réessayer','Retry')}</button>`
           : online ? `
           <div id="wel-gsi"></div>
-          <button class="btn primary full big" id="wel-register">Créer un compte gratuit</button>
-          <button class="btn ghost full" id="wel-login">J’ai déjà un compte</button>
-          <button class="wel-guest" id="wel-diag">Un souci de connexion ? Diagnostic</button>`
-          : `<button class="btn primary full big" id="wel-guest">Commencer</button>
-          <button class="wel-guest" id="wel-diag">Pas de connexion au serveur ? Diagnostic</button>`}
+          <button class="btn primary full big" id="wel-register">${t('Créer un compte gratuit','Create a free account')}</button>
+          <button class="btn ghost full" id="wel-login">${t('J’ai déjà un compte','I already have an account')}</button>
+          <button class="wel-guest" id="wel-diag">${t('Un souci de connexion ? Diagnostic','Connection issue? Run diagnostics')}</button>`
+          : `<button class="btn primary full big" id="wel-guest">${t('Commencer','Get started')}</button>
+          <button class="wel-guest" id="wel-diag">${t('Pas de connexion au serveur ? Diagnostic','Can’t reach the server? Diagnostics')}</button>`}
         </div>
-        <p class="wel-legal"><a href="legal.html" target="_blank" rel="noopener">Confidentialité · Mentions légales</a></p>
+        <p class="wel-legal"><a href="legal.html" target="_blank" rel="noopener">${t('Confidentialité · Mentions légales','Privacy · Legal')}</a></p>
       </div>
     </div>`;
     const done = () => { document.body.classList.remove('welcome-mode'); resolve(); };
@@ -171,14 +173,14 @@ function welcome() {
       const d = await sync.diagnose();
       const line = (label, r) => `<div class="setting"><span>${label}</span><b class="mut sm">${esc(r?.erreur ? '✗ ' + r.erreur : '✓ HTTP ' + r.statut)}</b></div>`;
       const sh = sheet(`
-        <p class="mut sm">Résultat des tests vers le serveur (${esc(d.url)}) :</p>
-        ${line('Réseau', { statut: d.enLigne ? 'en ligne' : 'HORS-LIGNE' })}
-        ${line('Test GET', d.get)}${line('Test POST', d.post)}
-        <p class="mut sm">${d.get?.statut && d.post?.erreur ? 'Le serveur répond en GET mais pas en POST : un bloqueur de contenu Safari, un VPN/DNS filtrant ou le réseau mobile bloque les envois. Essaie en WiFi, ou désactive les bloqueurs pour ce site.' : d.get?.erreur && d.post?.erreur ? 'Le serveur est injoignable depuis cet appareil : vérifie ta connexion, ou essaie WiFi ↔ 4G.' : 'Le serveur répond — appuie sur Réessayer.'}</p>
-        <button class="btn primary full" id="diag-retry">Réessayer</button>
-        <button class="btn ghost full" id="diag-copy">Copier le rapport</button>`, { title: '🔎 Diagnostic serveur' });
+        <p class="mut sm">${t('Résultat des tests vers le serveur','Server test results')} (${esc(d.url)}) :</p>
+        ${line(t('Réseau','Network'), { statut: d.enLigne ? t('en ligne','online') : t('HORS-LIGNE','OFFLINE') })}
+        ${line('GET', d.get)}${line('POST', d.post)}
+        <p class="mut sm">${d.get?.statut && d.post?.erreur ? t('Le serveur répond en GET mais pas en POST : un bloqueur de contenu Safari, un VPN/DNS filtrant ou le réseau mobile bloque les envois. Essaie en WiFi, ou désactive les bloqueurs pour ce site.','The server answers GET but not POST: a Safari content blocker, filtering VPN/DNS or your carrier is blocking uploads. Try WiFi, or disable blockers for this site.') : d.get?.erreur && d.post?.erreur ? t('Le serveur est injoignable depuis cet appareil : vérifie ta connexion, ou essaie WiFi ↔ 4G.','The server can’t be reached from this device: check your connection, or switch WiFi ↔ cellular.') : t('Le serveur répond — appuie sur Réessayer.','The server responds — tap Retry.')}</p>
+        <button class="btn primary full" id="diag-retry">${t('Réessayer','Retry')}</button>
+        <button class="btn ghost full" id="diag-copy">${t('Copier le rapport','Copy report')}</button>`, { title: t('🔎 Diagnostic serveur','🔎 Server diagnostics') });
       sh.root.querySelector('#diag-retry').onclick = () => { try { localStorage.removeItem('sync-api-ok'); } catch {} location.reload(); };
-      sh.root.querySelector('#diag-copy').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(d)); toast('Rapport copié ✓'); } catch { toast('Copie impossible', { type: 'error' }); } };
+      sh.root.querySelector('#diag-copy').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(d)); toast(t('Rapport copié ✓','Report copied ✓')); } catch { toast(t('Copie impossible','Copy failed'), { type: 'error' }); } };
     });
     if (online && navigator.onLine) mountGoogleButton(view.querySelector('#wel-gsi'), done, () => {}, { sep: 'after' });
   });
@@ -193,14 +195,14 @@ function onboarding() {
     view.innerHTML = `<div class="onboard">
       <div class="onboard-icon">${icon('bolt')}</div>
       <h1>Sport Salle</h1>
-      <p>Ton coach de poche pour la salle : programmes, séances, records et progression. Crée ton profil — chaque personne qui utilise ce téléphone peut avoir le sien.</p>
-      <label class="field-label">Ton prénom</label>
-      <input class="input" id="ob-name" placeholder="Prénom" autocomplete="given-name">
-      <label class="field-label">Ta couleur</label>
+      <p>${t('Ton coach de poche pour la salle : programmes, séances, records et progression. Crée ton profil — chaque personne qui utilise ce téléphone peut avoir le sien.','Your pocket gym coach: programs, workouts, records and progress. Create your profile — everyone using this phone can have their own.')}</p>
+      <label class="field-label">${t('Ton prénom','Your first name')}</label>
+      <input class="input" id="ob-name" placeholder="${t('Prénom','First name')}" autocomplete="given-name">
+      <label class="field-label">${t('Ta couleur','Your color')}</label>
       <div class="accent-pick" id="ob-accent">${Object.entries(ACCENTS).map(([k,v],i)=>`<button class="accent-dot ${i===0?'sel':''}" data-a="${k}" style="--a:${v.hex}"></button>`).join('')}</div>
-      <label class="field-label">Ton avatar (optionnel)</label>
+      <label class="field-label">${t('Ton avatar (optionnel)','Your avatar (optional)')}</label>
       <div class="emoji-pick" id="ob-emoji">${AVATAR_EMOJIS.map(e=>`<button class="emoji-dot" data-e="${e}">${e}</button>`).join('')}</div>
-      <button class="btn primary full big" id="ob-go">Commencer ${icon('right')}</button>
+      <button class="btn primary full big" id="ob-go">${t('Commencer','Get started')} ${icon('right')}</button>
     </div>`;
     let accent = Object.keys(ACCENTS)[0];
     let emoji = null;
@@ -212,7 +214,7 @@ function onboarding() {
       if (!was) b.classList.add('sel');
     });
     view.querySelector('#ob-go').onclick = async () => {
-      const name = view.querySelector('#ob-name').value.trim() || 'Athlète';
+      const name = view.querySelector('#ob-name').value.trim() || t('Athlète','Athlete');
       const p = await createProfile({ name, accent, emoji });
       await setActiveProfile(p.id);
       resolve();
@@ -238,9 +240,9 @@ function registerSW() {
   // téléchargée — jamais en pleine séance : là, elle s'installe dès la fin.
   const applyWhenSafe = (sw) => {
     if (!document.body.classList.contains('workout-mode')) { applyUpdate(sw); return; }
-    toast('Mise à jour prête — elle s\u2019installera après ta séance', { duration: 5000 });
-    const t = setInterval(() => {
-      if (!document.body.classList.contains('workout-mode')) { clearInterval(t); applyUpdate(sw); }
+    toast(t('Mise à jour prête — elle s’installera après ta séance','Update ready — it will install after your workout'), { duration: 5000 });
+    const timer = setInterval(() => {
+      if (!document.body.classList.contains('workout-mode')) { clearInterval(timer); applyUpdate(sw); }
     }, 20000);
   };
   navigator.serviceWorker.register('sw.js').then(reg => {
@@ -310,7 +312,7 @@ async function boot() {
     hideSplash();
   } catch (e) {
     console.error(e);
-    $('#view').innerHTML = `<div class="screen-pad"><div class="empty"><h3>Erreur au démarrage</h3><p>${esc(e.message||e)}</p></div></div>`;
+    $('#view').innerHTML = `<div class="screen-pad"><div class="empty"><h3>${t('Erreur au démarrage','Startup error')}</h3><p>${esc(e.message||e)}</p></div></div>`;
     hideSplash();
   }
 }

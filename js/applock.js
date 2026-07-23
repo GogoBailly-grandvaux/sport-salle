@@ -1,4 +1,5 @@
 // applock.js — verrouillage de l'app par empreinte / biométrie (WebAuthn local).
+import { t } from './i18n.js';
 // Sert de verrou d'accès sur CET appareil (le capteur du téléphone valide),
 // indépendant du compte : les données restent chiffrées par l'OS.
 import { icon, toast, sheet } from './ui.js';
@@ -36,7 +37,7 @@ function bufToB64(buf) {
 }
 
 export async function enableLock() {
-  if (!supported()) { toast('Biométrie non disponible sur cet appareil/navigateur', { type: 'error' }); return false; }
+  if (!supported()) { toast(t('Biométrie non disponible sur cet appareil/navigateur','Biometrics unavailable on this device/browser'), { type: 'error' }); return false; }
   try {
     const challenge = crypto.getRandomValues(new Uint8Array(32));
     const cred = await navigator.credentials.create({
@@ -50,10 +51,10 @@ export async function enableLock() {
       },
     });
     await saveGlobal({ appLock: { credId: bufToB64(cred.rawId) } });
-    toast('Verrouillage par empreinte activé 🔒');
+    toast(t('Verrouillage par empreinte activé 🔒','Fingerprint lock enabled 🔒'));
     return true;
   } catch (e) {
-    if (e?.name !== 'NotAllowedError') { console.error('applock:', e); toast('Activation impossible sur cet appareil — réessaie', { type: 'error' }); }
+    if (e?.name !== 'NotAllowedError') { console.error('applock:', e); toast(t('Activation impossible sur cet appareil — réessaie','Couldn’t enable it on this device — try again'), { type: 'error' }); }
     return false;
   }
 }
@@ -61,7 +62,7 @@ export async function enableLock() {
 export async function disableLock() {
   await saveGlobal({ appLock: null });
   try { localStorage.removeItem(LAST_KEY); } catch {}
-  toast('Verrouillage désactivé');
+  toast(t('Verrouillage désactivé','Lock disabled'));
 }
 
 /** À l'ouverture : demande l'empreinte. Résout true si déverrouillé (ou verrou inactif). */
@@ -70,7 +71,7 @@ export async function gate() {
   if (withinGrace()) { unlocked = true; touch(); return true; } // retour rapide / refresh : pas de re-demande
   const overlay = document.createElement('div');
   overlay.className = 'lock-overlay';
-  overlay.innerHTML = `<div class="lock-box">${icon('finger')}<h2>Sport Salle</h2><p>Déverrouille avec ton empreinte</p><button class="btn primary" id="lock-try">Déverrouiller</button></div>`;
+  overlay.innerHTML = `<div class="lock-box">${icon('finger')}<h2>Sport Salle</h2><p>${t('Déverrouille avec ton empreinte','Unlock with your fingerprint')}</p><button class="btn primary" id="lock-try">${t('Déverrouiller','Unlock')}</button></div>`;
   document.body.appendChild(overlay);
   const attempt = async () => {
     try {
@@ -96,10 +97,10 @@ export async function gate() {
 export function appLockCardHtml() {
   if (!supported()) return '';
   return `<section class="card">
-    <div class="setting"><span>${icon('finger')} Verrouillage par empreinte</span>
+    <div class="setting"><span>${icon('finger')} ${t('Verrouillage par empreinte','Fingerprint lock')}</span>
       <button class="switch ${isLockEnabled() ? 'on' : ''}" id="lock-toggle" role="switch" aria-checked="${isLockEnabled()}"><span></span></button>
     </div>
-    <p class="mut sm" style="margin:4px 0 0">Demande ton empreinte à l’ouverture de l’app — pas si tu reviens en moins de 5 minutes (un refresh ne redemande rien).</p>
+    <p class="mut sm" style="margin:4px 0 0">${t('Demande ton empreinte à l’ouverture de l’app — pas si tu reviens en moins de 5 minutes (un refresh ne redemande rien).','Asks for your fingerprint when opening the app — not if you come back within 5 minutes (refreshing never re-asks).')}</p>
   </section>`;
 }
 

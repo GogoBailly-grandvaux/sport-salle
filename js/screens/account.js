@@ -1,4 +1,5 @@
 // screens/account.js — inscription / connexion (compte lié au profil actif)
+import { t } from '../i18n.js';
 import { esc } from '../util.js';
 import { activeProfile, savePSettings, ps, emit, on, nav, createProfile, setActiveProfile, updateProfile, state } from '../store.js';
 import { sheet, toast, icon, confirmDialog } from '../ui.js';
@@ -15,8 +16,8 @@ export function wireAuthEvents() {
     if (ps('account')) {
       await savePSettings({ account: null });
       emit('account-changed');
-      toast('Ta session a expiré', {
-        type: 'error', duration: 8000, actionText: 'Se reconnecter',
+      toast(t('Ta session a expiré','Your session has expired'), {
+        type: 'error', duration: 8000, actionText: t('Se reconnecter','Sign back in'),
         onAction: () => openAuthSheet('login', () => nav.refresh()),
       });
       // on ne rafraîchit jamais en pleine séance (ne pas casser la saisie)
@@ -78,7 +79,7 @@ export async function mountGoogleButton(container, onDone, closeSheet, { sep = '
               title: 'Choisis ton pseudo', welcome: true,
             });
           } else {
-            toast(`Content de te revoir @${res.user.username} 💪`);
+            toast(t('Content de te revoir','Good to see you again') + ` @${res.user.username} 💪`);
             if (onDone) onDone(res);
           }
         } catch (e) { toast(e.message, { type: 'error', duration: 4500 }); }
@@ -110,17 +111,17 @@ function fieldError(input, msg) {
 }
 
 // ---- choix / changement de pseudo (1re connexion Google, ou droit de rectification) ----
-function openUsernameSheet(current, after, { title = 'Changer de pseudo', welcome = false } = {}) {
+function openUsernameSheet(current, after, { title = t('Changer de pseudo','Change username'), welcome = false } = {}) {
   let finished = false;
   const finish = () => { if (!finished) { finished = true; if (after) after(); } };
   const s = sheet(`
     <p class="mut sm">${welcome
-      ? 'Bienvenue ! 🎉 Ton pseudo est ton identité publique — tes amis te retrouvent avec. Choisis-le maintenant, ou garde celui-ci.'
-      : 'Ton pseudo est ton identité publique. Tes amis et groupes te suivent automatiquement.'}</p>
-    <label class="field-label" for="un-user">Pseudo (unique, sans espace)</label>
+      ? t('Bienvenue ! 🎉 Ton pseudo est ton identité publique — tes amis te retrouvent avec. Choisis-le maintenant, ou garde celui-ci.','Welcome! 🎉 Your username is your public identity — friends find you with it. Pick it now, or keep this one.')
+      : t('Ton pseudo est ton identité publique. Tes amis et groupes te suivent automatiquement.','Your username is your public identity. Friends and groups follow automatically.')}</p>
+    <label class="field-label" for="un-user">${t('Pseudo (unique, sans espace)','Username (unique, no spaces)')}</label>
     <div class="input-ico"><span class="at">@</span><input class="input at-input" id="un-user" value="${esc(current)}" autocapitalize="none" spellcheck="false" maxlength="20"></div>
-    <button class="btn primary full big" id="un-save">Valider ce pseudo</button>
-    <button class="btn ghost full" id="un-keep">Garder @${esc(current)}</button>`,
+    <button class="btn primary full big" id="un-save">${t('Valider ce pseudo','Use this username')}</button>
+    <button class="btn ghost full" id="un-keep">${t('Garder','Keep')} @${esc(current)}</button>`,
     { title, onClose: finish });
   const inp = s.root.querySelector('#un-user');
   setTimeout(() => { inp.focus(); inp.select?.(); }, 300);
@@ -128,7 +129,7 @@ function openUsernameSheet(current, after, { title = 'Changer de pseudo', welcom
   s.root.querySelector('#un-save').onclick = async () => {
     const username = inp.value.trim().toLowerCase();
     if (!USER_RX.test(username)) {
-      fieldError(inp, username.length < 3 ? 'Au moins 3 caractères.' : 'Lettres minuscules, chiffres, « _ » et « . » uniquement (3 à 20).');
+      fieldError(inp, username.length < 3 ? t('Au moins 3 caractères.','At least 3 characters.') : t('Lettres minuscules, chiffres, « _ » et « . » uniquement (3 à 20).','Lowercase letters, digits, “_” and “.” only (3–20).'));
       return;
     }
     const btn = s.root.querySelector('#un-save');
@@ -140,12 +141,12 @@ function openUsernameSheet(current, after, { title = 'Changer de pseudo', welcom
       if (acc) { acc.user = res.user; await savePSettings({ account: acc }); }
       try { localStorage.setItem(LAST_USER_KEY, res.user.username); } catch {}
       emit('account-changed');
-      toast(welcome ? `Bienvenue @${res.user.username} ! 🎉` : `À toi @${res.user.username} ✓`);
+      toast(welcome ? t('Bienvenue','Welcome') + ` @${res.user.username} ! 🎉` : t('À toi','You are now') + ` @${res.user.username} ✓`);
       s.close();
     } catch (err) {
       btn.disabled = false; btn.innerHTML = label;
-      if (err.status === 409) fieldError(inp, 'Ce pseudo est déjà pris.');
-      else toast(err.status === 0 ? 'Hors-ligne ou serveur injoignable' : err.message, { type: 'error', duration: 4500 });
+      if (err.status === 409) fieldError(inp, t('Ce pseudo est déjà pris.','This username is taken.'));
+      else toast(err.status === 0 ? t('Hors-ligne ou serveur injoignable','Offline or server unreachable') : err.message, { type: 'error', duration: 4500 });
     }
   };
 }
@@ -154,30 +155,30 @@ export function openAuthSheet(mode = 'register', onDone = null) {
   const p = activeProfile();
   let m = mode;
   const s = sheet(`<div id="auth-wrap"></div><div id="gsi-host"></div>`,
-    { title: m === 'register' ? 'Créer un compte' : 'Connexion' });
+    { title: m === 'register' ? t('Créer un compte','Create account') : t('Connexion','Sign in') });
   const wrap = s.root.querySelector('#auth-wrap');
   const setTitle = (t) => { const h = s.root.querySelector('.sheet-head h3'); if (h) h.textContent = t; };
 
   const formHtml = (isReg) => `
     <div class="segmented sm auth-swap">
-      <button class="seg ${isReg ? 'on' : ''}" type="button" data-m="register">Créer un compte</button>
-      <button class="seg ${!isReg ? 'on' : ''}" type="button" data-m="login">Se connecter</button>
+      <button class="seg ${isReg ? 'on' : ''}" type="button" data-m="register">${t('Créer un compte','Create account')}</button>
+      <button class="seg ${!isReg ? 'on' : ''}" type="button" data-m="login">${t('Se connecter','Sign in')}</button>
     </div>
     <form id="auth-form" autocomplete="on" novalidate>
-      <label class="field-label" for="au-user">Pseudo${isReg ? ' (unique, sans espace)' : ''}</label>
+      <label class="field-label" for="au-user">${t('Pseudo','Username')}${isReg ? t(' (unique, sans espace)',' (unique, no spaces)') : ''}</label>
       <div class="input-ico"><span class="at">@</span><input class="input at-input" id="au-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="hugo_b" maxlength="20" required></div>
-      ${isReg ? `<label class="field-label" for="au-name">Prénom affiché</label>
+      ${isReg ? `<label class="field-label" for="au-name">${t('Prénom affiché','Display name')}</label>
       <input class="input" id="au-name" value="${esc(p?.name || '')}" maxlength="40">` : ''}
-      <label class="field-label" for="au-pass">Mot de passe${isReg ? ' (8 caractères minimum)' : ''}</label>
+      <label class="field-label" for="au-pass">${t('Mot de passe','Password')}${isReg ? t(' (8 caractères minimum)',' (8 characters minimum)') : ''}</label>
       <div class="pw-wrap">
         <input class="input" id="au-pass" name="password" type="password" autocomplete="${isReg ? 'new-password' : 'current-password'}" required>
-        <button type="button" class="pw-eye" aria-label="Afficher le mot de passe" aria-pressed="false">${icon('eye')}</button>
+        <button type="button" class="pw-eye" aria-label="${t('Afficher le mot de passe','Show password')}" aria-pressed="false">${icon('eye')}</button>
       </div>
-      <button class="btn primary full big" id="au-go" type="submit">${isReg ? 'Créer mon compte' : 'Se connecter'}</button>
-      ${isReg ? `<p class="mut sm center legal-hint">En créant un compte, tu acceptes la <a href="legal.html" target="_blank" rel="noopener">politique de confidentialité</a>.</p>` : ''}
+      <button class="btn primary full big" id="au-go" type="submit">${isReg ? t('Créer mon compte','Create my account') : t('Se connecter','Sign in')}</button>
+      ${isReg ? `<p class="mut sm center legal-hint">${t('En créant un compte, tu acceptes la','By creating an account, you accept the')} <a href="legal.html" target="_blank" rel="noopener">${t('politique de confidentialité','privacy policy')}</a>.</p>` : ''}
       <p class="mut sm center auth-hint">${isReg
-        ? 'Ton compte permet de retrouver tes données sur n’importe quel téléphone, d’ajouter des amis et de partager tes programmes.'
-        : 'Tes données locales seront fusionnées avec celles de ton compte.'}</p>
+        ? t('Ton compte permet de retrouver tes données sur n’importe quel téléphone, d’ajouter des amis et de partager tes programmes.','Your account keeps your data on any phone, lets you add friends and share programs.')
+        : t('Tes données locales seront fusionnées avec celles de ton compte.','Your local data will be merged into your account.')}</p>
     </form>`;
 
   const renderForm = (focusNow) => {
@@ -200,7 +201,7 @@ export function openAuthSheet(mode = 'register', onDone = null) {
       const show = passInp.type === 'password';
       passInp.type = show ? 'text' : 'password';
       eye.setAttribute('aria-pressed', String(show));
-      eye.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+      eye.setAttribute('aria-label', show ? t('Masquer le mot de passe','Hide password') : t('Afficher le mot de passe','Show password'));
       eye.innerHTML = icon(show ? 'eyeoff' : 'eye');
       passInp.focus();
     };
@@ -221,12 +222,12 @@ export function openAuthSheet(mode = 'register', onDone = null) {
       // validation locale, en français et sous le bon champ
       if (!USER_RX.test(username)) {
         fieldError(userInp, username.length < 3
-          ? 'Au moins 3 caractères.'
-          : 'Lettres minuscules, chiffres, « _ » et « . » uniquement (3 à 20).');
+          ? t('Au moins 3 caractères.','At least 3 characters.')
+          : t('Lettres minuscules, chiffres, « _ » et « . » uniquement (3 à 20).','Lowercase letters, digits, “_” and “.” only (3–20).'));
         return;
       }
-      if (!password) { fieldError(passInp, 'Ton mot de passe.'); return; }
-      if (isReg && password.length < 8) { fieldError(passInp, '8 caractères minimum.'); return; }
+      if (!password) { fieldError(passInp, t('Ton mot de passe.','Your password.')); return; }
+      if (isReg && password.length < 8) { fieldError(passInp, t('8 caractères minimum.','8 characters minimum.')); return; }
 
       const btn = wrap.querySelector('#au-go');
       const label = btn.innerHTML;
@@ -245,15 +246,15 @@ export function openAuthSheet(mode = 'register', onDone = null) {
         }
         await applySession(res);
         s.close();
-        toast(isReg ? `Bienvenue @${res.user.username} ! 🎉` : `Content de te revoir @${res.user.username} 💪`);
+        toast(isReg ? t('Bienvenue','Welcome') + ` @${res.user.username} ! 🎉` : t('Content de te revoir','Good to see you again') + ` @${res.user.username} 💪`);
         if (onDone) onDone(res);
       } catch (err) {
         btn.disabled = false; btn.innerHTML = label;
         const form = wrap.querySelector('#auth-form');
         form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
-        if (err.status === 409) fieldError(userInp, 'Ce pseudo est déjà pris.');
-        else if (err.status === 401) { fieldError(passInp, 'Pseudo ou mot de passe incorrect.'); passInp.select?.(); }
-        else toast(err.status === 0 ? 'Hors-ligne ou serveur injoignable' : err.message, { type: 'error', duration: 4500 });
+        if (err.status === 409) fieldError(userInp, t('Ce pseudo est déjà pris.','This username is taken.'));
+        else if (err.status === 401) { fieldError(passInp, t('Pseudo ou mot de passe incorrect.','Wrong username or password.')); passInp.select?.(); }
+        else toast(err.status === 0 ? t('Hors-ligne ou serveur injoignable','Offline or server unreachable') : err.message, { type: 'error', duration: 4500 });
       }
     };
   };
@@ -266,14 +267,14 @@ export async function logout() {
   const acc = account();
   if (!acc) return;
   if (!await confirmDialog({
-    title: 'Se déconnecter',
-    message: 'Tes données restent sur ce téléphone et sur ton compte. Tu pourras te reconnecter quand tu veux.',
-    confirmText: 'Se déconnecter',
+    title: t('Se déconnecter','Sign out'),
+    message: t('Tes données restent sur ce téléphone et sur ton compte. Tu pourras te reconnecter quand tu veux.','Your data stays on this phone and on your account. Sign back in anytime.'),
+    confirmText: t('Se déconnecter','Sign out'),
   })) return;
   try { await call('auth', 'logout', {}); } catch {}
   await savePSettings({ account: null });
   emit('account-changed');
-  toast('Déconnecté');
+  toast(t('Déconnecté','Signed out'));
   // compte obligatoire : retour à l'écran de connexion
   setTimeout(() => { location.hash = ''; location.reload(); }, 600);
 }
@@ -282,36 +283,36 @@ export function accountCardHtml() {
   const acc = account();
   if (!acc) {
     return `<section class="card account-card">
-      <h3 class="card-t">${icon('user')} Compte</h3>
-      <p class="mut sm">Crée ton compte gratuit : données sauvegardées en ligne, amis, groupes et partage de programmes.</p>
-      <button class="btn primary full" id="acc-register">Créer un compte</button>
-      <button class="btn ghost full" id="acc-login">J’ai déjà un compte</button>
+      <h3 class="card-t">${icon('user')} ${t('Compte','Account')}</h3>
+      <p class="mut sm">${t('Crée ton compte gratuit : données sauvegardées en ligne, amis, groupes et partage de programmes.','Create your free account: data saved online, friends, groups and program sharing.')}</p>
+      <button class="btn primary full" id="acc-register">${t('Créer un compte','Create account')}</button>
+      <button class="btn ghost full" id="acc-login">${t('J’ai déjà un compte','I already have an account')}</button>
     </section>`;
   }
   return `<section class="card account-card">
-    <h3 class="card-t">${icon('user')} Compte</h3>
+    <h3 class="card-t">${icon('user')} ${t('Compte','Account')}</h3>
     <div class="acc-row"><b>@${esc(acc.user.username)}</b><span class="mut sm">${esc(acc.user.displayName)}</span></div>
-    <p class="mut sm">Données synchronisées sur ce compte · amis et groupes dans l’onglet Social.</p>
-    <button class="btn ghost full sm" id="acc-username">Changer de pseudo</button>
-    <button class="btn ghost full" id="acc-logout">Se déconnecter</button>
-    <button class="btn danger-ghost full sm" id="acc-delete">Supprimer définitivement mon compte</button>
+    <p class="mut sm">${t('Données synchronisées sur ce compte · amis et groupes dans l’onglet Social.','Data synced to this account · friends and groups in the Social tab.')}</p>
+    <button class="btn ghost full sm" id="acc-username">${t('Changer de pseudo','Change username')}</button>
+    <button class="btn ghost full" id="acc-logout">${t('Se déconnecter','Sign out')}</button>
+    <button class="btn danger-ghost full sm" id="acc-delete">${t('Supprimer définitivement mon compte','Permanently delete my account')}</button>
   </section>`;
 }
 
 async function deleteAccount() {
   const { promptDialog } = await import('../ui.js');
   if (!await confirmDialog({
-    title: 'Supprimer le compte',
-    message: 'Toutes tes données en ligne (séances, amis, groupes, partages) seront définitivement effacées. Les données locales de ce téléphone sont conservées.',
-    confirmText: 'Continuer', danger: true,
+    title: t('Supprimer le compte','Delete account'),
+    message: t('Toutes tes données en ligne (séances, amis, groupes, partages) seront définitivement effacées. Les données locales de ce téléphone sont conservées.','All your online data (workouts, friends, groups, shares) will be permanently erased. Local data on this phone is kept.'),
+    confirmText: t('Continuer','Continue'), danger: true,
   })) return;
-  const password = await promptDialog({ title: 'Confirme avec ton mot de passe', label: 'Mot de passe', type: 'password', confirmText: 'Supprimer' });
+  const password = await promptDialog({ title: t('Confirme avec ton mot de passe','Confirm with your password'), label: t('Mot de passe','Password'), type: 'password', confirmText: t('Supprimer','Delete') });
   if (password == null) return;
   try {
     await call('auth', 'delete', { password });
     await savePSettings({ account: null });
     emit('account-changed');
-    toast('Compte supprimé. Tes données locales restent sur ce téléphone.');
+    toast(t('Compte supprimé. Tes données locales restent sur ce téléphone.','Account deleted. Your local data stays on this phone.'));
     setTimeout(() => { location.hash = ''; location.reload(); }, 1500);
   } catch (e) { toast(e.message, { type: 'error' }); }
 }

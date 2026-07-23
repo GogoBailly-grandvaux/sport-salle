@@ -1,4 +1,5 @@
 // screens/home.js — dashboard
+import { t } from '../i18n.js';
 import { hello as voiceHello, heroLine } from '../voice.js';
 import { esc, fmtDate, relDate, fmtWeight, fmtDuration, sum } from '../util.js';
 import { state, ps, activeProfile, accentHex, nav } from '../store.js';
@@ -29,25 +30,25 @@ export async function render() {
 
   const heroActive = active ? `
     <div class="hero resume" data-nav="#/workout/${active.id}">
-      <div class="hero-tag">${icon('bolt')} Séance en cours</div>
+      <div class="hero-tag">${icon('bolt')} ${t('Séance en cours','Workout in progress')}</div>
       <h2>${esc(active.name)}</h2>
       <p>${(active.exercises||[]).length} exercices · démarrée ${relDate(active.startedAt).toLowerCase()}</p>
-      <span class="hero-cta">Reprendre ${icon('right')}</span>
+      <span class="hero-cta">${t('Reprendre','Resume')} ${icon('right')}</span>
     </div>` : `
     <div class="hero">
-      <div class="hero-tag">Prêt ?</div>
-      <h2>Démarrer une séance</h2>
+      <div class="hero-tag">${t('Prêt ?','Ready?')}</div>
+      <h2>${t('Démarrer une séance','Start a workout')}</h2>
       <p>${esc(heroLine())}</p>
       <div class="hero-actions">
-        <button class="btn primary" id="start-empty">${icon('play')} Séance libre</button>
-        <button class="btn ghost" data-nav="#/routines">${icon('dumbbell')} Programmes</button>
+        <button class="btn primary" id="start-empty">${icon('play')} ${t('Séance libre','Free workout')}</button>
+        <button class="btn ghost" data-nav="#/routines">${icon('dumbbell')} ${t('Programmes','Programs')}</button>
       </div>
     </div>`;
 
   const momentum = `
     <div class="momentum">
-      ${statTile(`${streak}`, streak > 1 ? 'semaines de série' : 'semaine de série', streak ? '🔥' : 'objectif ' + goal + '/sem')}
-      ${statTile(`${weekN}<em class="of">/${goal}</em>`, 'cette semaine', 'séances')}
+      ${statTile(`${streak}`, streak > 1 ? t('semaines de série','week streak') : t('semaine de série','week streak'), streak ? '🔥' : t('objectif ','goal ') + goal + t('/sem','/wk'))}
+      ${statTile(`${weekN}<em class="of">/${goal}</em>`, t('cette semaine','this week'), t('séances','workouts'))}
       ${statTile(fmtWeight(weekVol, unit).replace(' '+unit,''), 'volume ('+unit+')', 'cette semaine')}
     </div>`;
 
@@ -71,10 +72,10 @@ export async function render() {
 
   const quick = `
     <div class="quick">
-      <button class="quick-b" data-nav="#/routines">${icon('dumbbell')}<span>Programmes</span></button>
-      <button class="quick-b" data-nav="#/library">${icon('search')}<span>Exercices</span></button>
-      <button class="quick-b" data-nav="#/progress">${icon('chart')}<span>Progrès</span></button>
-      <button class="quick-b" data-nav="#/history">${icon('history')}<span>Historique</span></button>
+      <button class="quick-b" data-nav="#/routines">${icon('dumbbell')}<span>${t('Programmes','Programs')}</span></button>
+      <button class="quick-b" data-nav="#/library">${icon('search')}<span>${t('Exercices','Exercises')}</span></button>
+      <button class="quick-b" data-nav="#/progress">${icon('chart')}<span>${t('Progrès','Progress')}</span></button>
+      <button class="quick-b" data-nav="#/history">${icon('history')}<span>${t('Historique','History')}</span></button>
     </div>`;
 
   const advice = active ? null : coachAdvice({ workouts, routines, libraryById: state.libraryById, weeklyGoal: goal });
@@ -97,7 +98,7 @@ export async function render() {
       ${quick}
       ${lastCard}
       ${bwCard}
-      ${!workouts.length && !active ? `<p class="hint">Astuce : pars d'un <b>modèle prêt à l'emploi</b> dans l'onglet Programmes, ou lance une séance libre et ajoute tes exercices au fur et à mesure.</p>` : ''}
+      ${!workouts.length && !active ? `<p class="hint">${t('Astuce : pars d’un <b>modèle prêt à l’emploi</b> dans l’onglet Programmes, ou lance une séance libre et ajoute tes exercices au fur et à mesure.','Tip: start from a <b>ready-made template</b> in the Programs tab, or launch a free workout and add exercises as you go.')}</p>` : ''}
     </div>`;
 }
 
