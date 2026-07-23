@@ -107,24 +107,35 @@ async function fabAction() {
 }
 
 // ---------- onboarding ----------
+export const AVATAR_EMOJIS = ['💪','🏋️','🔥','⚡','🚀','🦁','🐺','😤','🌸','👑','🎯','🥇'];
+
 function onboarding() {
   return new Promise(resolve => {
     const view = $('#view');
     view.innerHTML = `<div class="onboard">
       <div class="onboard-icon">${icon('bolt')}</div>
       <h1>Sport Salle</h1>
-      <p>Ton carnet de musculation. Crée ton profil pour commencer — ta copine pourra créer le sien.</p>
+      <p>Ton coach de poche pour la salle : programmes, séances, records et progression. Crée ton profil — chaque personne qui utilise ce téléphone peut avoir le sien.</p>
       <label class="field-label">Ton prénom</label>
-      <input class="input" id="ob-name" placeholder="Ex. Hugo" autocomplete="given-name">
+      <input class="input" id="ob-name" placeholder="Prénom" autocomplete="given-name">
       <label class="field-label">Ta couleur</label>
       <div class="accent-pick" id="ob-accent">${Object.entries(ACCENTS).map(([k,v],i)=>`<button class="accent-dot ${i===0?'sel':''}" data-a="${k}" style="--a:${v.hex}"></button>`).join('')}</div>
+      <label class="field-label">Ton avatar (optionnel)</label>
+      <div class="emoji-pick" id="ob-emoji">${AVATAR_EMOJIS.map(e=>`<button class="emoji-dot" data-e="${e}">${e}</button>`).join('')}</div>
       <button class="btn primary full big" id="ob-go">Commencer ${icon('right')}</button>
     </div>`;
     let accent = Object.keys(ACCENTS)[0];
+    let emoji = null;
     view.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { accent = b.dataset.a; view.querySelectorAll('[data-a]').forEach(x=>x.classList.toggle('sel',x===b)); });
+    view.querySelectorAll('[data-e]').forEach(b => b.onclick = () => {
+      const was = b.classList.contains('sel');
+      view.querySelectorAll('[data-e]').forEach(x=>x.classList.remove('sel'));
+      emoji = was ? null : b.dataset.e;
+      if (!was) b.classList.add('sel');
+    });
     view.querySelector('#ob-go').onclick = async () => {
       const name = view.querySelector('#ob-name').value.trim() || 'Athlète';
-      const p = await createProfile({ name, accent });
+      const p = await createProfile({ name, accent, emoji });
       await setActiveProfile(p.id);
       resolve();
     };

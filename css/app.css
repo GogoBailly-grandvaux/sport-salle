@@ -199,6 +199,22 @@ body.immersive #view{padding-bottom:calc(70px + var(--safe-b))}
 .rt-ex.more{color:var(--accent)}
 .rt-start{margin-top:12px;width:100%}
 
+/* templates */
+.tpl-banner{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 16%,var(--surface)),var(--surface));box-shadow:var(--shadow)}
+.tpl-banner-t{flex:1;min-width:0}
+.tpl-banner-t b{display:block;font-size:.98rem}
+.tpl-banner-t span{font-size:.78rem;color:var(--text2)}
+.tpl-banner .ico{color:var(--accent)}
+.tpl-list{display:flex;flex-direction:column;gap:12px}
+.tpl-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.tpl-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.tpl-head b{font-size:1rem}
+.tpl-meta{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+.tpl-pill{font-size:.66rem;font-weight:700;padding:3px 8px;border-radius:16px;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);text-transform:uppercase;letter-spacing:.04em}
+.tpl-pill.alt{background:var(--surface2);color:var(--text2)}
+.tpl-tag{font-size:.83rem;color:var(--text2);margin:8px 0}
+.tpl-card .btn{flex:none}
+
 /* routine editor */
 .title-input{font-size:1.2rem;font-weight:700;margin-bottom:10px}
 .edit-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
@@ -388,6 +404,9 @@ textarea.input{height:auto;padding:12px 14px}
 .accent-pick{display:flex;gap:10px;flex-wrap:wrap}
 .accent-dot{width:38px;height:38px;border-radius:50%;background:var(--a);border:3px solid transparent}
 .accent-dot.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
+.emoji-pick{display:flex;gap:8px;flex-wrap:wrap}
+.emoji-dot{width:42px;height:42px;border-radius:50%;background:var(--surface2);border:2px solid transparent;font-size:1.25rem;display:flex;align-items:center;justify-content:center}
+.emoji-dot.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,var(--surface2))}
 
 /* onboarding */
 .onboard{padding:40px 24px;max-width:420px;margin:0 auto;min-height:90vh;display:flex;flex-direction:column;justify-content:center}

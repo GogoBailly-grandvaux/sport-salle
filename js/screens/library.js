@@ -143,7 +143,7 @@ export async function renderDetail(params) {
   return `
     <header class="topbar">
       <div class="topbar-l">${backBtn('#/library')}</div>
-      <div class="topbar-c"><h1 class="ell">${esc(ex.name)}</h1></div>
+      <div class="topbar-c"><h1 class="ell">${esc(ex.name)}</h1>${ex.nameEn && ex.nameEn !== ex.name ? `<span class="topbar-sub">${esc(ex.nameEn)}</span>` : ''}</div>
       <div class="topbar-r"><button class="fav-btn big ${isFav?'on':''}" id="d-fav">${icon(isFav?'starfill':'star')}</button></div>
     </header>
     <div class="screen-pad">

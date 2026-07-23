@@ -9,7 +9,7 @@ import * as db from '../db.js';
 import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
 import { backBtn } from './common.js';
 
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.1';
 
 export async function render() {
   const p = activeProfile();
@@ -64,7 +64,8 @@ export async function render() {
 
       <section class="card">
         <h3 class="card-t">À propos</h3>
-        <p class="mut sm">Sport Salle — v${APP_VERSION}. Application de suivi de musculation. Illustrations d’exercices : free-exercise-db (domaine public). Ceci n’est pas un avis médical.</p>
+        <p class="mut sm">Sport Salle — v${APP_VERSION}. Application de suivi de musculation, gratuite et sans compte : tes données restent sur ton téléphone.</p>
+        <p class="mut sm">Données d’exercices open source : free-exercise-db (domaine public) · wger.de (CC-BY-SA 4.0, noms français). Ceci n’est pas un avis médical.</p>
       </section>
     </div>`;
 }
@@ -117,20 +118,37 @@ export function mount(root) {
   fileInput.onchange = () => importData(fileInput.files[0]);
 }
 
+const AVATAR_EMOJIS = ['💪','🏋️','🔥','⚡','🚀','🦁','🐺','😤','🌸','👑','🎯','🥇'];
+const emojiRow = (idPrefix, current) =>
+  `<div class="emoji-pick" id="${idPrefix}-emoji">${AVATAR_EMOJIS.map(e=>`<button class="emoji-dot ${e===current?'sel':''}" data-e="${e}">${e}</button>`).join('')}</div>`;
+function wireEmoji(rootEl, initial) {
+  let emoji = initial ?? null;
+  rootEl.querySelectorAll('[data-e]').forEach(b => b.onclick = () => {
+    const was = b.classList.contains('sel');
+    rootEl.querySelectorAll('[data-e]').forEach(x=>x.classList.remove('sel'));
+    emoji = was ? null : b.dataset.e;
+    if (!was) b.classList.add('sel');
+  });
+  return () => emoji;
+}
+
 async function addProfile() {
   const used = new Set(state.profiles.map(p => p.accent));
   const free = Object.keys(ACCENTS).find(a => !used.has(a)) || 'volt';
   const s = sheet(`
     <label class="field-label">Prénom</label>
-    <input class="input" id="np-name" placeholder="Ex. ${state.profiles.length ? 'Sa/son partenaire' : 'Toi'}">
+    <input class="input" id="np-name" placeholder="Prénom">
     <label class="field-label">Couleur</label>
     <div class="accent-pick" id="np-accent">${Object.entries(ACCENTS).map(([k,v])=>`<button class="accent-dot ${k===free?'sel':''}" data-a="${k}" style="--a:${v.hex}" aria-label="${v.name}"></button>`).join('')}</div>
+    <label class="field-label">Avatar (optionnel)</label>
+    ${emojiRow('np', null)}
     <button class="btn primary full" id="np-save">Créer le profil</button>`, { title: 'Nouveau profil' });
   let accent = free;
+  const getEmoji = wireEmoji(s.root, null);
   s.root.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { accent = b.dataset.a; s.root.querySelectorAll('[data-a]').forEach(x=>x.classList.toggle('sel', x===b)); });
   s.root.querySelector('#np-save').onclick = async () => {
     const name = s.root.querySelector('#np-name').value.trim() || 'Athlète';
-    const p = await createProfile({ name, accent });
+    const p = await createProfile({ name, accent, emoji: getEmoji() });
     s.close(); await setActiveProfile(p.id); toast(`Bienvenue ${name} !`); nav.go('#/home');
   };
 }
@@ -142,13 +160,16 @@ function editProfile(id) {
     <input class="input" id="ep-name" value="${esc(p.name)}">
     <label class="field-label">Couleur</label>
     <div class="accent-pick" id="ep-accent">${Object.entries(ACCENTS).map(([k,v])=>`<button class="accent-dot ${k===p.accent?'sel':''}" data-a="${k}" style="--a:${v.hex}"></button>`).join('')}</div>
+    <label class="field-label">Avatar</label>
+    ${emojiRow('ep', p.emoji)}
     <button class="btn primary full" id="ep-save">Enregistrer</button>
     ${state.profiles.length>1?`<button class="btn danger-ghost full" id="ep-del">${icon('trash')} Supprimer ce profil</button>`:''}`,
     { title: 'Modifier le profil' });
   let accent = p.accent;
+  const getEmoji = wireEmoji(s.root, p.emoji);
   s.root.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { accent = b.dataset.a; s.root.querySelectorAll('[data-a]').forEach(x=>x.classList.toggle('sel', x===b)); });
   s.root.querySelector('#ep-save').onclick = async () => {
-    await updateProfile(id, { name: s.root.querySelector('#ep-name').value.trim() || 'Athlète', accent });
+    await updateProfile(id, { name: s.root.querySelector('#ep-name').value.trim() || 'Athlète', accent, emoji: getEmoji() });
     if (id === state.activeProfileId) applyTheme();
     s.close(); nav.refresh();
   };

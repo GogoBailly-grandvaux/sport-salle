@@ -85,7 +85,7 @@ export async function render() {
       ${quick}
       ${lastCard}
       ${bwCard}
-      ${!workouts.length && !active ? `<p class="hint">Astuce : crée d'abord un programme, ou lance une séance libre et ajoute tes exercices au fur et à mesure.</p>` : ''}
+      ${!workouts.length && !active ? `<p class="hint">Astuce : pars d'un <b>modèle prêt à l'emploi</b> dans l'onglet Programmes, ou lance une séance libre et ajoute tes exercices au fur et à mesure.</p>` : ''}
     </div>`;
 }
 

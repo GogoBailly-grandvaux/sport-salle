@@ -1,5 +1,5 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.1.0';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 
@@ -7,18 +7,19 @@ const ASSETS = [
   './', './index.html', './offline.html', './app.webmanifest',
   './css/app.css',
   './js/app.js', './js/util.js', './js/db.js', './js/store.js', './js/data.js',
-  './js/model.js', './js/analytics.js', './js/charts.js', './js/ui.js',
+  './js/model.js', './js/analytics.js', './js/charts.js', './js/ui.js', './js/templates.js',
   './js/screens/common.js', './js/screens/picker.js', './js/screens/home.js',
   './js/screens/library.js', './js/screens/routines.js', './js/screens/workout.js',
   './js/screens/history.js', './js/screens/progress.js', './js/screens/profile.js',
-  './data/exercises.json',
+  './data/exercises.json?v=2',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png',
 ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const c = await caches.open(SHELL);
-    await Promise.allSettled(ASSETS.map(u => c.add(u)));
+    // cache:'no-cache' → contourne le cache HTTP (GitHub Pages max-age=600) à l'installation
+    await Promise.allSettled(ASSETS.map(u => c.add(new Request(u, { cache: 'no-cache' }))));
     self.skipWaiting();
   })());
 });

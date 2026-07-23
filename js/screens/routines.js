@@ -1,4 +1,4 @@
-// screens/routines.js — routine list + builder
+// screens/routines.js — routine list + builder + templates + sharing
 import { esc, relDate } from '../util.js';
 import { nav } from '../store.js';
 import { icon, sheet, toast, confirmDialog, promptDialog } from '../ui.js';
@@ -9,6 +9,7 @@ import {
   listRoutines, getRoutine, saveRoutine, newRoutine, deleteRoutine, mkRoutineItem,
   getActiveWorkout, startWorkout, deleteWorkout,
 } from '../model.js';
+import { TEMPLATES, addTemplate, routinePayload, importRoutinePayload } from '../templates.js';
 
 // ---- shared: begin a routine as a live workout ----
 export async function beginRoutine(routine) {
@@ -49,13 +50,21 @@ export async function renderList() {
     <header class="topbar">
       <div class="topbar-l">${backBtn('#/home')}</div>
       <div class="topbar-c"><h1>Programmes</h1></div>
-      <div class="topbar-r"><button class="icon-btn" id="rt-new" aria-label="Nouveau">${icon('plus')}</button></div>
+      <div class="topbar-r">
+        <button class="icon-btn" id="rt-import" aria-label="Importer">${icon('upload')}</button>
+        <button class="icon-btn" id="rt-new" aria-label="Nouveau">${icon('plus')}</button>
+      </div>
     </header>
     <div class="screen-pad">
+      <button class="tpl-banner" id="rt-templates">
+        <div class="tpl-banner-t"><b>✨ Modèles prêts à l'emploi</b><span>Full body, Push/Pull/Legs, maison… à personnaliser</span></div>
+        ${icon('right')}
+      </button>
       ${routines.length ? `<div class="rt-list">${cards}</div>` :
-        emptyState('dumbbell', 'Aucun programme', 'Crée ton premier circuit : ajoute les exercices et tes objectifs de séries/reps.',
+        emptyState('dumbbell', 'Aucun programme', 'Pars d’un modèle prêt à l’emploi, ou crée ton circuit de zéro.',
           `<button class="btn primary" id="rt-new2">${icon('plus')} Créer un programme</button>`)}
       <button class="btn ghost full mt" id="rt-new3">${icon('plus')} Nouveau programme</button>
+      <input type="file" id="rt-file" accept="application/json,.json" hidden>
     </div>`;
 }
 
@@ -69,11 +78,71 @@ export function mountList(root) {
   root.querySelector('#rt-new').onclick = create;
   root.querySelector('#rt-new2')?.addEventListener('click', create);
   root.querySelector('#rt-new3')?.addEventListener('click', create);
+  root.querySelector('#rt-templates').onclick = openTemplates;
+  const fileInput = root.querySelector('#rt-file');
+  root.querySelector('#rt-import').onclick = () => fileInput.click();
+  fileInput.onchange = async () => {
+    const f = fileInput.files[0]; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (d.kind === 'routine') {
+        const r = await importRoutinePayload(d);
+        toast(`« ${r.name} » importé ✓`); nav.refresh();
+      } else if (d.app === 'sport-salle' && d.data) {
+        toast('Ceci est une sauvegarde complète — importe-la depuis Profil → Données', { duration: 5000 });
+      } else throw new Error('format');
+    } catch { toast('Fichier de programme invalide', { type: 'error' }); }
+    fileInput.value = '';
+  };
   root.querySelectorAll('[data-start]').forEach(b => b.onclick = async () => {
     const r = await getRoutine(b.dataset.start);
     if (!(r.items || []).length) { toast('Ajoute des exercices d’abord'); nav.go(`#/routines/${r.id}/edit`); return; }
     beginRoutine(r);
   });
+}
+
+// ---------------- template gallery ----------------
+function openTemplates() {
+  const card = (t) => `
+    <div class="tpl-card">
+      <div class="tpl-head">
+        <div><b>${esc(t.name)}</b><div class="tpl-meta"><span class="tpl-pill">${esc(t.level)}</span><span class="tpl-pill alt">${esc(t.goal)}</span><span class="mut sm">${t.items.length} exos</span></div></div>
+        <button class="btn primary sm" data-add="${t.id}">${icon('plus')} Ajouter</button>
+      </div>
+      <p class="tpl-tag">${esc(t.tagline)}</p>
+      <div class="rt-exs">${t.items.slice(0, 4).map(it => { const ex = getExercise(it.ex); return `<span class="rt-ex">${esc(ex ? ex.name : it.ex)}</span>`; }).join('')}${t.items.length > 4 ? `<span class="rt-ex more">+${t.items.length - 4}</span>` : ''}</div>
+    </div>`;
+  const s = sheet(`<div class="tpl-list">${TEMPLATES.map(card).join('')}</div>
+    <p class="mut sm center" style="margin-top:10px">Chaque modèle devient TON programme : modifie exercices, séries et repos librement.</p>`,
+    { title: 'Modèles de programmes', cls: 'tall' });
+  s.root.querySelectorAll('[data-add]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const tpl = TEMPLATES.find(t => t.id === b.dataset.add);
+    const r = await addTemplate(tpl);
+    s.close(); toast(`« ${r.name} » ajouté à tes programmes ✓`);
+    nav.refresh();
+  });
+}
+
+// ---------------- share ----------------
+async function shareRoutine(r) {
+  const payload = routinePayload(r);
+  const json = JSON.stringify(payload);
+  const slug = (r.name || 'programme').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'programme';
+  const fname = `${slug}.sportsalle.json`;
+  try {
+    const file = new File([json], fname, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: r.name, text: `Mon programme « ${r.name} » sur Sport Salle` });
+      return;
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  // fallback : téléchargement
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const a = document.createElement('a'); a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Fichier du programme téléchargé — envoie-le à ton proche ✓', { duration: 4500 });
 }
 
 // ---------------- editor ----------------
@@ -137,8 +206,15 @@ export function mountEdit(root, params) {
   root.querySelector('#e-start').onclick = async () => { await persistName(); const r = await getRoutine(id); beginRoutine(r); };
   root.querySelector('#e-menu').onclick = () => {
     const s = sheet(`
+      <button class="menu-row" id="m-share">${icon('upload')} Partager à un proche</button>
       <button class="menu-row" id="m-rename">${icon('edit')} Renommer</button>
       <button class="menu-row danger" id="m-del">${icon('trash')} Supprimer le programme</button>`, { title: 'Options' });
+    s.root.querySelector('#m-share').onclick = async () => {
+      s.close(); await persistName();
+      const r = await getRoutine(id);
+      if (!(r.items || []).length) { toast('Ajoute des exercices avant de partager'); return; }
+      shareRoutine(r);
+    };
     s.root.querySelector('#m-rename').onclick = async () => {
       s.close();
       const name = await promptDialog({ title: 'Renommer', value: nameEl.value, confirmText: 'OK' });

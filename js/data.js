@@ -42,11 +42,23 @@ export function imageUrls(ex) {
 }
 
 let _loaded = false;
+export const DATA_VERSION = '2'; // à incrémenter à chaque mise à jour de data/exercises.json (voir aussi sw.js)
 export async function loadLibrary() {
-  const res = await fetch('./data/exercises.json');
+  const res = await fetch('./data/exercises.json?v=' + DATA_VERSION);
   const raw = await res.json();
-  const lib = raw.map(e => ({ ...e, nameLower: (e.name||'').toLowerCase(), source: 'library' }));
-  const custom = (await db.getAll('customExercises')).map(e => ({ ...e, source: 'custom' }));
+  // Nom FR en priorité s'il existe (enrichissement wger) ; la recherche matche FR + EN.
+  const lib = raw.map(e => {
+    const en = e.name || '';
+    const fr = e.nameFr || null;
+    return {
+      ...e,
+      name: fr || en,
+      nameEn: en,
+      nameLower: (en + ' ' + (fr || '')).toLowerCase(),
+      source: 'library',
+    };
+  });
+  const custom = (await db.getAll('customExercises')).map(e => ({ ...e, nameLower: e.nameLower || (e.name||'').toLowerCase(), source: 'custom' }));
   state.library = lib.concat(custom);
   state.libraryById = new Map(state.library.map(e => [e.id, e]));
   _loaded = true;
