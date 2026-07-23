@@ -3,6 +3,7 @@ import * as db from './db.js';
 import { state, ps } from './store.js';
 import { uid, nowTs } from './util.js';
 import { workoutStats, detectPRs } from './analytics.js';
+import { workoutName } from './voice.js';
 
 // ---------- constructors ----------
 export const mkSet = (prev = null) => ({
@@ -76,7 +77,7 @@ export async function startWorkout({ routine = null, name = null } = {}) {
   const profileId = state.activeProfileId;
   const w = {
     id: uid(), profileId, routineId: routine?.id || null,
-    name: name || routine?.name || 'Séance libre',
+    name: name || routine?.name || workoutName(),
     status: 'in_progress', startedAt: nowTs(), completedAt: null, durationSec: 0,
     bodyweightKg: null, notes: '', exercises: [], totalVolumeKg: 0, prs: [],
   };

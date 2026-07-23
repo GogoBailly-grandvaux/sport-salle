@@ -58,6 +58,11 @@ try {
   fail(500, 'connexion base impossible — vérifie api/config.php');
 }
 
+// Rétention RGPD : l'ancienne synchro par code n'est plus proposée dans l'app ;
+// on purge les instantanés inactifs depuis 180 jours (les groupes actifs se
+// rafraîchissent à chaque push et ne sont jamais concernés).
+try { $pdo->exec("DELETE FROM sync_profiles WHERE updated_at < DATE_SUB(NOW(), INTERVAL 180 DAY)"); } catch (Throwable $e) { /* purge opportuniste */ }
+
 switch ($action) {
   case 'pull': {
     $st = $pdo->prepare('SELECT profile_id, device_id, data, UNIX_TIMESTAMP(updated_at) AS updated_at FROM sync_profiles WHERE code = ?');

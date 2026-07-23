@@ -68,6 +68,11 @@ export async function render() {
         <input type="file" id="import-file" accept="application/json,.json" hidden>
       </section>
 
+      <section class="card maker-card">
+        <h3 class="card-t">👋 Le mot du créateur</h3>
+        <p class="mut sm">Salut, moi c’est Hugo. J’ai créé Sport Salle en reprenant la salle après une longue pause — je voulais un carnet simple, gratuit, sans pub, qui me pousse vraiment. Je m’en sers à chaque séance à Val d’Europe. Si tu l’utilises aussi : bienvenue dans l’équipe. 💛</p>
+      </section>
+
       <section class="card">
         <h3 class="card-t">À propos</h3>
         <p class="mut sm">Sport Salle — v${APP_VERSION}. Ton coach de musculation : programmes, séances, records et amis. Tes données vivent sur ton téléphone et te suivent avec ton compte.</p>

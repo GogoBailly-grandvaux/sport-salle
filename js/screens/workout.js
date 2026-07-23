@@ -7,6 +7,7 @@ import { exImage, emptyState } from './common.js';
 import { openExercisePicker } from './picker.js';
 import { getWorkout, saveWorkout, deleteWorkout, finishWorkout, mkSet, mkExercise, lastPerformance } from '../model.js';
 import { overloadHint } from '../coach.js';
+import { praise } from '../voice.js';
 
 let W = null;
 let prevMap = new Map();       // exerciseId -> [prev sets]
@@ -487,6 +488,7 @@ export async function renderSummary(params) {
         <div class="summary-badge">${icon('check')}</div>
         <h1>Séance terminée !</h1>
         <p>${esc(w.name)}</p>
+        <p class="summary-praise">${esc(praise({ prs: (w.prs||[]).length, volume: st.volume, sets: st.sets, durationSec: w.durationSec }))}</p>
       </div>
       <div class="summary-stats">
         <div><b>${fmtDuration(w.durationSec)}</b><span>durée</span></div>

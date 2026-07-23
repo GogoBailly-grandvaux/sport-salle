@@ -4,6 +4,7 @@ import { ps, nav } from '../store.js';
 import { icon, confirmDialog, toast } from '../ui.js';
 import { getExercise, muscleFR } from '../data.js';
 import { exImage, emptyState, backBtn } from './common.js';
+import { emptyHistory } from '../voice.js';
 import { listWorkouts, getWorkout, deleteWorkout } from '../model.js';
 import { workoutStats, exerciseSummary, e1rm } from '../analytics.js';
 import { beginRoutine } from './routines.js';
@@ -30,7 +31,7 @@ export async function renderList() {
       <div class="topbar-r"></div>
     </header>
     <div class="screen-pad">
-      ${ws.length ? html : emptyState('history','Aucune séance','Ta première séance apparaîtra ici. Lance-toi !',`<button class="btn primary" data-nav="#/home">Démarrer</button>`)}
+      ${ws.length ? html : emptyState('history','Aucune séance', emptyHistory(),`<button class="btn primary" data-nav="#/home">Démarrer</button>`)}
     </div>`;
 }
 export function mountList() {}

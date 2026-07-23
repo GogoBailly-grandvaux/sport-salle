@@ -1,4 +1,5 @@
 // screens/home.js — dashboard
+import { hello as voiceHello, heroLine } from '../voice.js';
 import { esc, fmtDate, relDate, fmtWeight, fmtDuration, sum } from '../util.js';
 import { state, ps, activeProfile, accentHex, nav } from '../store.js';
 import { icon } from '../ui.js';
@@ -21,8 +22,8 @@ export async function render() {
   const weekVol = sum(workouts.filter(w => weekStart(w.completedAt||w.startedAt) === wk).map(w => workoutStats(w).volume));
   const last = workouts[0];
   const unit = ps('weightUnit');
-  const hour = new Date().getHours();
-  const hello = hour < 6 ? 'Bonne nuit' : hour < 12 ? 'Bonjour' : hour < 18 ? 'Salut' : 'Bonsoir';
+  const helloRaw = voiceHello(); // la voix de l'app : varie selon l'heure, le jour… et le lundi 😄
+  const hello = /[?!…)]$/.test(helloRaw) ? helloRaw : helloRaw + ','; // virgule seulement si la phrase n'a pas déjà sa ponctuation
 
   const avatar = `<button class="avatar" data-nav="#/profile" style="--a:${accentHex(p)}">${p?.emoji || esc((p?.name||'?').slice(0,1).toUpperCase())}</button>`;
 
@@ -36,7 +37,7 @@ export async function render() {
     <div class="hero">
       <div class="hero-tag">Prêt ?</div>
       <h2>Démarrer une séance</h2>
-      <p>Séance libre, ou lance un de tes programmes.</p>
+      <p>${esc(heroLine())}</p>
       <div class="hero-actions">
         <button class="btn primary" id="start-empty">${icon('play')} Séance libre</button>
         <button class="btn ghost" data-nav="#/routines">${icon('dumbbell')} Programmes</button>
@@ -86,7 +87,7 @@ export async function render() {
 
   return `
     <header class="topbar home-top">
-      <div class="topbar-c"><span class="hello">${hello},</span><h1>${esc(p?.name || 'Athlète')}</h1></div>
+      <div class="topbar-c"><span class="hello">${hello}</span><h1>${esc(p?.name || 'Athlète')}</h1></div>
       <div class="topbar-r">${avatar}</div>
     </header>
     <div class="screen-pad">

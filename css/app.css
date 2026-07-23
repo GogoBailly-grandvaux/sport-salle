@@ -483,6 +483,9 @@ body.welcome-mode .tabbar{display:none}
 .toast.error{background:var(--danger)}
 .toast-act{background:transparent;border:none;color:var(--accent);font-weight:700}
 
+.summary-praise{color:var(--accent);font-weight:600;font-size:.95rem;margin-top:6px}
+.maker-card{border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
+
 /* confetti */
 .confetti-host{position:fixed;inset:0;z-index:80;pointer-events:none;overflow:hidden}
 .confetti-host i{position:absolute;width:9px;height:9px;border-radius:2px;will-change:transform,opacity}
