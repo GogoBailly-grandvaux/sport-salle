@@ -308,6 +308,10 @@ export async function init() {
   // - déjà dans un groupe → configuré (l'API a forcément existé) ;
   // - mode 'auto' → sonde api/sync.php (résultat mémorisé pour les boots suivants).
   if (SYNC_URL !== 'auto') _configured = true;
+  // Sur le domaine officiel, le serveur existe PAR DÉFINITION : le mur de
+  // connexion ne dépend plus d'une sonde réseau (une panne = vraie erreur
+  // affichée, plus jamais le mode invité des premières versions).
+  else if (/(^|\.)hbaillyg\.fr$|(^|\.)odns\.fr$/.test(location.hostname)) _configured = true;
   else if (syncCfg()?.code) _configured = true;
   else {
     let cached = null;

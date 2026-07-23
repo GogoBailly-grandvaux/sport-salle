@@ -153,7 +153,8 @@ function welcome() {
           : online ? `
           <div id="wel-gsi"></div>
           <button class="btn primary full big" id="wel-register">Créer un compte gratuit</button>
-          <button class="btn ghost full" id="wel-login">J’ai déjà un compte</button>`
+          <button class="btn ghost full" id="wel-login">J’ai déjà un compte</button>
+          <button class="wel-guest" id="wel-diag">Un souci de connexion ? Diagnostic</button>`
           : `<button class="btn primary full big" id="wel-guest">Commencer</button>
           <button class="wel-guest" id="wel-diag">Pas de connexion au serveur ? Diagnostic</button>`}
         </div>
