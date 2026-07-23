@@ -25,13 +25,13 @@ Partage simplement ce lien à tes proches — chacun installe l'app et crée son
 - **Multi-profil** — plusieurs personnes sur le même appareil, données séparées ; couleur et avatar par profil.
 - **Thème clair / sombre**, kg / lb, **sauvegarde / import** en un fichier.
 
-## ☁️ Synchro entre téléphones (optionnelle)
+## ☁️ Synchro entre téléphones (optionnelle, auto-hébergée)
 
-L'app peut synchroniser les profils entre plusieurs téléphones via un « groupe » à code secret (backend Supabase gratuit). Voir [SYNC-SETUP.md](SYNC-SETUP.md) pour l'activer. Sans groupe, l'app reste 100 % locale.
+L'app peut synchroniser les profils entre plusieurs téléphones via un « groupe » à code secret. Le backend est **auto-hébergé** : une petite API PHP ([api/sync.php](api/sync.php)) + une table MySQL, sur ton propre hébergement (guide complet : [DEPLOIEMENT-O2SWITCH.md](DEPLOIEMENT-O2SWITCH.md)). L'app détecte automatiquement l'API sur son domaine — aucune configuration côté client. Sans API (ex. sur GitHub Pages), la synchro reste invisible et l'app est 100 % locale.
 
 ## 🔒 Confidentialité
 
-Aucun compte : tout est stocké localement (IndexedDB). Seules les images d'exercices sont chargées depuis un CDN (puis mises en cache pour l'usage hors-ligne). Si la synchro est activée, les données du groupe transitent par ton propre projet Supabase, accessibles uniquement avec le code du groupe.
+Aucun compte : tout est stocké localement (IndexedDB). Seules les images d'exercices sont chargées depuis un CDN (puis mises en cache pour l'usage hors-ligne). Si la synchro est activée, les données du groupe restent sur **ton** serveur, accessibles uniquement avec le code du groupe.
 
 ## 🛠️ Technique
 

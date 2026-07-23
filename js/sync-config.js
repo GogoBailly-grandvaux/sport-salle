@@ -1,6 +1,7 @@
-// sync-config.js — configuration du backend de synchro (Supabase).
-// Tant que ces deux valeurs sont vides, la synchro est invisible dans l'app.
-// La clé « anon public » de Supabase est CONÇUE pour être embarquée côté client :
-// l'accès aux données est verrouillé côté serveur (voir supabase/schema.sql).
-export const SYNC_URL = '';  // ex. 'https://abcdefgh.supabase.co'
-export const SYNC_KEY = '';  // clé "anon public" du projet
+// sync-config.js — configuration du backend de synchro.
+// 'auto'  : l'app cherche son API sur le même domaine (api/sync.php) et
+//           n'affiche la synchro que si elle répond. Aucun réglage à faire :
+//           sur l'hébergement o2switch la carte apparaît, ailleurs elle reste cachée.
+// URL absolue ('https://…/api/sync.php') : force un backend précis.
+// ''      : synchro désactivée partout.
+export const SYNC_URL = 'auto';

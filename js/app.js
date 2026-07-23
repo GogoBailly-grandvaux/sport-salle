@@ -178,6 +178,8 @@ async function boot() {
     document.getElementById('fab').onclick = fabAction;
     $('#splash')?.remove();
 
+    await sync.init(); // avant le premier rendu : l'écran Profil sait si la synchro existe
+
     if (!state.profiles.length) { await onboarding(); }
     else {
       const active = state.global.activeProfileId && state.profiles.find(p => p.id === state.global.activeProfileId);
@@ -192,7 +194,6 @@ async function boot() {
     const act = await getActiveWorkout();
     if (act && (location.hash === '#/home' || location.hash === '' )) {/* home already shows resume */}
 
-    sync.init();
     // à la réception de données synchronisées, on rafraîchit l'écran courant
     // (jamais en pleine séance : on ne casse pas la saisie en cours)
     on('sync-applied', () => {

@@ -1,7 +1,8 @@
 // sync.js — synchro cloud opt-in entre téléphones.
 // Local-first : l'app fonctionne sans ; avec un « groupe » (code secret partagé),
-// chaque appareil pousse/fusionne les instantanés de ses profils via Supabase.
-import { SYNC_URL, SYNC_KEY } from './sync-config.js';
+// chaque appareil pousse/fusionne les instantanés de ses profils via l'API
+// auto-hébergée (api/sync.php sur le même domaine, ou une URL absolue).
+import { SYNC_URL } from './sync-config.js';
 import { mergeSnapshots, SYNC_STORES } from './sync-merge.js';
 import * as db from './db.js';
 import { state, emit, loadProfiles, saveGlobal } from './store.js';
@@ -13,26 +14,39 @@ let applying = false;       // écritures internes (pas de re-marquage dirty)
 let syncing = false;
 let pushTimer = null;
 let pollTimer = null;
+let _configured = false;    // résolu par init() (sonde en mode 'auto')
 
-export const isConfigured = () => !!(SYNC_URL && SYNC_KEY);
+const PROBE_FLAG = 'sync-api-ok';
+
+function apiUrl() {
+  if (!SYNC_URL) return null;
+  if (SYNC_URL === 'auto') return new URL('api/sync.php', document.baseURI).toString();
+  return SYNC_URL;
+}
+
+export const isConfigured = () => _configured;
 export const syncCfg = () => state.global?.sync || null;
-export const isEnabled = () => isConfigured() && !!(syncCfg()?.code);
+export const isEnabled = () => _configured && !!(syncCfg()?.code);
 
 // ---------- transport ----------
-async function rpc(name, args, { keepalive = false } = {}) {
-  const r = await fetch(`${SYNC_URL}/rest/v1/rpc/${name}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      apikey: SYNC_KEY,
-      authorization: `Bearer ${SYNC_KEY}`,
-    },
-    body: JSON.stringify(args),
-    keepalive,
-  });
-  if (!r.ok) throw new Error(`sync ${name} → HTTP ${r.status}`);
-  const t = await r.text();
-  return t ? JSON.parse(t) : null;
+async function api(action, payload = {}, { keepalive = false, timeoutMs = 0 } = {}) {
+  const ctrl = timeoutMs ? new AbortController() : null;
+  const timer = timeoutMs ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+  try {
+    const r = await fetch(apiUrl(), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action, ...payload }),
+      keepalive,
+      signal: ctrl?.signal,
+    });
+    const t = await r.text();
+    const data = t ? JSON.parse(t) : null;
+    if (!r.ok) throw new Error(data?.error || `HTTP ${r.status}`);
+    return data;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 // ---------- snapshots ----------
@@ -80,7 +94,7 @@ export async function syncNow({ keepalive = false } = {}) {
   syncing = true;
   try {
     const cfg = syncCfg();
-    const rows = (await rpc('sync_pull', { p_code: cfg.code }, { keepalive })) || [];
+    const rows = (await api('pull', { code: cfg.code }, { keepalive })) || [];
     const remote = new Map(rows.map(r => [r.profile_id, r.data]));
 
     const localProfiles = (await db.getAll('profiles')).map(p => p.id);
@@ -97,7 +111,7 @@ export async function syncNow({ keepalive = false } = {}) {
       const mj = JSON.stringify(merged);
       if (JSON.stringify(localSnap) !== mj) { await applySnapshot(pid, merged); changedLocal = true; }
       if (JSON.stringify(remoteSnap) !== mj || dirty.has(pid)) {
-        await rpc('sync_push', { p_code: cfg.code, p_profile: pid, p_device: cfg.deviceId, p_data: merged }, { keepalive });
+        await api('push', { code: cfg.code, profile: pid, device: cfg.deviceId, data: merged }, { keepalive });
       }
     }
     dirty.clear();
@@ -141,7 +155,7 @@ export async function joinGroup(rawCode) {
   const code = normalizeCode(rawCode);
   if (code.length < 16) return { ok: false, reason: 'code trop court' };
   let found = 0;
-  try { found = ((await rpc('sync_pull', { p_code: code })) || []).length; }
+  try { found = ((await api('pull', { code })) || []).length; }
   catch (e) { return { ok: false, reason: e.message }; }
   await enable(code);
   const r = await syncNow();
@@ -178,8 +192,32 @@ function stopAuto() {
   clearTimeout(pushTimer); pushTimer = null;
 }
 
-export function init() {
-  if (!isConfigured()) return;
+export async function init() {
+  if (!SYNC_URL) return;
+
+  // Résolution de la configuration :
+  // - URL absolue → on fait confiance ;
+  // - déjà dans un groupe → configuré (l'API a forcément existé) ;
+  // - mode 'auto' → sonde api/sync.php (résultat mémorisé pour les boots suivants).
+  if (SYNC_URL !== 'auto') _configured = true;
+  else if (syncCfg()?.code) _configured = true;
+  else {
+    let cached = null;
+    try { cached = localStorage.getItem(PROBE_FLAG); } catch {}
+    if (cached === '1') _configured = true;
+    else if (navigator.onLine) {
+      const probe = async () => {
+        let ok = false;
+        try { ok = (await api('ping', {}, { timeoutMs: 3000 }))?.ok === true; } catch {}
+        try { localStorage.setItem(PROBE_FLAG, ok ? '1' : '0'); } catch {}
+        return ok;
+      };
+      if (cached === null) _configured = await probe(); // 1er lancement : on attend la réponse
+      else probe();                                     // déjà '0' : re-sonde en arrière-plan (pris en compte au prochain lancement)
+    }
+  }
+  if (!_configured) return;
+
   db.setOnWrite(onDbWrite);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) syncNow(); });
   window.addEventListener('pagehide', () => { if (dirty.size) syncNow({ keepalive: true }); });

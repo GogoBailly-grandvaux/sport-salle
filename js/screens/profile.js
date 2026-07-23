@@ -11,7 +11,7 @@ import { backBtn } from './common.js';
 import * as sync from '../sync.js';
 import { relDate } from '../util.js';
 
-const APP_VERSION = '1.2';
+const APP_VERSION = '1.3';
 
 export async function render() {
   const p = activeProfile();

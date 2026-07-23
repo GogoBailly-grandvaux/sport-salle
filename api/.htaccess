@@ -1,0 +1,4 @@
+# Seul sync.php est accessible depuis le web.
+<FilesMatch "^(config\.php|config\.sample\.php|schema\.sql)$">
+  Require all denied
+</FilesMatch>
