@@ -32,7 +32,8 @@ const statChips = (s) => {
 // ---------------- écran principal ----------------
 export async function render() {
   if (!sync.isConfigured()) {
-    return `${header()}<div class="screen-pad">${emptyState('users', 'Indisponible hors serveur', 'Le mode social nécessite le serveur de l’app.', '')}</div>`;
+    return `${header()}<div class="screen-pad">${emptyState('users', 'Serveur injoignable', 'Impossible de joindre le serveur pour l’instant — vérifie ta connexion et réessaie.',
+      `<button class="btn primary" id="soc-retry">Réessayer</button>`)}</div>`;
   }
   if (!isLoggedIn()) {
     return `${header()}
@@ -228,6 +229,10 @@ function wireGroupes(root) {
 }
 
 export function mount(root) {
+  root.querySelector('#soc-retry')?.addEventListener('click', () => {
+    try { localStorage.removeItem('sync-api-ok'); } catch {}
+    location.reload(); // re-sonde au boot (8 s + re-tentatives)
+  });
   root.querySelector('#soc-register')?.addEventListener('click', () => openAuthSheet('register', () => nav.refresh()));
   root.querySelector('#soc-login')?.addEventListener('click', () => openAuthSheet('login', () => nav.refresh()));
   root.querySelectorAll('[data-seg]').forEach(b => b.onclick = () => { seg = b.dataset.seg; nav.refresh(); });

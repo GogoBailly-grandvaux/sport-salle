@@ -313,15 +313,32 @@ export async function init() {
     let cached = null;
     try { cached = localStorage.getItem(PROBE_FLAG); } catch {}
     if (cached === '1') _configured = true;
-    else if (navigator.onLine) {
+    else {
+      // On ne mémorise JAMAIS un échec : un ping raté (réseau mobile lent au 1er
+      // lancement) ne doit pas faire croire « pas de serveur » pour toujours.
       const probe = async () => {
         let ok = false;
-        try { ok = (await api('ping', {}, { timeoutMs: 3000 }))?.ok === true; } catch {}
-        try { localStorage.setItem(PROBE_FLAG, ok ? '1' : '0'); } catch {}
+        try { ok = (await api('ping', {}, { timeoutMs: 8000 }))?.ok === true; } catch {}
+        if (ok) { try { localStorage.setItem(PROBE_FLAG, '1'); } catch {} }
         return ok;
       };
-      if (cached === null) _configured = await probe(); // 1er lancement : on attend la réponse
-      else probe();                                     // déjà '0' : re-sonde en arrière-plan (pris en compte au prochain lancement)
+      const recoverWhenUp = () => {
+        // le serveur répond alors que l'app a démarré « sans serveur » :
+        // on recharge pour réappliquer compte/social (jamais en pleine séance)
+        if (!document.body.classList.contains('workout-mode')) location.reload();
+      };
+      if (navigator.onLine) _configured = await probe();
+      if (!_configured) {
+        (async () => {                                   // re-tentatives en arrière-plan
+          for (const delay of [4000, 15000, 60000]) {
+            await new Promise(r => setTimeout(r, delay));
+            if (navigator.onLine && await probe()) { recoverWhenUp(); return; }
+          }
+        })();
+        addEventListener('online', async () => {         // et au retour du réseau
+          if (!_configured && await probe()) recoverWhenUp();
+        }, { once: true });
+      }
     }
   }
   if (!_configured) return;
