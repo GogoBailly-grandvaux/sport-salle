@@ -67,6 +67,36 @@ return [
   apparaît automatiquement (l'app détecte son API sur le domaine).
 - Crée un groupe sur ton téléphone, rejoins-le sur celui de ta copine. 💪
 
+## ⚙️ CI/CD — déploiement automatique à chaque push
+
+Le dépôt contient un pipeline GitHub Actions ([.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml)) :
+
+```
+git push → Tests (syntaxe JS, moteur de synchro, données, lint PHP)
+         → si verts : Pull + Deploy automatiques sur o2switch via l'API cPanel
+```
+
+Tant que les secrets ne sont pas configurés, la partie déploiement est
+**sautée proprement** (les tests tournent quand même à chaque push/PR).
+
+### Activer le déploiement automatique (après l'étape 2)
+
+1. **Créer un jeton API cPanel** : cPanel → *Sécurité* → **Gérer les jetons d'API**
+   (« Manage API Tokens ») → *Créer* → nom `github-deploy`, **sans expiration**
+   (ou 1 an) → copie le jeton affiché (montré une seule fois).
+2. **Ajouter 3 secrets dans GitHub** : dépôt `sport-salle` → *Settings* →
+   *Secrets and variables* → *Actions* → **New repository secret** :
+   | Nom | Valeur |
+   |---|---|
+   | `CPANEL_HOST` | le serveur de ton email de bienvenue (ex. `machin.o2switch.net`) |
+   | `CPANEL_USER` | ton nom d'utilisateur cPanel |
+   | `CPANEL_TOKEN` | le jeton créé à l'étape 1 |
+3. C'est tout : le prochain push sur `main` teste puis déploie tout seul.
+   (Onglet **Actions** du dépôt pour suivre les runs.)
+
+> 🔐 Le jeton reste entre cPanel et GitHub : ne le colle nulle part ailleurs.
+> Le déploiement manuel (cPanel → Git → *Pull* + *Deploy*) reste toujours possible.
+
 ## 📦 Migration depuis la version GitHub Pages
 
 Les données locales sont liées au domaine. Si vous avez déjà des séances sur

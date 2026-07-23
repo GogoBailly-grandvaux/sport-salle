@@ -1,5 +1,7 @@
 # 🏋️ Sport Salle
 
+![CI / CD](https://github.com/GogoBailly-grandvaux/sport-salle/actions/workflows/ci-cd.yml/badge.svg)
+
 Une application de suivi de musculation (PWA) **gratuite et sans compte** : programmes personnalisés, séances en direct, records et progression. Fonctionne **hors-ligne**, s'installe sur l'écran d'accueil, et garde toutes les données **sur le téléphone de chacun**.
 
 **👉 App : https://gogobailly-grandvaux.github.io/sport-salle/**

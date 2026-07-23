@@ -1,0 +1,85 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------- CI : tests & lint ----------
+  tests:
+    name: Tests & lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntaxe JS (tous les modules + service worker)
+        run: bash tests/syntax.test.sh
+
+      - name: Tests du moteur de fusion (synchro)
+        run: node tests/merge.test.mjs
+
+      - name: Données exercices valides
+        run: node -e "const d=require('./data/exercises.json'); if(!Array.isArray(d)||d.length<1000) throw new Error('exercises.json suspect: '+d.length); console.log('✓', d.length, 'exercices')"
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Lint PHP (API de synchro)
+        run: |
+          php -l api/sync.php
+          php -l api/config.sample.php
+
+  # ---------- CD : déploiement o2switch ----------
+  deploy:
+    name: Déploiement o2switch
+    needs: tests
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CPANEL_HOST: ${{ secrets.CPANEL_HOST }}
+      CPANEL_USER: ${{ secrets.CPANEL_USER }}
+      CPANEL_TOKEN: ${{ secrets.CPANEL_TOKEN }}
+    steps:
+      - name: Secrets présents ?
+        id: gate
+        run: |
+          if [ -z "$CPANEL_HOST" ] || [ -z "$CPANEL_USER" ] || [ -z "$CPANEL_TOKEN" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Secrets cPanel absents — déploiement sauté (normal tant que l'hébergement o2switch n'est pas configuré)."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pull du dépôt sur le serveur (cPanel Git)
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          out=$(curl -fsS --get \
+            -H "Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}" \
+            "https://${CPANEL_HOST}:2083/execute/VersionControl/update" \
+            --data-urlencode "repository_root=/home/${CPANEL_USER}/repositories/sport-salle" \
+            --data-urlencode "branch=main")
+          echo "$out" | jq .
+          [ "$(echo "$out" | jq -r '.status')" = "1" ] || { echo '::error::Échec du pull côté cPanel'; exit 1; }
+
+      - name: Déploiement (.cpanel.yml → public_html)
+        if: steps.gate.outputs.ready == 'true'
+        run: |
+          out=$(curl -fsS --get \
+            -H "Authorization: cpanel ${CPANEL_USER}:${CPANEL_TOKEN}" \
+            "https://${CPANEL_HOST}:2083/execute/VersionControlDeployment/create" \
+            --data-urlencode "repository_root=/home/${CPANEL_USER}/repositories/sport-salle")
+          echo "$out" | jq .
+          [ "$(echo "$out" | jq -r '.status')" = "1" ] || { echo '::error::Échec du déclenchement du déploiement'; exit 1; }
+          echo "✓ Déploiement lancé (journal côté serveur : ~/.cpanel/logs/)"
