@@ -1,5 +1,5 @@
 // screens/account.js — inscription / connexion (compte lié au profil actif)
-import { t } from '../i18n.js';
+import { t, locale } from '../i18n.js';
 import { esc } from '../util.js';
 import { activeProfile, savePSettings, ps, emit, on, nav, createProfile, setActiveProfile, updateProfile, state } from '../store.js';
 import { sheet, toast, icon, confirmDialog } from '../ui.js';
@@ -86,7 +86,7 @@ export async function mountGoogleButton(container, onDone, closeSheet, { sep = '
       },
     });
     window.google.accounts.id.renderButton(container.querySelector('#gsi-btn'), {
-      theme: 'outline', size: 'large', width: 280, text: 'continue_with', locale: 'fr',
+      theme: 'outline', size: 'large', width: 280, text: 'continue_with', locale: locale(),
     });
   } catch { /* bouton Google indisponible : le formulaire classique reste */ }
 }
