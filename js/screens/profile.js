@@ -11,8 +11,9 @@ import { backBtn } from './common.js';
 import * as sync from '../sync.js';
 import { accountCardHtml, mountAccountCard } from './account.js';
 import { appLockCardHtml, mountAppLockCard } from '../applock.js';
+import { APP_VERSION } from '../version.js';
 
-const APP_VERSION = '2.4';
+
 
 export async function render() {
   const p = activeProfile();
