@@ -58,14 +58,18 @@ export async function renderList() {
       </div>
     </header>
     <div class="screen-pad">
+      <button class="tpl-banner coach" id="rt-coach">
+        <div class="tpl-banner-t"><b>🧙 Le coach génère TON programme</b><span>Objectif, niveau, jours, matériel → ta semaine prête en 30 s</span></div>
+        ${icon('right')}
+      </button>
       <button class="tpl-banner" id="rt-templates">
         <div class="tpl-banner-t"><b>✨ Modèles prêts à l'emploi</b><span>Full body, Push/Pull/Legs, maison… à personnaliser</span></div>
         ${icon('right')}
       </button>
-      ${routines.length ? `<div class="rt-list">${cards}</div>` :
+      ${routines.length ? `<div class="rt-list">${cards}</div>
+      <button class="btn ghost full mt" id="rt-new3">${icon('plus')} Nouveau programme</button>` :
         emptyState('dumbbell', 'Aucun programme', 'Pars d’un modèle prêt à l’emploi, ou crée ton circuit de zéro.',
           `<button class="btn primary" id="rt-new2">${icon('plus')} Créer un programme</button>`)}
-      <button class="btn ghost full mt" id="rt-new3">${icon('plus')} Nouveau programme</button>
       <input type="file" id="rt-file" accept="application/json,.json" hidden>
     </div>`;
 }
@@ -80,6 +84,7 @@ export function mountList(root) {
   root.querySelector('#rt-new').onclick = create;
   root.querySelector('#rt-new2')?.addEventListener('click', create);
   root.querySelector('#rt-new3')?.addEventListener('click', create);
+  root.querySelector('#rt-coach').onclick = () => nav.go('#/coach');
   root.querySelector('#rt-templates').onclick = openTemplates;
   const fileInput = root.querySelector('#rt-file');
   root.querySelector('#rt-import').onclick = () => fileInput.click();
@@ -224,8 +229,20 @@ export function mountEdit(root, params) {
 
   root.querySelectorAll('[data-edit]').forEach(el => el.onclick = () => editItem(id, +el.dataset.edit));
   root.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
-    const r = await getRoutine(id); r.items.splice(+b.dataset.del, 1);
+    const r = await getRoutine(id);
+    const idx = +b.dataset.del;
+    const [removed] = r.items.splice(idx, 1);
     r.items.forEach((it, i) => it.order = i); await saveRoutine(r); nav.refresh();
+    const ex = getExercise(removed.exerciseId);
+    toast(`« ${ex ? ex.name : 'Exercice'} » retiré`, {
+      actionText: 'Annuler', duration: 5000,
+      onAction: async () => {
+        const r2 = await getRoutine(id); if (!r2) return;
+        r2.items.splice(Math.min(idx, r2.items.length), 0, removed);
+        r2.items.forEach((it, i) => it.order = i);
+        await saveRoutine(r2); nav.refresh();
+      },
+    });
   });
   root.querySelectorAll('[data-up]').forEach(b => b.onclick = () => move(id, +b.dataset.up, -1));
   root.querySelectorAll('[data-down]').forEach(b => b.onclick = () => move(id, +b.dataset.down, 1));

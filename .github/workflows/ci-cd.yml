@@ -28,6 +28,9 @@ jobs:
       - name: Tests du moteur de fusion (synchro)
         run: node tests/merge.test.mjs
 
+      - name: Tests du générateur de programmes (coach)
+        run: node tests/generator.test.mjs
+
       - name: Données exercices valides
         run: |
           node -e "const d=require('./data/exercises.json'); if(!Array.isArray(d)||d.length<1000) throw new Error('exercises.json suspect '+d.length); console.log('OK', d.length, 'exercices')"

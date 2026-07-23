@@ -1,5 +1,5 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v2.1.0';
+const VERSION = 'v2.2.0';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 
@@ -9,8 +9,8 @@ const ASSETS = [
   './js/app.js', './js/util.js', './js/db.js', './js/store.js', './js/data.js',
   './js/model.js', './js/analytics.js', './js/charts.js', './js/ui.js', './js/templates.js',
   './js/sync.js', './js/sync-merge.js', './js/sync-config.js',
-  './js/api.js', './js/coach.js', './js/applock.js',
-  './js/screens/social.js', './js/screens/account.js',
+  './js/api.js', './js/coach.js', './js/applock.js', './js/generator.js',
+  './js/screens/social.js', './js/screens/account.js', './js/screens/coach-gen.js',
   './js/screens/common.js', './js/screens/picker.js', './js/screens/home.js',
   './js/screens/library.js', './js/screens/routines.js', './js/screens/workout.js',
   './js/screens/history.js', './js/screens/progress.js', './js/screens/profile.js',

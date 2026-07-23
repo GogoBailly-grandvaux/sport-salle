@@ -127,6 +127,8 @@ export function mount(root, params) {
   root.querySelector('[data-act="addex"]').onclick = addExercise;
   root.querySelector('[data-act="discard"]').onclick = discard;
   root.querySelector('#wk-name').onclick = renameSession;
+
+  wireSetSwipe(exs);
 }
 
 export function unmount() {
@@ -169,12 +171,62 @@ function addSet(exEl, ex) {
 function typeMenu(btn, ex) {
   const s = findSet(ex, btn.closest('.set-row').dataset.set);
   const opts = [['normal','Série normale'],['warmup','Échauffement'],['failure','Jusqu’à l’échec'],['dropset','Dropset']];
-  const s2 = sheet(opts.map(([v,l]) => `<button class="menu-row ${s.type===v?'sel':''}" data-t="${v}">${l}</button>`).join(''), { title: 'Type de série' });
+  const s2 = sheet(opts.map(([v,l]) => `<button class="menu-row ${s.type===v?'sel':''}" data-t="${v}">${l}</button>`).join('')
+    + `<button class="menu-row danger" data-del-set>${icon('trash')} Supprimer la série</button>`, { title: 'Type de série' });
   s2.root.querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
     s.type = b.dataset.t; s2.close(); persist();
     // re-render this exercise block's rows numbering
     rebuildExercise(ex);
   });
+  s2.root.querySelector('[data-del-set]').onclick = () => { s2.close(); removeSet(ex, s.id); };
+}
+
+// supprime une série, avec « Annuler » (pas de confirmation bloquante)
+function removeSet(ex, setId) {
+  const idx = ex.sets.findIndex(x => x.id === setId);
+  if (idx < 0) return;
+  const [removed] = ex.sets.splice(idx, 1);
+  rebuildExercise(ex); vibrate(10); persist();
+  toast('Série supprimée', {
+    actionText: 'Annuler', duration: 5000,
+    onAction: () => { ex.sets.splice(Math.min(idx, ex.sets.length), 0, removed); rebuildExercise(ex); persist(); },
+  });
+}
+
+// glisser une ligne de série vers la gauche pour la supprimer (comme les apps natives)
+function wireSetSwipe(exsEl) {
+  let sw = null; // { row, x0, y0, dx, engaged }
+  exsEl.addEventListener('pointerdown', e => {
+    const row = e.target.closest('.set-row');
+    if (!row || e.target.closest('input, button')) return;
+    sw = { row, x0: e.clientX, y0: e.clientY, dx: 0, engaged: false };
+  });
+  exsEl.addEventListener('pointermove', e => {
+    if (!sw) return;
+    const dx = e.clientX - sw.x0, dy = e.clientY - sw.y0;
+    if (!sw.engaged) {
+      if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.4) return; // laisse le scroll vertical
+      sw.engaged = true; sw.row.classList.add('swiping');
+    }
+    sw.dx = Math.min(0, dx);
+    sw.row.style.transform = `translateX(${sw.dx}px)`;
+    e.preventDefault();
+  });
+  const end = () => {
+    if (!sw) return;
+    const { row, dx, engaged } = sw; sw = null;
+    if (!engaged) return;
+    row.classList.remove('swiping');
+    if (dx < -90) {
+      const exEl = row.closest('.wk-ex'); const ex = findEx(exEl.dataset.ex);
+      row.style.transform = '';
+      removeSet(ex, row.dataset.set);
+    } else {
+      row.style.transform = '';
+    }
+  };
+  exsEl.addEventListener('pointerup', end);
+  exsEl.addEventListener('pointercancel', end);
 }
 
 function fillPrev(btn, ex) {
@@ -268,8 +320,21 @@ function exMenu(exEl, ex) {
   };
   s.root.querySelector('[data-a="remove"]').onclick = async () => {
     s.close();
+    const idx = W.exercises.findIndex(e => e.id === ex.id);
     W.exercises = W.exercises.filter(e => e.id !== ex.id);
     exEl.remove(); persist();
+    const meta = getExercise(ex.exerciseId);
+    toast(`« ${meta ? meta.name : 'Exercice'} » retiré`, {
+      actionText: 'Annuler', duration: 5000,
+      onAction: () => {
+        W.exercises.splice(Math.min(idx, W.exercises.length), 0, ex);
+        const exsEl = document.querySelector('#wk-exs'); if (!exsEl) { persist(); return; }
+        const tmp = document.createElement('template'); tmp.innerHTML = exBlockHtml(ex).trim();
+        const after = exsEl.children[idx] || null;
+        exsEl.insertBefore(tmp.content.firstElementChild, after);
+        persist();
+      },
+    });
   };
   s.root.querySelector('[data-a="note"]').onclick = async () => {
     s.close();
@@ -410,8 +475,10 @@ export async function renderSummary(params) {
   const unit = ps('weightUnit');
   const prs = (w.prs || []).map(pr => {
     const ex = getExercise(pr.exerciseId);
-    const label = pr.type === 'estimated1rm' ? '1RM estimé' : pr.type === 'maxWeight' ? 'Charge max' : 'Volume/série';
-    return `<div class="pr-row">${icon('trophy')}<div><b>${esc(ex ? ex.name : '')}</b><span>${label} · ${Math.round(pr.value)} ${unit}</span></div></div>`;
+    const label = pr.type === 'estimated1rm' ? '1RM estimé' : pr.type === 'maxWeight' ? 'Charge max'
+      : pr.type === 'first' ? 'Première fois — la base est posée !' : 'Volume/série';
+    const val = pr.type === 'first' ? (pr.value ? ` · ${Math.round(pr.value)} ${unit}` : '') : ` · ${Math.round(pr.value)} ${unit}`;
+    return `<div class="pr-row">${icon('trophy')}<div><b>${esc(ex ? ex.name : '')}</b><span>${label}${val}</span></div></div>`;
   }).join('');
 
   return `

@@ -19,6 +19,7 @@ import * as progress from './screens/progress.js';
 import * as library from './screens/library.js';
 import * as profile from './screens/profile.js';
 import * as social from './screens/social.js';
+import * as coachGen from './screens/coach-gen.js';
 import { wireAuthEvents, openAuthSheet } from './screens/account.js';
 import { gate as appLockGate } from './applock.js';
 
@@ -26,6 +27,7 @@ import { gate as appLockGate } from './applock.js';
 const R = [
   { p:'#/home', name:'home', tab:'home', render:home.render, mount:home.mount },
   { p:'#/routines', name:'routines', tab:'routines', render:routines.renderList, mount:routines.mountList },
+  { p:'#/coach', name:'coach-gen', immersive:true, render:coachGen.render, mount:coachGen.mount },
   { p:'#/routines/:id/edit', name:'routine-edit', render:routines.renderEdit, mount:routines.mountEdit },
   { p:'#/library', name:'library', render:library.renderList, mount:library.mountList },
   { p:'#/library/:id', name:'library-detail', render:library.renderDetail, mount:library.mountDetail },
@@ -116,7 +118,7 @@ async function fabAction() {
   if (active) { nav.go(`#/workout/${active.id}`); return; }
   const rs = await listRoutines();
   const body = `<button class="menu-row big" id="fab-empty">${icon('play')} Séance libre</button>
-    ${rs.length ? `<div class="fab-sep">ou un programme</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} exos</span></button>`).join('') : `<p class="mut sm center">Aucun programme. <a data-nav="#/routines">En créer un</a></p>`}`;
+    ${rs.length ? `<div class="fab-sep">ou un programme</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} exos</span></button>`).join('') : `<p class="mut sm center">Aucun programme. <a data-nav="#/routines">En créer un</a> · <a data-nav="#/coach">le coach s’en charge 🧙</a></p>`}`;
   const s = sheet(body, { title: 'Démarrer' });
   s.root.querySelector('#fab-empty').onclick = async () => { s.close(); const w = await startWorkout({}); nav.go(`#/workout/${w.id}`); };
   s.root.querySelectorAll('[data-r]').forEach(b => b.onclick = async () => {

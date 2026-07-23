@@ -84,7 +84,12 @@ export function detectPRs(current, priorWorkouts, formula = 'epley') {
   }
   for (const [exerciseId, sets] of byId) {
     const prev = allTimeBests(priorWorkouts, exerciseId, formula);
-    if (prev.sessions === 0) continue; // baseline session, no PR spam
+    if (prev.sessions === 0) {
+      // toute première perf de cet exercice : on la fête (un seul « record », pas de spam)
+      const cur0 = exerciseSummary({ sets }, formula);
+      if (cur0) prs.push({ exerciseId, type: 'first', value: cur0.topWeight || 0 });
+      continue;
+    }
     const cur = exerciseSummary({ sets }, formula);
     if (!cur) continue;
     if (cur.topWeight > prev.maxWeight + 1e-6)
@@ -95,7 +100,7 @@ export function detectPRs(current, priorWorkouts, formula = 'epley') {
       prs.push({ exerciseId, type: 'bestSetVolume', value: cur.bestSetVol });
   }
   // keep most impressive per exercise (e1rm > weight > volume)
-  const rank = { estimated1rm: 3, maxWeight: 2, bestSetVolume: 1 };
+  const rank = { estimated1rm: 3, maxWeight: 2, bestSetVolume: 1, first: 0 };
   const byEx = new Map();
   for (const p of prs) {
     const cur = byEx.get(p.exerciseId);

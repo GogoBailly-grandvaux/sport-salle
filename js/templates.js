@@ -6,6 +6,9 @@ import { uid, nowTs } from './util.js';
 import { mkRoutineItem } from './model.js';
 
 // it: { ex, sets, reps:[min,max], rest }
+let _orderSeq = 0;
+const nextOrder = () => Date.now() + (_orderSeq++ % 1000) / 1000; // départage même-milliseconde
+
 export const TEMPLATES = [
   {
     id: 'comeback-a', name: 'Comeback Machines · A', level: 'Débutant', goal: 'Full body',
@@ -122,7 +125,7 @@ export const TEMPLATES = [
 export async function addTemplate(tpl) {
   const r = {
     id: uid(), profileId: state.activeProfileId, name: tpl.name, description: tpl.tagline || '',
-    color: null, items: [], order: Date.now(), isArchived: false, createdAt: nowTs(), updatedAt: nowTs(),
+    color: null, items: [], order: nextOrder(), isArchived: false, createdAt: nowTs(), updatedAt: nowTs(),
   };
   tpl.items.forEach((it, i) => {
     const item = mkRoutineItem(it.ex, i);
@@ -185,7 +188,7 @@ export async function importRoutinePayload(d) {
   const r = {
     id: uid(), profileId: state.activeProfileId,
     name: d.routine.name || 'Programme importé', description: d.routine.description || '',
-    color: null, items: [], order: Date.now(), isArchived: false, createdAt: nowTs(), updatedAt: nowTs(),
+    color: null, items: [], order: nextOrder(), isArchived: false, createdAt: nowTs(), updatedAt: nowTs(),
   };
   (d.routine.items || []).forEach((s, i) => {
     if (!state.libraryById.has(s.exerciseId)) return; // exercice inconnu -> on saute

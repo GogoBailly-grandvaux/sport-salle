@@ -100,15 +100,25 @@ export function allValues(field) {
   return [...s].sort();
 }
 
+const fold = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); // insensible aux accents
+
 export function searchExercises({ q = '', muscle = '', equipment = '', category = '', favSet = null } = {}) {
-  const qq = q.trim().toLowerCase();
+  const qq = fold(q.trim().toLowerCase());
   let out = state.library;
-  if (qq) out = out.filter(e => e.nameLower.includes(qq));
+  if (qq) out = out.filter(e => fold(e.nameLower).includes(qq));
   if (muscle) out = out.filter(e => (e.primaryMuscles||[]).includes(muscle) || (e.secondaryMuscles||[]).includes(muscle));
   if (equipment) out = out.filter(e => e.equipment === equipment);
   if (category) out = out.filter(e => e.category === category);
   if (favSet) out = out.filter(e => favSet.has(e.id));
-  return out.slice().sort((a, b) => a.name.localeCompare(b.name));
+  if (!qq) return out.slice().sort((a, b) => a.name.localeCompare(b.name));
+  // pertinence sur le nom AFFICHÉ (FR d'abord) : commence par > début de mot > ailleurs (nom EN…) — puis alphabétique
+  const score = e => {
+    const disp = fold(e.name.toLowerCase());
+    if (disp.startsWith(qq)) return 0;
+    if (disp.includes(' ' + qq) || disp.includes('-' + qq)) return 1;
+    return 2;
+  };
+  return out.slice().sort((a, b) => (score(a) - score(b)) || a.name.localeCompare(b.name));
 }
 
 export async function addCustomExercise({ name, primaryMuscles = [], secondaryMuscles = [], equipment = 'machine', category = 'strength' }) {
