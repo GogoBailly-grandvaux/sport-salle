@@ -79,10 +79,10 @@ switch ($action) {
       'SELECT f.user_lo, f.user_hi, f.status, f.requester,
               u.id, u.username, u.display_name, u.avatar_emoji, u.accent
        FROM friendships f
-       JOIN users u ON u.id = IF(f.user_lo = :me, f.user_hi, f.user_lo)
-       WHERE f.user_lo = :me OR f.user_hi = :me'
+       JOIN users u ON u.id = IF(f.user_lo = ?, f.user_hi, f.user_lo)
+       WHERE f.user_lo = ? OR f.user_hi = ?'
     );
-    $st->execute(['me' => $me['id']]);
+    $st->execute([$me['id'], $me['id'], $me['id']]);
     $friends = []; $incoming = []; $outgoing = [];
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
       $u = public_user($r);
