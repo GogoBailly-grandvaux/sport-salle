@@ -17,7 +17,7 @@ let favSet = new Set();
 export async function renderList() {
   favSet = await loadFavorites(state.activeProfileId);
   const res = searchExercises({ ...F, favSet: F.favOnly ? favSet : null });
-  const shown = res.slice(0, 80);
+  const shown = res;
   const activeFilters = [F.muscle && muscleFR(F.muscle), F.equipment && EQUIP_FR[F.equipment], F.category && CATEGORY_FR[F.category]].filter(Boolean);
 
   const rows = shown.length ? shown.map(ex => `
@@ -41,7 +41,7 @@ export async function renderList() {
         <button class="icon-btn ${activeFilters.length?'active':''}" id="lib-filter" aria-label="Filtres">${icon('filter')}</button>
       </div>
       ${activeFilters.length ? `<div class="filter-tags">${activeFilters.map(f=>`<span class="tag">${esc(f)}</span>`).join('')}<button class="tag clear" id="lib-clear2">Effacer ${icon('x')}</button></div>` : ''}
-      <p class="mut sm count">${res.length} exercice(s)${res.length>80?' · 80 affichés':''}</p>
+      <p class="mut sm count">${res.length} exercice(s)</p>
       <div class="lib-list">${rows}</div>
     </div>`;
 }
@@ -68,8 +68,8 @@ function clearF() { F.q=''; F.muscle=''; F.equipment=''; F.category=''; F.favOnl
 function softRefresh(root) {
   const res = searchExercises({ ...F, favSet: F.favOnly ? favSet : null });
   const list = root.querySelector('.lib-list');
-  const shown = res.slice(0, 80);
-  root.querySelector('.count').textContent = `${res.length} exercice(s)${res.length>80?' · 80 affichés':''}`;
+  const shown = res;
+  root.querySelector('.count').textContent = `${res.length} exercice(s)`;
   list.innerHTML = shown.length ? shown.map(ex => `
     <button class="lib-row" data-nav="#/library/${encodeURIComponent(ex.id)}">
       ${exImage(ex)}

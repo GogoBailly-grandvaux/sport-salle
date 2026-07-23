@@ -19,7 +19,7 @@ import * as progress from './screens/progress.js';
 import * as library from './screens/library.js';
 import * as profile from './screens/profile.js';
 import * as social from './screens/social.js';
-import { wireAuthEvents } from './screens/account.js';
+import { wireAuthEvents, openAuthSheet } from './screens/account.js';
 import { gate as appLockGate } from './applock.js';
 
 // ---------- routes ----------
@@ -112,7 +112,35 @@ async function fabAction() {
   });
 }
 
-// ---------- onboarding ----------
+// ---------- écran de bienvenue (premier lancement) ----------
+function welcome() {
+  return new Promise(resolve => {
+    const view = $('#view');
+    const online = sync.isConfigured();
+    view.innerHTML = `<div class="welcome">
+      <div class="wel-halo"></div>
+      <div class="wel-body">
+        <div class="wel-logo">${icon('bolt')}</div>
+        <h1 class="wel-title">SPORT<span>SALLE</span></h1>
+        <p class="wel-tag">Ton coach de poche.<br>Programmes, séances, records, amis.</p>
+        <div class="wel-actions">
+          ${online ? `
+          <button class="btn primary full big" id="wel-register">Créer un compte gratuit</button>
+          <button class="btn ghost full" id="wel-login">J'ai déjà un compte</button>
+          <button class="wel-guest" id="wel-guest">Continuer sans compte →</button>`
+          : `<button class="btn primary full big" id="wel-guest">Commencer</button>`}
+        </div>
+        <p class="wel-foot">Gratuit · sans pub · tes données t'appartiennent</p>
+      </div>
+    </div>`;
+    const done = () => resolve();
+    view.querySelector('#wel-register')?.addEventListener('click', () => openAuthSheet('register', done));
+    view.querySelector('#wel-login')?.addEventListener('click', () => openAuthSheet('login', done));
+    view.querySelector('#wel-guest')?.addEventListener('click', async () => { await onboarding(); done(); });
+  });
+}
+
+// ---------- onboarding local (sans compte) ----------
 export const AVATAR_EMOJIS = ['💪','🏋️','🔥','⚡','🚀','🦁','🐺','😤','🌸','👑','🎯','🥇'];
 
 function onboarding() {
@@ -187,7 +215,7 @@ async function boot() {
 
     await sync.init(); // avant le premier rendu : l'écran Profil sait si la synchro existe
 
-    if (!state.profiles.length) { await onboarding(); }
+    if (!state.profiles.length) { await welcome(); }
     else {
       const active = state.global.activeProfileId && state.profiles.find(p => p.id === state.global.activeProfileId);
       await setActiveProfile(active ? active.id : state.profiles[0].id);

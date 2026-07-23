@@ -9,7 +9,7 @@ export function openExercisePicker({ multi = true, onPick } = {}) {
   let q = '', muscle = '';
 
   const listHtml = () => {
-    const res = searchExercises({ q, muscle }).slice(0, 60);
+    const res = searchExercises({ q, muscle });
     if (!res.length) return `<div class="pick-empty">Aucun exercice.<br><button class="btn ghost sm" id="pk-new">+ Créer un exercice</button></div>`;
     return res.map(ex => `
       <button class="pick-row ${selected.has(ex.id) ? 'sel' : ''}" data-id="${ex.id}">

@@ -1,6 +1,6 @@
 // screens/account.js — inscription / connexion (compte lié au profil actif)
 import { esc } from '../util.js';
-import { activeProfile, savePSettings, ps, emit, on, nav } from '../store.js';
+import { activeProfile, savePSettings, ps, emit, on, nav, createProfile, setActiveProfile, updateProfile, state } from '../store.js';
 import { sheet, toast, icon, confirmDialog } from '../ui.js';
 import { call, isLoggedIn, account } from '../api.js';
 import * as sync from '../sync.js';
@@ -18,9 +18,18 @@ export function wireAuthEvents() {
 }
 
 async function applySession(res) {
+  // premier lancement sans profil local : on le crée depuis le compte
+  if (!activeProfile()) {
+    const p = await createProfile({
+      name: res.user.displayName || res.user.username,
+      accent: res.user.accent || 'ember',
+      emoji: res.user.emoji || null,
+    });
+    await setActiveProfile(p.id);
+  }
   await savePSettings({ account: { token: res.token, user: res.user } });
   emit('account-changed');
-  sync.syncNow(); // première synchro du compte (envoie les données locales)
+  sync.syncNow(); // première synchro du compte (fusionne local + serveur)
 }
 
 // ---- Google Sign-In (activé si google_client_id est configuré côté serveur) ----
