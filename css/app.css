@@ -666,3 +666,15 @@ body.welcome-mode .tabbar{display:none}
 .list-more{height:40px}
 
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.05ms!important}}
+
+/* ---- temps réel : pastille de l'onglet Social ---- */
+.tab-ico { position: relative; }
+.tab-dot {
+  position: absolute; top: -4px; right: -10px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 8px; background: var(--accent); color: #10120c;
+  font-size: 10px; font-weight: 800; line-height: 16px; text-align: center;
+  box-shadow: 0 0 0 2px var(--bg);
+  animation: dot-pop .35s cubic-bezier(.2,1.6,.4,1);
+}
+@keyframes dot-pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }

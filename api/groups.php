@@ -29,13 +29,22 @@ switch ($action) {
     $st->execute([$code]);
     $g = $st->fetch(PDO::FETCH_ASSOC);
     if (!$g) { fail(404, 'aucun groupe avec ce code'); }
-    db()->prepare('INSERT IGNORE INTO group_members (group_id, user_id) VALUES (?,?)')->execute([(int)$g['id'], $me['id']]);
+    $ins = db()->prepare('INSERT IGNORE INTO group_members (group_id, user_id) VALUES (?,?)');
+    $ins->execute([(int)$g['id'], $me['id']]);
+    if ($ins->rowCount() > 0) { // vraiment nouveau membre -> notifier le groupe
+      $st = db()->prepare('SELECT user_id FROM group_members WHERE group_id = ? AND user_id <> ?');
+      $st->execute([(int)$g['id'], $me['id']]);
+      bump_live(array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN)));
+    }
     ok(['ok' => true, 'group' => ['id' => (int)$g['id'], 'name' => $g['name'], 'code' => $g['code']]]);
   }
 
   case 'leave': {
     $gid = (int)($b['groupId'] ?? 0);
     db()->prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?')->execute([$gid, $me['id']]);
+    $st = db()->prepare('SELECT user_id FROM group_members WHERE group_id = ?');
+    $st->execute([$gid]);
+    bump_live(array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN)));
     // dernier membre parti -> le groupe disparaît
     $st = db()->prepare('SELECT COUNT(*) FROM group_members WHERE group_id = ?');
     $st->execute([$gid]);

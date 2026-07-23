@@ -113,7 +113,9 @@ function computeStats(snap) {
 
 async function accountSyncProfile(pid, acc, { keepalive = false } = {}) {
   try {
-    const remote = (await call('data', 'pull', {}, { token: acc.token, keepalive }))?.data || null;
+    const pulled = await call('data', 'pull', {}, { token: acc.token, keepalive });
+    const remote = pulled?.data || null;
+    if (pulled?.updated_at) emit('snap-seen', { ts: pulled.updated_at }); // pour live.js
     const local = await collectSnapshot(pid);
     // l'instantané distant peut venir d'un autre appareil où le profil a un autre id local :
     // on aligne son profil sur notre id local avant fusion
@@ -131,7 +133,8 @@ async function accountSyncProfile(pid, acc, { keepalive = false } = {}) {
     let changed = false;
     if (JSON.stringify(local) !== mj) { await applySnapshot(pid, merged); changed = true; }
     if (JSON.stringify(remote) !== mj || dirty.has(pid)) {
-      await call('data', 'push', { data: merged, stats: computeStats(merged) }, { token: acc.token, keepalive });
+      const pushed = await call('data', 'push', { data: merged, stats: computeStats(merged) }, { token: acc.token, keepalive });
+      if (pushed?.updated_at) emit('snap-seen', { ts: pushed.updated_at }); // pour live.js
     }
     dirty.delete(pid);
     return { ok: true, changed };

@@ -11,6 +11,7 @@ import { icon, toast } from './ui.js';
 import { getActiveWorkout, startWorkout, listRoutines, getRoutine } from './model.js';
 import { sheet } from './ui.js';
 import * as sync from './sync.js';
+import * as live from './live.js';
 
 import * as home from './screens/home.js';
 import * as routines from './screens/routines.js';
@@ -104,7 +105,7 @@ function tabBar() {
   const fabLabel = t('Démarrer une séance','Start a workout');
   return `<nav class="tabbar" id="tabbar">${tabs.map(tb => tb.id === 'fab'
     ? `<button class="fab" id="fab" aria-label="${fabLabel}">${icon('bolt')}</button>`
-    : `<button class="tab" data-tab="${tb.id}" data-nav="${tb.hash}"><span class="tab-ico">${icon(tb.icon)}</span><span>${tb.label}</span></button>`
+    : `<button class="tab" data-tab="${tb.id}" data-nav="${tb.hash}"><span class="tab-ico">${icon(tb.icon)}${tb.id === 'social' ? '<span class="tab-dot" id="soc-dot" hidden></span>' : ''}</span><span>${tb.label}</span></button>`
   ).join('')}</nav>`;
 }
 function updateTabs(active) {
@@ -310,6 +311,26 @@ async function boot() {
     // (jamais en pleine séance : on ne casse pas la saisie en cours)
     on('sync-applied', () => {
       if (nav.current !== 'workout' && nav.current !== 'summary') nav.refresh();
+    });
+
+    // ---- temps réel ----
+    // pouls : poll léger au premier plan ; les événements font vivre l'UI en place
+    if (sync.isConfigured()) live.startLive();
+    on('live-info', e => {
+      const dot = document.getElementById('soc-dot');
+      if (!dot) return;
+      const n = e?.detail?.reqs || 0;
+      dot.hidden = n === 0;
+      dot.textContent = n > 9 ? '9+' : String(n || '');
+    });
+    on('live-changed', () => {
+      // rafraîchir en place les écrans sociaux — sans casser une saisie en cours
+      const soc = nav.current === 'social' || nav.current === 'social-group';
+      if (!soc) return;
+      if (document.querySelector('.sheet-backdrop')) return;        // une sheet est ouverte
+      const ae = document.activeElement;
+      if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return; // l'utilisateur tape
+      nav.refresh();
     });
 
     registerSW();

@@ -26,12 +26,20 @@ switch ($action) {
     if ((int)$st->fetchColumn() >= 30) { fail(429, 'limite de partages atteinte (30) — supprime-en d’abord'); }
     db()->prepare('INSERT INTO shared_programs (user_id, group_id, name, payload) VALUES (?,?,?,?)')
       ->execute([$me['id'], $groupId, $name, $json]);
+    // notifie ceux qui peuvent le voir (amis, ou membres du groupe)
+    bump_live($groupId !== null ? group_member_ids_of($groupId, $me['id']) : friend_ids($me['id']));
     ok(['ok' => true, 'id' => (int)db()->lastInsertId()]);
   }
 
   case 'unpublish': {
     $id = (int)($b['id'] ?? 0);
+    $st = db()->prepare('SELECT group_id FROM shared_programs WHERE id = ? AND user_id = ?');
+    $st->execute([$id, $me['id']]);
+    $gid = $st->fetch(PDO::FETCH_COLUMN);
     db()->prepare('DELETE FROM shared_programs WHERE id = ? AND user_id = ?')->execute([$id, $me['id']]);
+    if ($gid !== false) {
+      bump_live($gid !== null ? group_member_ids_of((int)$gid, $me['id']) : friend_ids($me['id']));
+    }
     ok(['ok' => true]);
   }
 
@@ -92,6 +100,13 @@ switch ($action) {
 
   default:
     fail(400, 'action inconnue');
+}
+
+/** Membres d'un groupe, sauf $except. */
+function group_member_ids_of(int $groupId, int $except): array {
+  $st = db()->prepare('SELECT user_id FROM group_members WHERE group_id = ? AND user_id <> ?');
+  $st->execute([$groupId, $except]);
+  return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
 }
 
 function program_row(array $r): array {

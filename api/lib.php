@@ -114,8 +114,12 @@ function require_user(): array {
   $st->execute([$th]);
   $u = $st->fetch(PDO::FETCH_ASSOC);
   if (!$u) { fail(401, 'session expirée — reconnecte-toi'); }
-  db()->prepare('UPDATE sessions SET expires_at = DATE_ADD(NOW(), INTERVAL 90 DAY) WHERE token_hash = ?')->execute([$th]);
-  db()->prepare('UPDATE users SET last_seen_at = NOW() WHERE id = ?')->execute([$u['id']]);
+  // écritures conditionnelles : le poll temps réel passe ici toutes les ~12 s,
+  // on ne réécrit la session/présence que quand ça change vraiment quelque chose
+  db()->prepare('UPDATE sessions SET expires_at = DATE_ADD(NOW(), INTERVAL 90 DAY)
+                 WHERE token_hash = ? AND expires_at < DATE_ADD(NOW(), INTERVAL 89 DAY)')->execute([$th]);
+  db()->prepare('UPDATE users SET last_seen_at = NOW()
+                 WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < DATE_SUB(NOW(), INTERVAL 60 SECOND))')->execute([$u['id']]);
   $u['id'] = (int)$u['id'];
   return $u;
 }
@@ -166,6 +170,57 @@ function current_week_start_ms(): int {
   $dow = (int)$d->format('N'); // 1 = lundi
   if ($dow > 1) { $d->modify('-' . ($dow - 1) . ' days'); }
   return $d->getTimestamp() * 1000;
+}
+
+// ---- temps réel (poll léger) ----
+// Chaque utilisateur a une « version d'état » : on l'incrémente dès qu'un
+// événement le concerne (demande d'ami, programme publié, séance d'un ami…).
+// Le client compare la version à chaque poll → re-rendu en place si elle bouge.
+
+function ensure_live_table(): void {
+  db()->exec('CREATE TABLE IF NOT EXISTS live_v (
+    user_id    INT UNSIGNED NOT NULL,
+    v          INT UNSIGNED NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    CONSTRAINT fk_live_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+}
+
+/** Incrémente la version d'état des utilisateurs donnés (création lazy de la table). */
+function bump_live(array $userIds): void {
+  $ids = array_values(array_unique(array_filter(array_map('intval', $userIds))));
+  if (!$ids) { return; }
+  $sql = 'INSERT INTO live_v (user_id, v) VALUES '
+       . implode(',', array_fill(0, count($ids), '(?,1)'))
+       . ' ON DUPLICATE KEY UPDATE v = v + 1';
+  try {
+    db()->prepare($sql)->execute($ids);
+  } catch (PDOException $e) {
+    if ($e->getCode() === '42S02') { ensure_live_table(); db()->prepare($sql)->execute($ids); }
+    else { error_log('bump_live: ' . $e->getMessage()); } // jamais bloquant pour l'action principale
+  }
+}
+
+/** Ids des amis acceptés d'un utilisateur. */
+function friend_ids(int $userId): array {
+  $st = db()->prepare(
+    "SELECT IF(user_lo = ?, user_hi, user_lo) FROM friendships
+     WHERE (user_lo = ? OR user_hi = ?) AND status = 'accepted'"
+  );
+  $st->execute([$userId, $userId, $userId]);
+  return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
+}
+
+/** Ids des co-membres de tous les groupes d'un utilisateur (lui exclu). */
+function group_comember_ids(int $userId): array {
+  $st = db()->prepare(
+    'SELECT DISTINCT m2.user_id FROM group_members m
+     JOIN group_members m2 ON m2.group_id = m.group_id AND m2.user_id <> ?
+     WHERE m.user_id = ?'
+  );
+  $st->execute([$userId, $userId]);
+  return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
 }
 
 function public_user(array $row): array {

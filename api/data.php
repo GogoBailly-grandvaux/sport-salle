@@ -32,6 +32,16 @@ switch ($action) {
     // stats publiques envoyées par le client (résumé, pas les données complètes)
     $s = $b['stats'] ?? null;
     if (is_array($s)) {
+      // détecter un vrai changement (nouvelle séance / volume) avant d'écrire :
+      // on ne réveille les amis que si leur fil a réellement bougé
+      $st0 = db()->prepare('SELECT last_workout_at, week_count, week_volume, total_workouts FROM user_stats WHERE user_id = ?');
+      $st0->execute([$me['id']]);
+      $old = $st0->fetch(PDO::FETCH_ASSOC) ?: null;
+      $changed = $old === null
+        || (int)($old['last_workout_at'] ?? 0) !== (int)($s['lastWorkoutAt'] ?? 0)
+        || (int)$old['week_count'] !== max(0, (int)($s['weekCount'] ?? 0))
+        || (int)$old['week_volume'] !== max(0, (int)($s['weekVolume'] ?? 0))
+        || (int)$old['total_workouts'] !== max(0, (int)($s['totalWorkouts'] ?? 0));
       db()->prepare(
         'INSERT INTO user_stats (user_id, last_workout_at, last_workout, week_start, week_count, week_volume, streak, total_workouts)
          VALUES (?,?,?,?,?,?,?,?)
@@ -48,6 +58,9 @@ switch ($action) {
         max(0, (int)($s['streak'] ?? 0)),
         max(0, (int)($s['totalWorkouts'] ?? 0)),
       ]);
+      if ($changed) {
+        bump_live(array_merge(friend_ids($me['id']), group_comember_ids($me['id'])));
+      }
     }
     ok(['ok' => true, 'updated_at' => time()]);
   }

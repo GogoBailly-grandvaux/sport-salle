@@ -42,10 +42,12 @@ switch ($action) {
       if ((int)$ex['requester'] === $me['id']) { fail(409, 'demande déjà envoyée'); }
       // l'autre m'avait déjà demandé -> on accepte
       db()->prepare("UPDATE friendships SET status = 'accepted' WHERE user_lo = ? AND user_hi = ?")->execute([$lo, $hi]);
+      bump_live([$target]);
       ok(['ok' => true, 'accepted' => true]);
     }
     db()->prepare('INSERT INTO friendships (user_lo, user_hi, status, requester) VALUES (?,?,?,?)')
       ->execute([$lo, $hi, 'pending', $me['id']]);
+    bump_live([$target]);
     ok(['ok' => true, 'accepted' => false]);
   }
 
@@ -63,6 +65,7 @@ switch ($action) {
     } else {
       db()->prepare('DELETE FROM friendships WHERE user_lo = ? AND user_hi = ?')->execute([$lo, $hi]);
     }
+    bump_live([$other]);
     ok(['ok' => true]);
   }
 
@@ -70,6 +73,7 @@ switch ($action) {
     $other = (int)($b['userId'] ?? 0);
     [$lo, $hi] = friend_pair($me['id'], $other);
     db()->prepare('DELETE FROM friendships WHERE user_lo = ? AND user_hi = ?')->execute([$lo, $hi]);
+    bump_live([$other]);
     ok(['ok' => true]);
   }
 
