@@ -9,6 +9,7 @@ import { loadLibrary } from './data.js';
 import { icon, toast } from './ui.js';
 import { getActiveWorkout, startWorkout, listRoutines, getRoutine } from './model.js';
 import { sheet } from './ui.js';
+import * as sync from './sync.js';
 
 import * as home from './screens/home.js';
 import * as routines from './screens/routines.js';
@@ -190,6 +191,13 @@ async function boot() {
     // resume banner if a session is in progress but we're on home
     const act = await getActiveWorkout();
     if (act && (location.hash === '#/home' || location.hash === '' )) {/* home already shows resume */}
+
+    sync.init();
+    // à la réception de données synchronisées, on rafraîchit l'écran courant
+    // (jamais en pleine séance : on ne casse pas la saisie en cours)
+    on('sync-applied', () => {
+      if (nav.current !== 'workout' && nav.current !== 'summary') nav.refresh();
+    });
 
     registerSW();
     $('#splash')?.remove();

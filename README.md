@@ -25,9 +25,13 @@ Partage simplement ce lien à tes proches — chacun installe l'app et crée son
 - **Multi-profil** — plusieurs personnes sur le même appareil, données séparées ; couleur et avatar par profil.
 - **Thème clair / sombre**, kg / lb, **sauvegarde / import** en un fichier.
 
+## ☁️ Synchro entre téléphones (optionnelle)
+
+L'app peut synchroniser les profils entre plusieurs téléphones via un « groupe » à code secret (backend Supabase gratuit). Voir [SYNC-SETUP.md](SYNC-SETUP.md) pour l'activer. Sans groupe, l'app reste 100 % locale.
+
 ## 🔒 Confidentialité
 
-Aucun compte, aucun serveur : tout est stocké localement (IndexedDB). Seules les images d'exercices sont chargées depuis un CDN (puis mises en cache pour l'usage hors-ligne).
+Aucun compte : tout est stocké localement (IndexedDB). Seules les images d'exercices sont chargées depuis un CDN (puis mises en cache pour l'usage hors-ligne). Si la synchro est activée, les données du groupe transitent par ton propre projet Supabase, accessibles uniquement avec le code du groupe.
 
 ## 🛠️ Technique
 

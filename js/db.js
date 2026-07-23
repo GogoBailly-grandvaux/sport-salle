@@ -1,7 +1,14 @@
 // db.js — IndexedDB wrapper. Local-first, multi-profile.
+import { uid } from './util.js';
+
 const DB_NAME = 'gym-salle';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // v2 : store 'deletions' (tombstones pour la synchro)
 let _db = null;
+
+// Hook facultatif appelé après chaque écriture réussie (utilisé par la synchro).
+let _onWrite = null;
+export const setOnWrite = fn => { _onWrite = fn; };
+const notify = (store, obj, kind) => { try { _onWrite && _onWrite(store, obj, kind); } catch {} };
 
 export function openDB() {
   if (_db) return Promise.resolve(_db);
@@ -35,6 +42,9 @@ export function openDB() {
         ['profileId','profileId'],
         ['profile_type_date',['profileId','type','date']],
       ]);
+      mk('deletions', { keyPath: 'id' }, [
+        ['profileId','profileId'],
+      ]);
     };
     req.onsuccess = () => { _db = req.result; resolve(_db); };
     req.onerror = () => reject(req.error);
@@ -51,9 +61,14 @@ const wrap = (req) => new Promise((res, rej) => {
 
 export const get      = (store, key)        => wrap(tx(store).get(key));
 export const getAll   = (store)             => wrap(tx(store).getAll());
-export const put      = (store, obj)        => wrap(tx(store, 'readwrite').put(obj));
-export const del      = (store, key)        => wrap(tx(store, 'readwrite').delete(key));
+export const put      = (store, obj)        => wrap(tx(store, 'readwrite').put(obj)).then(v => { notify(store, obj, 'put'); return v; });
+export const del      = (store, key)        => wrap(tx(store, 'readwrite').delete(key)).then(v => { notify(store, key, 'del'); return v; });
 export const clear    = (store)             => wrap(tx(store, 'readwrite').clear());
+
+// Tombstone : trace de suppression, pour que la synchro la propage aux autres appareils.
+export function writeTombstone(profileId, storeName, recordId) {
+  return put('deletions', { id: uid(), profileId, store: storeName, recordId, deletedAt: Date.now() });
+}
 
 export function getAllByIndex(store, index, query) {
   return wrap(tx(store).index(index).getAll(query));
@@ -68,7 +83,10 @@ export async function bulkPut(store, objs) {
   const t = _db.transaction(store, 'readwrite');
   const os = t.objectStore(store);
   for (const o of objs) os.put(o);
-  return new Promise((res, rej) => { t.oncomplete = () => res(true); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error); });
+  return new Promise((res, rej) => {
+    t.oncomplete = () => { for (const o of objs) notify(store, o, 'put'); res(true); };
+    t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  });
 }
 
 export async function deleteWhere(store, index, profileId) {

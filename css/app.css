@@ -401,6 +401,8 @@ textarea.input{height:auto;padding:12px 14px}
 .prof-active{color:var(--good);font-size:.76rem;display:inline-flex;align-items:center;gap:3px}
 .prof-active .ico{width:15px;height:15px}
 .install-card{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+.sync-card .btn.sm{white-space:normal;line-height:1.25;height:auto;min-height:40px;padding:8px 12px}
+.sync-code{font-size:1.15rem;font-weight:800;letter-spacing:.06em;text-align:center;background:var(--surface2);border:1px dashed var(--line2);border-radius:12px;padding:16px 10px;margin:10px 0;user-select:all;word-break:break-all}
 .accent-pick{display:flex;gap:10px;flex-wrap:wrap}
 .accent-dot{width:38px;height:38px;border-radius:50%;background:var(--a);border:3px solid transparent}
 .accent-dot.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}

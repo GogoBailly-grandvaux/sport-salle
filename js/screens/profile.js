@@ -8,8 +8,10 @@ import {
 import * as db from '../db.js';
 import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
 import { backBtn } from './common.js';
+import * as sync from '../sync.js';
+import { relDate } from '../util.js';
 
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 
 export async function render() {
   const p = activeProfile();
@@ -42,6 +44,8 @@ export async function render() {
         ${canInstall ? `<p class="mut sm">Ajoute l’app à ton écran d’accueil pour un accès instantané, hors-ligne.</p><button class="btn primary full" id="install-btn">Installer</button>`
           : `<p class="mut sm">Sur iPhone : appuie sur <b>Partager</b> ${icon('upload')} puis <b>« Sur l’écran d’accueil »</b>.</p>`}
       </section>` : ''}
+
+      ${sync.isConfigured() ? renderSyncCard() : ''}
 
       <section class="card">
         <h3 class="card-t">Réglages</h3>
@@ -114,11 +118,79 @@ export function mount(root) {
     await savePSettings({ [key]: on }); b.classList.toggle('on', on); b.setAttribute('aria-checked', on);
   });
 
+  // sync
+  mountSyncCard(root);
+
   // data
   root.querySelector('#export-btn').onclick = exportData;
   const fileInput = root.querySelector('#import-file');
   root.querySelector('#import-btn').onclick = () => fileInput.click();
   fileInput.onchange = () => importData(fileInput.files[0]);
+}
+
+// ---------------- synchro cloud ----------------
+function renderSyncCard() {
+  const cfg = sync.syncCfg();
+  if (!cfg?.code) {
+    return `<section class="card sync-card">
+      <h3 class="card-t">${icon('bolt')} Synchronisation entre téléphones</h3>
+      <p class="mut sm">Crée un <b>groupe</b> et partage son code avec tes proches : chacun voit les profils et les séances des autres, automatiquement.</p>
+      <button class="btn primary full" id="sync-create">Créer un groupe</button>
+      <button class="btn ghost full" id="sync-join">Rejoindre avec un code</button>
+    </section>`;
+  }
+  return `<section class="card sync-card">
+    <h3 class="card-t">${icon('bolt')} Synchronisation</h3>
+    <div class="setting"><span>Groupe</span><button class="btn ghost sm" id="sync-show-code">Afficher le code</button></div>
+    <div class="setting"><span>Dernière synchro</span><b class="mut sm">${cfg.lastSyncAt ? relDate(cfg.lastSyncAt) : 'jamais'}</b></div>
+    <button class="btn primary full" id="sync-now">Synchroniser maintenant</button>
+    <button class="btn danger-ghost full sm" id="sync-leave">Quitter le groupe (les données restent sur ce téléphone)</button>
+  </section>`;
+}
+
+function mountSyncCard(root) {
+  root.querySelector('#sync-create')?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    const r = await sync.createGroup();
+    if (!r.ok) { toast('Impossible de joindre le serveur — réessaie', { type: 'error' }); await sync.leaveGroup(); nav.refresh(); return; }
+    showCodeSheet(r.code, true);
+  });
+  root.querySelector('#sync-join')?.addEventListener('click', async () => {
+    const code = await promptDialog({ title: 'Rejoindre un groupe', label: 'Code du groupe', placeholder: 'SALLE-XXXXX-XXXXX-XXXXX', confirmText: 'Rejoindre' });
+    if (code == null || !code.trim()) return;
+    const r = await sync.joinGroup(code);
+    if (!r.ok) { toast(`Échec : ${r.reason || 'serveur injoignable'}`, { type: 'error' }); return; }
+    toast(r.found ? 'Groupe rejoint — profils synchronisés ✓' : 'Groupe rejoint (encore vide — vérifie le code si tu attendais des données)', { duration: 5000 });
+    nav.refresh();
+  });
+  root.querySelector('#sync-show-code')?.addEventListener('click', () => showCodeSheet(sync.syncCfg().code, false));
+  root.querySelector('#sync-now')?.addEventListener('click', async (e) => {
+    e.target.disabled = true; e.target.textContent = 'Synchronisation…';
+    const r = await sync.syncNow();
+    toast(r.ok ? (r.changed ? 'Synchronisé — nouveautés reçues ✓' : 'Déjà à jour ✓') : `Échec : ${r.reason}`, r.ok ? {} : { type: 'error' });
+    nav.refresh();
+  });
+  root.querySelector('#sync-leave')?.addEventListener('click', async () => {
+    if (await confirmDialog({ title: 'Quitter le groupe', message: 'Ce téléphone ne synchronisera plus. Tes données locales sont conservées.', confirmText: 'Quitter', danger: true })) {
+      await sync.leaveGroup(); toast('Synchronisation désactivée'); nav.refresh();
+    }
+  });
+}
+
+function showCodeSheet(code, isNew) {
+  const s = sheet(`
+    ${isNew ? '<p class="mut sm">Groupe créé ! Partage ce code avec tes proches — ils font « Rejoindre avec un code » sur leur téléphone :</p>' : '<p class="mut sm">Toute personne avec ce code rejoint le groupe et voit les données partagées. Ne le publie pas.</p>'}
+    <div class="sync-code mono">${esc(code)}</div>
+    <button class="btn primary full" id="code-share">${icon('upload')} Partager le code</button>
+    <button class="btn ghost full" id="code-copy">Copier</button>`,
+    { title: 'Code du groupe' });
+  s.root.querySelector('#code-share').onclick = async () => {
+    try { await navigator.share({ title: 'Sport Salle', text: `Rejoins mon groupe Sport Salle 💪\nCode : ${code}\nApp : https://gogobailly-grandvaux.github.io/sport-salle/` }); }
+    catch {}
+  };
+  s.root.querySelector('#code-copy').onclick = async () => {
+    try { await navigator.clipboard.writeText(code); toast('Code copié ✓'); } catch { toast('Copie impossible', { type: 'error' }); }
+  };
 }
 
 const AVATAR_EMOJIS = ['💪','🏋️','🔥','⚡','🚀','🦁','🐺','😤','🌸','👑','🎯','🥇'];
@@ -188,7 +260,7 @@ function editProfile(id) {
 
 // ---------------- data io ----------------
 async function exportData() {
-  const stores = ['profiles','settings','routines','workouts','bodyMetrics','favorites','customExercises'];
+  const stores = ['profiles','settings','routines','workouts','bodyMetrics','favorites','customExercises','deletions'];
   const dump = { app:'sport-salle', version: APP_VERSION, exportedAt: new Date().toISOString(), data:{} };
   for (const st of stores) dump.data[st] = await db.getAll(st);
   const blob = new Blob([JSON.stringify(dump)], { type:'application/json' });

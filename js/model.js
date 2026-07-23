@@ -31,7 +31,11 @@ export async function newRoutine(name = 'Nouveau programme') {
   await db.put('routines', r);
   return r;
 }
-export const deleteRoutine = id => db.del('routines', id);
+export async function deleteRoutine(id) {
+  const r = await db.get('routines', id);
+  if (r) await db.writeTombstone(r.profileId, 'routines', id);
+  return db.del('routines', id);
+}
 
 // routine item: {id, exerciseId, order, supersetGroup, targetSets, targetRepsMin, targetRepsMax, targetWeightKg, restSec, notes}
 export const mkRoutineItem = (exerciseId, order) => ({
@@ -52,7 +56,11 @@ export async function listWorkouts(profileId = state.activeProfileId, { complete
   return rows.sort((a, b) => (b.completedAt || b.startedAt) - (a.completedAt || a.startedAt));
 }
 export const saveWorkout = w => { w.updatedAt = nowTs(); return db.put('workouts', w); };
-export const deleteWorkout = id => db.del('workouts', id);
+export async function deleteWorkout(id) {
+  const w = await db.get('workouts', id);
+  if (w) await db.writeTombstone(w.profileId, 'workouts', id);
+  return db.del('workouts', id);
+}
 
 // last performance of an exercise (most recent completed workout containing it)
 export async function lastPerformance(exerciseId, profileId = state.activeProfileId) {
@@ -121,7 +129,11 @@ export async function addMetric({ type, value, date, notes = '' }) {
   await db.put('bodyMetrics', m);
   return m;
 }
-export const deleteMetric = id => db.del('bodyMetrics', id);
+export async function deleteMetric(id) {
+  const m = await db.get('bodyMetrics', id);
+  if (m) await db.writeTombstone(m.profileId, 'bodyMetrics', id);
+  return db.del('bodyMetrics', id);
+}
 
 export async function latestMetric(type, profileId = state.activeProfileId) {
   const rows = await listMetrics(type, profileId);

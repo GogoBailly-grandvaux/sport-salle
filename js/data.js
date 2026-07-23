@@ -116,6 +116,8 @@ export async function addCustomExercise({ name, primaryMuscles = [], secondaryMu
   return ex;
 }
 export async function deleteCustomExercise(id) {
+  const ex = await db.get('customExercises', id);
+  await db.writeTombstone(ex?.profileId || state.activeProfileId, 'customExercises', id);
   await db.del('customExercises', id);
   state.library = state.library.filter(e => e.id !== id);
   state.libraryById.delete(id);
@@ -128,5 +130,8 @@ export async function loadFavorites(profileId) {
 }
 export async function toggleFavorite(profileId, exerciseId, on) {
   if (on) await db.put('favorites', { profileId, exerciseId, createdAt: nowTs() });
-  else await db.del('favorites', [profileId, exerciseId]);
+  else {
+    await db.writeTombstone(profileId, 'favorites', profileId + '|' + exerciseId);
+    await db.del('favorites', [profileId, exerciseId]);
+  }
 }

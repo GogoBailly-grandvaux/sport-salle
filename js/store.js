@@ -97,6 +97,8 @@ export async function setActiveProfile(id) {
   emit('profile-changed');
 }
 export async function deleteProfile(id) {
+  // tombstone AVANT les suppressions : la synchro propage la disparition du profil
+  await db.writeTombstone(id, 'profiles', id);
   await Promise.all([
     db.deleteWhere('routines', 'profileId', id),
     db.deleteWhere('workouts', 'profileId', id),
