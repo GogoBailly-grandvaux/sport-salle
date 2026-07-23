@@ -160,11 +160,31 @@ export function accountCardHtml() {
     <div class="acc-row"><b>@${esc(acc.user.username)}</b><span class="mut sm">${esc(acc.user.displayName)}</span></div>
     <p class="mut sm">Données synchronisées sur ce compte · amis et groupes dans l’onglet Social.</p>
     <button class="btn ghost full" id="acc-logout">Se déconnecter</button>
+    <button class="btn danger-ghost full sm" id="acc-delete">Supprimer définitivement mon compte</button>
   </section>`;
+}
+
+async function deleteAccount() {
+  const { promptDialog } = await import('../ui.js');
+  if (!await confirmDialog({
+    title: 'Supprimer le compte',
+    message: 'Toutes tes données en ligne (séances, amis, groupes, partages) seront définitivement effacées. Les données locales de ce téléphone sont conservées.',
+    confirmText: 'Continuer', danger: true,
+  })) return;
+  const password = await promptDialog({ title: 'Confirme avec ton mot de passe', label: 'Mot de passe', type: 'password', confirmText: 'Supprimer' });
+  if (password == null) return;
+  try {
+    await call('auth', 'delete', { password });
+    await savePSettings({ account: null });
+    emit('account-changed');
+    toast('Compte supprimé. Tes données locales restent sur ce téléphone.');
+    nav.refresh();
+  } catch (e) { toast(e.message, { type: 'error' }); }
 }
 
 export function mountAccountCard(root) {
   root.querySelector('#acc-register')?.addEventListener('click', () => openAuthSheet('register', () => nav.refresh()));
   root.querySelector('#acc-login')?.addEventListener('click', () => openAuthSheet('login', () => nav.refresh()));
   root.querySelector('#acc-logout')?.addEventListener('click', logout);
+  root.querySelector('#acc-delete')?.addEventListener('click', deleteAccount);
 }

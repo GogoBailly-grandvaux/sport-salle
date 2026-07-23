@@ -115,6 +115,21 @@ switch ($action) {
     ])]);
   }
 
+  case 'delete': {
+    // suppression définitive du compte (mot de passe exigé) — cascade sur toutes les données
+    $u = require_user();
+    $password = (string)($b['password'] ?? '');
+    $st = db()->prepare('SELECT pass_hash FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    $hash = $st->fetchColumn();
+    if (!$hash || !password_verify($password, $hash)) {
+      usleep(350000);
+      fail(401, 'mot de passe incorrect');
+    }
+    db()->prepare('DELETE FROM users WHERE id = ?')->execute([$u['id']]);
+    ok(['ok' => true]);
+  }
+
   default:
     fail(400, 'action inconnue');
 }
