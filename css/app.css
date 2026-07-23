@@ -632,11 +632,15 @@ body.welcome-mode .tabbar{display:none}
 .wel-logo .ico{width:46px;height:46px}
 .wel-title{font-size:2.6rem;font-weight:900;letter-spacing:-.04em;line-height:1}
 .wel-title span{color:var(--accent)}
-.wel-tag{color:var(--text2);margin:12px 0 28px;font-size:1.02rem;line-height:1.5}
+.wel-tag{color:var(--text2);margin:12px 0 0;font-size:1.05rem;line-height:1.5}
 .wel-actions{display:flex;flex-direction:column;gap:2px}
 .wel-guest{border:none;background:transparent;color:var(--muted);font-weight:600;padding:14px;font-size:.92rem}
 .wel-guest:active{color:var(--text)}
-.wel-req{color:var(--muted);font-size:.78rem;margin-top:14px;line-height:1.45}
+.wel-feats{display:flex;flex-direction:column;gap:9px;align-items:center;margin:18px 0 26px;animation:welUp .45s .2s cubic-bezier(.2,.8,.2,1) both}
+.wel-feats span{display:inline-flex;align-items:center;gap:8px;color:var(--text2);font-size:.9rem;font-weight:600}
+.wel-feats .ico{width:17px;height:17px;color:var(--accent)}
+#wel-gsi{min-height:0}
+#wel-gsi .gsi-sep{margin:14px 0}
 /* entrée en scène de l'écran de bienvenue */
 .wel-logo{animation:welPop .5s cubic-bezier(.2,.8,.2,1) both}
 .wel-title{animation:welUp .45s .08s cubic-bezier(.2,.8,.2,1) both}

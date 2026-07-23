@@ -58,12 +58,13 @@ function loadGsi() {
     document.head.appendChild(sc);
   });
 }
-async function mountGoogleButton(container, onDone, closeSheet) {
+export async function mountGoogleButton(container, onDone, closeSheet, { sep = 'before' } = {}) {
   const cid = await googleClientId();
   if (!cid || !container) return;
   try {
     await loadGsi();
-    container.innerHTML = '<div class="gsi-sep"><span>ou</span></div><div id="gsi-btn"></div>';
+    const sepHtml = '<div class="gsi-sep"><span>ou</span></div>';
+    container.innerHTML = sep === 'after' ? `<div id="gsi-btn"></div>${sepHtml}` : `${sepHtml}<div id="gsi-btn"></div>`;
     window.google.accounts.id.initialize({
       client_id: cid,
       callback: async (resp) => {

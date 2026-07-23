@@ -20,7 +20,7 @@ import * as library from './screens/library.js';
 import * as profile from './screens/profile.js';
 import * as social from './screens/social.js';
 import * as coachGen from './screens/coach-gen.js';
-import { wireAuthEvents, openAuthSheet } from './screens/account.js';
+import { wireAuthEvents, openAuthSheet, mountGoogleButton } from './screens/account.js';
 import { gate as appLockGate } from './applock.js';
 
 // ---------- routes ----------
@@ -139,12 +139,17 @@ function welcome() {
       <div class="wel-body">
         <div class="wel-logo">${icon('bolt')}</div>
         <h1 class="wel-title">SPORT<span>SALLE</span></h1>
-        <p class="wel-tag">Ton coach de poche.<br>Programmes, séances, records, amis.</p>
+        <p class="wel-tag">Ton coach de poche.</p>
+        <div class="wel-feats">
+          <span>${icon('dumbbell')} Coach & programmes</span>
+          <span>${icon('trophy')} Records & progrès</span>
+          <span>${icon('users')} Amis & groupes</span>
+        </div>
         <div class="wel-actions">
           ${online ? `
+          <div id="wel-gsi"></div>
           <button class="btn primary full big" id="wel-register">Créer un compte gratuit</button>
-          <button class="btn ghost full" id="wel-login">J'ai déjà un compte</button>
-          <p class="wel-req">Compte gratuit obligatoire — tes séances, amis et programmes te suivent partout.</p>`
+          <button class="btn ghost full" id="wel-login">J'ai déjà un compte</button>`
           : `<button class="btn primary full big" id="wel-guest">Commencer</button>`}
         </div>
       </div>
@@ -153,6 +158,7 @@ function welcome() {
     view.querySelector('#wel-register')?.addEventListener('click', () => openAuthSheet('register', done));
     view.querySelector('#wel-login')?.addEventListener('click', () => openAuthSheet('login', done));
     view.querySelector('#wel-guest')?.addEventListener('click', async () => { await onboarding(); done(); });
+    if (online) mountGoogleButton(view.querySelector('#wel-gsi'), done, () => {}, { sep: 'after' });
   });
 }
 
