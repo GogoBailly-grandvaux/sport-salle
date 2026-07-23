@@ -219,6 +219,14 @@ function registerSW() {
   const hadController = !!navigator.serviceWorker.controller; // false = toute 1re visite (le claim() n'est pas une mise à jour)
   let userRequestedUpdate = false;
   navigator.serviceWorker.register('sw.js').then(reg => {
+    // une mise à jour téléchargée lors d'une visite précédente attend encore :
+    // on l'applique immédiatement au démarrage (rien n'est saisi → reload indolore).
+    // Fini les appareils bloqués sur une vieille version faute d'avoir tapé « Recharger ».
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      userRequestedUpdate = true;
+      reg.waiting.postMessage('skipWaiting');
+      return;
+    }
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
       nw && nw.addEventListener('statechange', () => {
