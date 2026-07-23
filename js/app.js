@@ -145,18 +145,23 @@ function onboarding() {
 // ---------- service worker ----------
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
+  const hadController = !!navigator.serviceWorker.controller; // false = toute 1re visite (le claim() n'est pas une mise à jour)
+  let userRequestedUpdate = false;
   navigator.serviceWorker.register('sw.js').then(reg => {
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
       nw && nw.addEventListener('statechange', () => {
         if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-          toast('Mise à jour disponible', { actionText: 'Recharger', duration: 8000, onAction: () => { nw.postMessage('skipWaiting'); } });
+          toast('Mise à jour disponible', { actionText: 'Recharger', duration: 8000, onAction: () => { userRequestedUpdate = true; nw.postMessage('skipWaiting'); } });
         }
       });
     });
   }).catch(() => {});
   let reloading = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloading) { reloading = true; location.reload(); } });
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController && !userRequestedUpdate) return; // 1re prise de contrôle : pas de reload surprise
+    if (!reloading) { reloading = true; location.reload(); }
+  });
 }
 
 // ---------- boot ----------

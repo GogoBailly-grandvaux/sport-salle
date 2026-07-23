@@ -37,14 +37,18 @@ export function exerciseSummary(ex, formula = 'epley') {
   return { topWeight, volume, bestE1rm, bestSetVol, sets: working.length, reps };
 }
 
+// Un même exercice peut apparaître dans plusieurs blocs d'une séance : on agrège TOUTES ses séries.
+const setsForExercise = (w, exerciseId) =>
+  (w.exercises || []).filter(e => e.exerciseId === exerciseId).flatMap(e => e.sets || []);
+
 // history points for an exercise across completed workouts (ascending by time)
 export function exerciseHistory(workouts, exerciseId, formula = 'epley') {
   const pts = [];
   for (const w of workouts) {
     if (w.status !== 'completed') continue;
-    const ex = (w.exercises || []).find(e => e.exerciseId === exerciseId);
-    if (!ex) continue;
-    const s = exerciseSummary(ex, formula);
+    const sets = setsForExercise(w, exerciseId);
+    if (!sets.length) continue;
+    const s = exerciseSummary({ sets }, formula);
     if (!s) continue;
     pts.push({ ts: w.completedAt || w.startedAt, ...s });
   }
@@ -55,10 +59,8 @@ export function allTimeBests(workouts, exerciseId, formula = 'epley') {
   let maxWeight = 0, maxReps = 0, bestE1rm = 0, bestSetVol = 0, sessions = 0;
   for (const w of workouts) {
     if (w.status !== 'completed') continue;
-    const ex = (w.exercises || []).find(e => e.exerciseId === exerciseId);
-    if (!ex) continue;
     let counted = false;
-    for (const s of (ex.sets || [])) {
+    for (const s of setsForExercise(w, exerciseId)) {
       if (!isWorkingSet(s)) continue;
       counted = true;
       maxWeight = Math.max(maxWeight, s.weightKg || 0);
@@ -74,20 +76,23 @@ export function allTimeBests(workouts, exerciseId, formula = 'epley') {
 // Compare a (just-finished) workout to prior history -> new PRs
 export function detectPRs(current, priorWorkouts, formula = 'epley') {
   const prs = [];
-  const seen = new Set();
+  const byId = new Map();
   for (const ex of (current.exercises || [])) {
-    if (seen.has(ex.exerciseId)) continue;
-    seen.add(ex.exerciseId);
-    const prev = allTimeBests(priorWorkouts, ex.exerciseId, formula);
+    const g = byId.get(ex.exerciseId) || [];
+    g.push(...(ex.sets || []));
+    byId.set(ex.exerciseId, g);
+  }
+  for (const [exerciseId, sets] of byId) {
+    const prev = allTimeBests(priorWorkouts, exerciseId, formula);
     if (prev.sessions === 0) continue; // baseline session, no PR spam
-    const cur = exerciseSummary(ex, formula);
+    const cur = exerciseSummary({ sets }, formula);
     if (!cur) continue;
     if (cur.topWeight > prev.maxWeight + 1e-6)
-      prs.push({ exerciseId: ex.exerciseId, type: 'maxWeight', value: cur.topWeight });
+      prs.push({ exerciseId, type: 'maxWeight', value: cur.topWeight });
     if (cur.bestE1rm > prev.bestE1rm + 1e-6)
-      prs.push({ exerciseId: ex.exerciseId, type: 'estimated1rm', value: cur.bestE1rm });
+      prs.push({ exerciseId, type: 'estimated1rm', value: cur.bestE1rm });
     if (cur.bestSetVol > prev.bestSetVol + 1e-6)
-      prs.push({ exerciseId: ex.exerciseId, type: 'bestSetVolume', value: cur.bestSetVol });
+      prs.push({ exerciseId, type: 'bestSetVolume', value: cur.bestSetVol });
   }
   // keep most impressive per exercise (e1rm > weight > volume)
   const rank = { estimated1rm: 3, maxWeight: 2, bestSetVolume: 1 };
@@ -122,9 +127,9 @@ export function goalStreak(workouts, weeklyGoal = 3) {
   const byWeek = sessionsByWeek(workouts);
   let streak = 0;
   let cursor = weekStart(Date.now());
-  // current week counts only if reached; otherwise start from last week
-  if ((byWeek.get(cursor) || 0) < weeklyGoal) cursor -= 7 * 86400000;
-  while ((byWeek.get(cursor) || 0) >= weeklyGoal) { streak++; cursor -= 7 * 86400000; }
+  // weekStart(cursor - 1) : recale sur le vrai lundi local (une semaine fait 167-169 h avec l'heure d'été)
+  if ((byWeek.get(cursor) || 0) < weeklyGoal) cursor = weekStart(cursor - 1);
+  while ((byWeek.get(cursor) || 0) >= weeklyGoal) { streak++; cursor = weekStart(cursor - 1); }
   return streak;
 }
 

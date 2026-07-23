@@ -10,7 +10,7 @@ import { getWorkout, saveWorkout, deleteWorkout, finishWorkout, mkSet, mkExercis
 let W = null;
 let prevMap = new Map();       // exerciseId -> [prev sets]
 let elapsedTimer = null;
-let rest = { timer: null, remaining: 0, total: 0 };
+let rest = { timer: null, remaining: 0, total: 0, hideTimeout: null };
 let audioCtx = null;
 
 const persist = debounce(() => { if (W) saveWorkout(W); }, 350);
@@ -236,16 +236,17 @@ async function discard() {
 }
 
 async function finish() {
-  // clean undone sets
-  let undone = 0;
-  for (const ex of W.exercises) { const before = ex.sets.length; ex.sets = ex.sets.filter(s => s.done); undone += before - ex.sets.length; }
-  W.exercises = W.exercises.filter(ex => ex.sets.length);
-  if (!W.exercises.length) {
+  // Rien de validé ? On demande SANS toucher au modèle vivant.
+  const anyDone = W.exercises.some(ex => ex.sets.some(s => s.done));
+  if (!anyDone) {
     if (await confirmDialog({ title: 'Aucune série validée', message: 'Rien n’a été validé. Abandonner la séance ?', confirmText: 'Abandonner', danger: true })) {
       await deleteWorkout(W.id); nav.go('#/home');
     }
-    return;
+    return; // annulation : la séance continue, intacte
   }
+  // On ne retire les séries non validées qu'au moment où la fin est actée.
+  for (const ex of W.exercises) ex.sets = ex.sets.filter(s => s.done);
+  W.exercises = W.exercises.filter(ex => ex.sets.length);
   clearRest();
   const id = W.id;
   await finishWorkout(W);
@@ -273,7 +274,7 @@ function startRest(sec) {
   if (!sec || sec <= 0) return;
   clearRest(true);
   rest.total = sec; rest.remaining = sec;
-  const bar = ensureRestBar(); bar.classList.add('show');
+  const bar = ensureRestBar(); bar.classList.remove('done'); bar.classList.add('show');
   updateRest();
   rest.timer = setInterval(() => {
     rest.remaining -= 1; updateRest();
@@ -297,12 +298,16 @@ function restDone() {
   clearInterval(rest.timer); rest.timer = null;
   vibrate([120, 60, 120]); beep();
   const bar = document.getElementById('rest-bar');
-  if (bar) { bar.classList.add('done'); setTimeout(() => { bar.classList.remove('show','done','ending'); }, 900); }
+  if (bar) {
+    bar.classList.add('done');
+    rest.hideTimeout = setTimeout(() => { bar.classList.remove('show','done','ending'); rest.hideTimeout = null; }, 900);
+  }
   if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try { new Notification('Repos terminé 💪', { body: 'Série suivante !', silent: false }); } catch {}
   }
 }
 function clearRest(keepBar) {
+  if (rest.hideTimeout) { clearTimeout(rest.hideTimeout); rest.hideTimeout = null; } // évite qu'un ancien timeout masque le repos suivant
   if (rest.timer) { clearInterval(rest.timer); rest.timer = null; }
   rest.remaining = 0;
   if (!keepBar) { const bar = document.getElementById('rest-bar'); if (bar) bar.classList.remove('show','ending','done'); }

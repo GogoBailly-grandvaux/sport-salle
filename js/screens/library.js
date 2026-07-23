@@ -88,7 +88,8 @@ function softRefresh(root) {
 }
 
 function openFilters() {
-  const opt = (obj, cur) => ['', ...Object.keys(obj)].map(k => `<option value="${k}" ${k===cur?'selected':''}>${k? (obj[k]) : 'Tous'}</option>`).join('');
+  // .filter(k => k !== 'null') : EQUIP_FR contient une clé null (coercée en "null") pour l'affichage — pas un filtre valide
+  const opt = (obj, cur) => ['', ...Object.keys(obj).filter(k => k !== 'null')].map(k => `<option value="${k}" ${k===cur?'selected':''}>${k? (obj[k]) : 'Tous'}</option>`).join('');
   const s = sheet(`
     <label class="field-label">Muscle</label>
     <select class="input select" id="f-muscle">${opt(MUSCLE_FR, F.muscle)}</select>

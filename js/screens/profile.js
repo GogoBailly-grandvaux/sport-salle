@@ -84,8 +84,11 @@ export function mount(root) {
   // install
   root.querySelector('#install-btn')?.addEventListener('click', async () => {
     const dp = window.__deferredInstall; if (!dp) return;
-    dp.prompt(); const { outcome } = await dp.userChoice;
-    if (outcome === 'accepted') { window.__deferredInstall = null; toast('Installation lancée 🎉'); }
+    window.__deferredInstall = null; // événement à usage unique — on le consomme quoi qu'il arrive
+    dp.prompt();
+    const { outcome } = await dp.userChoice;
+    if (outcome === 'accepted') toast('Installation lancée 🎉');
+    nav.refresh(); // la carte d'installation disparaît (prompt consommé)
   });
 
   // settings segmented

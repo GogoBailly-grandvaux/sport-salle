@@ -170,7 +170,8 @@ export async function importRoutinePayload(d) {
   for (const def of (d.custom || [])) {
     if (!state.libraryById.has(def.id)) {
       const ex = {
-        id: def.id, name: def.name, nameLower: (def.name || '').toLowerCase(),
+        id: def.id, profileId: state.activeProfileId,
+        name: def.name, nameLower: (def.name || '').toLowerCase(),
         primaryMuscles: def.primaryMuscles || [], secondaryMuscles: def.secondaryMuscles || [],
         equipment: def.equipment || 'machine', category: def.category || 'strength',
         level: 'intermediate', force: null, mechanic: null, instructions: [], images: [],

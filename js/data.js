@@ -1,6 +1,6 @@
 // data.js — exercise library (free-exercise-db) + custom exercises + favorites
 import * as db from './db.js';
-import { state } from './store.js';
+import { state, on } from './store.js';
 import { uid, nowTs } from './util.js';
 
 const CDN = 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/';
@@ -42,12 +42,25 @@ export function imageUrls(ex) {
 }
 
 let _loaded = false;
+let _baseLib = []; // bibliothèque intégrée (partagée entre profils)
 export const DATA_VERSION = '2'; // à incrémenter à chaque mise à jour de data/exercises.json (voir aussi sw.js)
+
+// Recharge les exercices perso du profil actif (les anciens sans profileId restent visibles par tous).
+export async function refreshCustoms() {
+  const all = await db.getAll('customExercises');
+  const mine = all
+    .filter(e => e.profileId == null || e.profileId === state.activeProfileId)
+    .map(e => ({ ...e, nameLower: e.nameLower || (e.name || '').toLowerCase(), source: 'custom' }));
+  state.library = _baseLib.concat(mine);
+  state.libraryById = new Map(state.library.map(e => [e.id, e]));
+  return state.library;
+}
+
 export async function loadLibrary() {
   const res = await fetch('./data/exercises.json?v=' + DATA_VERSION);
   const raw = await res.json();
   // Nom FR en priorité s'il existe (enrichissement wger) ; la recherche matche FR + EN.
-  const lib = raw.map(e => {
+  _baseLib = raw.map(e => {
     const en = e.name || '';
     const fr = e.nameFr || null;
     return {
@@ -58,12 +71,13 @@ export async function loadLibrary() {
       source: 'library',
     };
   });
-  const custom = (await db.getAll('customExercises')).map(e => ({ ...e, nameLower: e.nameLower || (e.name||'').toLowerCase(), source: 'custom' }));
-  state.library = lib.concat(custom);
-  state.libraryById = new Map(state.library.map(e => [e.id, e]));
+  await refreshCustoms();
   _loaded = true;
   return state.library;
 }
+
+// re-filtre les exercices perso à chaque changement de profil
+on('profile-changed', () => { if (_loaded) refreshCustoms(); });
 
 export const getExercise = id => state.libraryById.get(id) || null;
 
@@ -90,7 +104,8 @@ export function searchExercises({ q = '', muscle = '', equipment = '', category 
 
 export async function addCustomExercise({ name, primaryMuscles = [], secondaryMuscles = [], equipment = 'machine', category = 'strength' }) {
   const ex = {
-    id: 'custom-' + uid(), name: name.trim(), nameLower: name.trim().toLowerCase(),
+    id: 'custom-' + uid(), profileId: state.activeProfileId,
+    name: name.trim(), nameLower: name.trim().toLowerCase(),
     primaryMuscles, secondaryMuscles, equipment, category, level: 'intermediate',
     force: null, mechanic: null, instructions: [], images: [], source: 'custom',
     createdAt: nowTs(),

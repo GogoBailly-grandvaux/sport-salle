@@ -102,6 +102,7 @@ export async function deleteProfile(id) {
     db.deleteWhere('workouts', 'profileId', id),
     db.deleteWhere('bodyMetrics', 'profileId', id),
     db.deleteWhere('favorites', 'profileId', id),
+    db.deleteWhere('customExercises', 'profileId', id),
   ]);
   await db.del('settings', 'p:' + id);
   await db.del('profiles', id);

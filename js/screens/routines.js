@@ -20,8 +20,9 @@ export async function beginRoutine(routine) {
       message: `« ${active.name} » est en cours. La reprendre, ou la remplacer par ce programme ?`,
       confirmText: 'Reprendre', cancelText: 'Remplacer',
     });
+    if (resume === null) return;                 // fermé (X/backdrop/Échap) → on ne touche à rien
     if (resume) { nav.go(`#/workout/${active.id}`); return; }
-    await deleteWorkout(active.id);
+    await deleteWorkout(active.id);              // « Remplacer » explicite uniquement
   }
   const w = await startWorkout({ routine });
   nav.go(`#/workout/${w.id}`);

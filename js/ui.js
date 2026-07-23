@@ -83,6 +83,8 @@ export function sheet(contentHtml, opts = {}) {
   return { root: sheetEl, close };
 }
 
+// Résout true (confirm), false (bouton annuler explicite) ou null (fermeture X/backdrop/Échap).
+// Tous les appels « if (await confirmDialog(...)) » traitent null comme falsy — sans danger.
 export function confirmDialog({ title = 'Confirmer', message = '', confirmText = 'Confirmer', cancelText = 'Annuler', danger = false } = {}) {
   return new Promise(resolve => {
     const s = sheet(
@@ -91,7 +93,7 @@ export function confirmDialog({ title = 'Confirmer', message = '', confirmText =
          <button class="btn ghost" data-a="cancel">${esc(cancelText)}</button>
          <button class="btn ${danger ? 'danger' : 'primary'}" data-a="ok">${esc(confirmText)}</button>
        </div>`,
-      { title, onClose: () => resolve(false) }
+      { title, onClose: () => resolve(null) }
     );
     s.root.querySelector('[data-a="ok"]').onclick = () => { resolve(true); s.close(); };
     s.root.querySelector('[data-a="cancel"]').onclick = () => { resolve(false); s.close(); };

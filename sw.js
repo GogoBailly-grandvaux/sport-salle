@@ -1,5 +1,5 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v1.1.0';
+const VERSION = 'v1.1.1';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 
@@ -20,7 +20,8 @@ self.addEventListener('install', (e) => {
     const c = await caches.open(SHELL);
     // cache:'no-cache' → contourne le cache HTTP (GitHub Pages max-age=600) à l'installation
     await Promise.allSettled(ASSETS.map(u => c.add(new Request(u, { cache: 'no-cache' }))));
-    self.skipWaiting();
+    // pas de skipWaiting() ici : une mise à jour n'est appliquée que quand
+    // l'utilisateur touche « Recharger » (message 'skipWaiting' ci-dessous)
   })());
 });
 
