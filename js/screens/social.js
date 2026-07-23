@@ -8,6 +8,7 @@ import { importRoutinePayload } from '../templates.js';
 import { emptyState, backBtn } from './common.js';
 import { openAuthSheet } from './account.js';
 import * as sync from '../sync.js';
+import { qrSvg } from '../qr.js';
 
 let seg = 'feed'; // feed | amis | groupes
 
@@ -254,6 +255,7 @@ async function renderAmis() {
   return `
     <div class="input-ico search-friend">${icon('search')}<input class="input" id="soc-search" placeholder="${t('Chercher un @pseudo à ajouter','Search a @username to add')}" aria-label="Chercher un ami par pseudo" autocomplete="off"></div>
     <div id="soc-results"></div>
+    <button class="btn ghost full" id="soc-qr">▦ ${t('Mon code QR — ajout en un scan','My QR code — add me in one scan')}</button>
     ${incoming.length ? `<h4 class="share-h">${t('Demandes reçues','Requests received')}</h4>` + incoming.map(u => row(u,
       `<button class="btn primary sm" data-accept="${u.id}">${t('Accepter','Accept')}</button><button class="icon-btn sm" data-decline="${u.id}" aria-label="Refuser la demande">${icon('x')}</button>`)).join('') : ''}
     ${friends.length ? `<h4 class="share-h">${t('Mes amis','My friends')} (${friends.length})</h4>` + friends.map(u => row(u,
@@ -262,7 +264,28 @@ async function renderAmis() {
     ${!friends.length && !incoming.length ? `<p class="hint">${t('Cherche tes potes par leur @pseudo — ils reçoivent ta demande dans cet onglet.','Find your friends by @username — they’ll get your request in this tab.')}</p>` : ''}`;
 }
 
+function openQrSheet() {
+  const acc = account();
+  if (!acc?.user?.username) return;
+  const link = 'https://sportsalle.hbaillyg.fr/#/add/' + encodeURIComponent(acc.user.username);
+  const s = sheet(`
+    <div class="qr-wrap">${qrSvg(link, { dark: '#0c0d10', light: '#ffffff' })}</div>
+    <p class="center" style="margin:10px 0 2px"><b>@${esc(acc.user.username)}</b></p>
+    <p class="mut sm center" style="margin:0 0 12px">${t('Ton pote scanne ce code avec son appareil photo → il t’ajoute direct.','Your friend scans this with their camera → adds you instantly.')}</p>
+    <button class="btn primary full" id="qr-share">${icon('upload')} ${t('Partager mon profil','Share my profile')}</button>`,
+    { title: t('Mon code QR','My QR code') });
+  s.root.querySelector('#qr-share').onclick = async () => {
+    const text = t(`Ajoute-moi sur Sport Salle : @${acc.user.username}`,`Add me on Sport Salle: @${acc.user.username}`);
+    try {
+      if (navigator.share) { await navigator.share({ title: 'Sport Salle', text, url: link }); return; }
+    } catch (e) { if (e?.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(link); toast(t('Lien copié ✓','Link copied ✓')); }
+    catch { toast(link, { duration: 6000 }); }
+  };
+}
+
 function wireAmis(root) {
+  root.querySelector('#soc-qr')?.addEventListener('click', openQrSheet);
   const input = root.querySelector('#soc-search');
   const results = root.querySelector('#soc-results');
   if (input) input.addEventListener('input', debounce(async () => {
@@ -337,6 +360,33 @@ function wireGroupes(root) {
       toast(`Bienvenue dans « ${r.group.name} » !`);
       nav.go(`#/social/group/${r.group.id}`);
     } catch (e) { toast(e.message, { type: 'error' }); }
+  });
+}
+
+// ---------------- deep link : #/add/<pseudo> (depuis un QR scanné) ----------------
+export function renderAddFriend(params) {
+  const u = decodeURIComponent(params.username || '').toLowerCase();
+  return `<div class="screen-pad"><div class="add-land">
+    <div class="add-land-ico">👊</div>
+    <h2>${t('Ajouter','Add')} <b>@${esc(u)}</b> ?</h2>
+    <p class="mut">${t('Vous verrez vos séances, vos posts et vos programmes dans le fil.','You’ll see each other’s workouts, posts and programs in the feed.')}</p>
+    <button class="btn primary full big" id="add-go">${t('Envoyer la demande','Send request')}</button>
+    <button class="btn ghost full" data-nav="#/social">${t('Plus tard','Later')}</button>
+  </div></div>`;
+}
+export function mountAddFriend(root, params) {
+  const u = decodeURIComponent(params.username || '').toLowerCase();
+  root.querySelector('#add-go')?.addEventListener('click', async () => {
+    const btn = root.querySelector('#add-go');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      const r = await call('social', 'request', { username: u });
+      toast(r.accepted ? t('C’est fait, vous êtes amis ! 👊','Done — you’re friends! 👊') : t('Demande envoyée à','Request sent to') + ' @' + u + ' ✓', { duration: 4000 });
+      seg = 'amis'; nav.go('#/social');
+    } catch (e) {
+      toast(e.message, { type: 'error' });
+      btn.disabled = false; btn.textContent = t('Envoyer la demande','Send request');
+    }
   });
 }
 

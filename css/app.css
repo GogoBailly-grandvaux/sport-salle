@@ -722,3 +722,12 @@ body.welcome-mode .tabbar{display:none}
 .react-chip.on b { color: var(--fg); }
 .react-chip:active { transform: scale(1.18); }
 .post-input { width: 100%; resize: vertical; min-height: 96px; margin-bottom: 12px; }
+
+/* ---- QR + atterrissage ajout d'ami (v3.1) ---- */
+.qr-wrap { width: min(240px, 70vw); margin: 4px auto 0; border-radius: 14px; overflow: hidden; }
+.qr-wrap svg { display: block; width: 100%; height: auto; }
+.add-land { text-align: center; padding: 46px 8px 0; max-width: 340px; margin: 0 auto; }
+.add-land-ico { font-size: 54px; margin-bottom: 10px; }
+.add-land h2 { margin: 0 0 8px; }
+.add-land .mut { margin: 0 0 22px; }
+.add-land .btn { margin-bottom: 10px; }

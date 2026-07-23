@@ -71,6 +71,12 @@ export async function render() {
         <input type="file" id="import-file" accept="application/json,.json" hidden>
       </section>
 
+      <section class="card">
+        <h3 class="card-t">📣 ${t('Fais tourner','Spread the word')}</h3>
+        <p class="mut sm">${t('Sport Salle est gratuit et sans pub — le meilleur moyen de soutenir l’app, c’est d’en parler.','Sport Salle is free with no ads — the best way to support it is to tell people.')}</p>
+        <button class="btn ghost full" id="share-app">${icon('upload')} ${t('Partager l’appli','Share the app')}</button>
+      </section>
+
       <section class="card maker-card">
         <h3 class="card-t">👋 ${t('Le mot du créateur','A word from the maker')}</h3>
         <p class="mut sm">${t('Salut, moi c’est Hugo. J’ai créé Sport Salle en reprenant la salle après une longue pause — je voulais un carnet simple, gratuit, sans pub, qui me pousse vraiment. Je m’en sers à chaque séance à Val d’Europe. Si tu l’utilises aussi : bienvenue dans l’équipe. 💛','Hi, I’m Hugo. I built Sport Salle while getting back into the gym after a long break — I wanted a simple, free, ad-free logbook that actually pushes me. I use it at every workout. If you use it too: welcome to the team. 💛')}</p>
@@ -86,6 +92,14 @@ export async function render() {
 }
 
 export function mount(root) {
+  root.querySelector('#share-app')?.addEventListener('click', async () => {
+    const url = 'https://sportsalle.hbaillyg.fr/';
+    const text = t('Je suis mes séances sur Sport Salle — coach, programmes, amis. Gratuit, sans pub :','I track my workouts on Sport Salle — coach, programs, friends. Free, no ads:');
+    try { if (navigator.share) { await navigator.share({ title: 'Sport Salle', text, url }); return; } }
+    catch (e) { if (e?.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(url); toast(t('Lien copié ✓','Link copied ✓')); }
+    catch { toast(url, { duration: 6000 }); }
+  });
   // profiles
   root.querySelectorAll('[data-switch]').forEach(b => b.addEventListener('click', async (e) => {
     if (e.target.closest('[data-edit]')) return;
