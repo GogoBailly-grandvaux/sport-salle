@@ -6,7 +6,7 @@ deployment:
   tasks:
     - export DEPLOYPATH=${HOME}/sportsalle.hbaillyg.fr
     - /bin/mkdir -p $DEPLOYPATH/api
-    - /bin/cp -R index.html 404.html offline.html app.webmanifest sw.js css js data icons $DEPLOYPATH/
+    - /bin/cp -R index.html 404.html offline.html app.webmanifest sw.js .htaccess css js data icons $DEPLOYPATH/
     - /bin/cp api/sync.php api/config.sample.php api/schema.sql api/.htaccess $DEPLOYPATH/api/
     # config.php (secret) : jamais dans Git. On réutilise celui déjà rempli dans
     # public_html s'il existe, sinon on dépose le modèle à compléter une fois.

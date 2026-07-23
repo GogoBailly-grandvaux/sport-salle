@@ -1,0 +1,11 @@
+# Sport Salle — règles serveur (Apache/LiteSpeed, o2switch)
+
+# Force HTTPS (redirection permanente http -> https)
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Type MIME correct pour le manifeste PWA
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+</IfModule>
