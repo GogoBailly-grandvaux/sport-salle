@@ -60,20 +60,30 @@ async function router(isRefresh = false) {
   nav.current = r.name;
   if (current && current.unmount) { try { current.unmount(); } catch {} }
   const view = $('#view');
-  view.classList.add('fade');
+  let html;
   try {
-    const html = await r.render(params);
-    view.innerHTML = html;
+    html = await r.render(params);
   } catch (e) {
     console.error(e);
-    view.innerHTML = `<div class="screen-pad"><div class="empty"><h3>Oups</h3><p>${esc(e.message||'Erreur')}</p><button class="btn ghost" onclick="location.hash='#/home'">Accueil</button></div></div>`;
+    html = `<div class="screen-pad"><div class="empty"><h3>Oups</h3><p>${esc(e.message||'Erreur')}</p><button class="btn ghost" onclick="location.hash='#/home'">Accueil</button></div></div>`;
   }
-  requestAnimationFrame(() => view.classList.remove('fade'));
   current = r;
-  try { r.mount && r.mount(view, params); } catch (e) { console.error(e); }
-  document.body.classList.toggle('immersive', !!r.immersive);
-  updateTabs(r.tab);
-  if (!isRefresh) window.scrollTo(0, 0);
+  const apply = () => {
+    view.innerHTML = html;
+    try { r.mount && r.mount(view, params); } catch (e) { console.error(e); }
+    document.body.classList.toggle('immersive', !!r.immersive);
+    updateTabs(r.tab);
+    if (!isRefresh) window.scrollTo(0, 0);
+  };
+  // Transition de vue : API View Transitions si dispo, sinon animation CSS d'entrée.
+  // Les refresh (nav.refresh, synchro) restent instantanés pour ne pas faire clignoter l'écran.
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!isRefresh && !reduced && document.startViewTransition) {
+    document.startViewTransition(apply);
+  } else {
+    apply();
+    if (!isRefresh && !reduced) { view.classList.remove('view-in'); void view.offsetWidth; view.classList.add('view-in'); }
+  }
 }
 
 nav.go = (hash) => { if (location.hash === hash) router(); else location.hash = hash; };
@@ -94,7 +104,11 @@ function tabBar() {
   ).join('')}</nav>`;
 }
 function updateTabs(active) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === active));
+  document.querySelectorAll('.tab').forEach(t => {
+    const on = t.dataset.tab === active;
+    t.classList.toggle('on', on);
+    if (on) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
+  });
 }
 
 async function fabAction() {
@@ -115,6 +129,7 @@ async function fabAction() {
 // ---------- écran de bienvenue (premier lancement) ----------
 function welcome() {
   return new Promise(resolve => {
+    document.body.classList.add('welcome-mode'); // pas de tabbar tant qu'on n'est pas entré
     const view = $('#view');
     const online = sync.isConfigured();
     view.innerHTML = `<div class="welcome">
@@ -130,10 +145,9 @@ function welcome() {
           <button class="wel-guest" id="wel-guest">Continuer sans compte →</button>`
           : `<button class="btn primary full big" id="wel-guest">Commencer</button>`}
         </div>
-        <p class="wel-foot">Gratuit · sans pub · tes données t'appartiennent</p>
       </div>
     </div>`;
-    const done = () => resolve();
+    const done = () => { document.body.classList.remove('welcome-mode'); resolve(); };
     view.querySelector('#wel-register')?.addEventListener('click', () => openAuthSheet('register', done));
     view.querySelector('#wel-login')?.addEventListener('click', () => openAuthSheet('login', done));
     view.querySelector('#wel-guest')?.addEventListener('click', async () => { await onboarding(); done(); });
@@ -176,6 +190,14 @@ function onboarding() {
   });
 }
 
+// splash retiré en douceur (fondu) plutôt que d'un coup
+function hideSplash() {
+  const s = $('#splash');
+  if (!s) return;
+  s.classList.add('out');
+  setTimeout(() => s.remove(), 340);
+}
+
 // ---------- service worker ----------
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
@@ -211,7 +233,7 @@ async function boot() {
 
     document.body.insertAdjacentHTML('beforeend', tabBar());
     document.getElementById('fab').onclick = fabAction;
-    $('#splash')?.remove();
+    hideSplash();
 
     await sync.init(); // avant le premier rendu : l'écran Profil sait si la synchro existe
 
@@ -236,11 +258,11 @@ async function boot() {
     });
 
     registerSW();
-    $('#splash')?.remove();
+    hideSplash();
   } catch (e) {
     console.error(e);
     $('#view').innerHTML = `<div class="screen-pad"><div class="empty"><h3>Erreur au démarrage</h3><p>${esc(e.message||e)}</p></div></div>`;
-    $('#splash')?.remove();
+    hideSplash();
   }
 }
 

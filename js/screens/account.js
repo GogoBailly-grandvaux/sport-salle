@@ -5,14 +5,22 @@ import { sheet, toast, icon, confirmDialog } from '../ui.js';
 import { call, isLoggedIn, account } from '../api.js';
 import * as sync from '../sync.js';
 
+const LAST_USER_KEY = 'sportsalle-last-username';
+const lastUsername = () => { try { return localStorage.getItem(LAST_USER_KEY) || ''; } catch { return ''; } };
+
 let wired = false;
 export function wireAuthEvents() {
   if (wired) return; wired = true;
   on('auth-expired', async () => {
     if (ps('account')) {
       await savePSettings({ account: null });
-      toast('Session expirée — reconnecte-toi', { type: 'error', duration: 5000 });
       emit('account-changed');
+      toast('Ta session a expiré', {
+        type: 'error', duration: 8000, actionText: 'Se reconnecter',
+        onAction: () => openAuthSheet('login', () => nav.refresh()),
+      });
+      // on ne rafraîchit jamais en pleine séance (ne pas casser la saisie)
+      if (nav.current !== 'workout' && nav.current !== 'summary') nav.refresh();
     }
   });
 }
@@ -28,6 +36,7 @@ async function applySession(res) {
     await setActiveProfile(p.id);
   }
   await savePSettings({ account: { token: res.token, user: res.user } });
+  try { localStorage.setItem(LAST_USER_KEY, res.user.username); } catch {}
   emit('account-changed');
   sync.syncNow(); // première synchro du compte (fusionne local + serveur)
 }
@@ -73,61 +82,134 @@ async function mountGoogleButton(container, onDone, closeSheet) {
   } catch { /* bouton Google indisponible : le formulaire classique reste */ }
 }
 
+// ---- erreurs inline sous les champs ----
+const USER_RX = /^[a-z0-9_.]{3,20}$/;
+function anchorOf(input) { return input.closest('.input-ico, .pw-wrap') || input; }
+function clearFieldError(input) {
+  input.classList.remove('invalid');
+  const a = anchorOf(input);
+  if (a.nextElementSibling?.classList?.contains('field-err')) a.nextElementSibling.remove();
+}
+function fieldError(input, msg) {
+  clearFieldError(input);
+  input.classList.add('invalid');
+  const err = document.createElement('p');
+  err.className = 'field-err';
+  err.textContent = msg;
+  anchorOf(input).insertAdjacentElement('afterend', err);
+  input.addEventListener('input', () => clearFieldError(input), { once: true });
+  input.focus();
+}
+
 export function openAuthSheet(mode = 'register', onDone = null) {
   const p = activeProfile();
-  const isReg = mode === 'register';
-  const s = sheet(`
+  let m = mode;
+  const s = sheet(`<div id="auth-wrap"></div><div id="gsi-host"></div>`,
+    { title: m === 'register' ? 'Créer un compte' : 'Connexion' });
+  const wrap = s.root.querySelector('#auth-wrap');
+  const setTitle = (t) => { const h = s.root.querySelector('.sheet-head h3'); if (h) h.textContent = t; };
+
+  const formHtml = (isReg) => `
     <div class="segmented sm auth-swap">
-      <button class="seg ${isReg ? 'on' : ''}" data-m="register">Créer un compte</button>
-      <button class="seg ${!isReg ? 'on' : ''}" data-m="login">Se connecter</button>
+      <button class="seg ${isReg ? 'on' : ''}" type="button" data-m="register">Créer un compte</button>
+      <button class="seg ${!isReg ? 'on' : ''}" type="button" data-m="login">Se connecter</button>
     </div>
-    <form id="auth-form" autocomplete="on">
-      <label class="field-label">Pseudo (unique, sans espace)</label>
-      <div class="input-ico"><span class="at">@</span><input class="input at-input" id="au-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="hugo_b" minlength="3" maxlength="20" required></div>
-      ${isReg ? `<label class="field-label">Prénom affiché</label>
-      <input class="input" id="au-name" value="${esc(p?.name || '')}" maxlength="40" required>` : ''}
-      <label class="field-label">Mot de passe ${isReg ? '(8 caractères minimum)' : ''}</label>
-      <input class="input" id="au-pass" name="password" type="password" autocomplete="${isReg ? 'new-password' : 'current-password'}" minlength="8" required>
+    <form id="auth-form" autocomplete="on" novalidate>
+      <label class="field-label" for="au-user">Pseudo${isReg ? ' (unique, sans espace)' : ''}</label>
+      <div class="input-ico"><span class="at">@</span><input class="input at-input" id="au-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="hugo_b" maxlength="20" required></div>
+      ${isReg ? `<label class="field-label" for="au-name">Prénom affiché</label>
+      <input class="input" id="au-name" value="${esc(p?.name || '')}" maxlength="40">` : ''}
+      <label class="field-label" for="au-pass">Mot de passe${isReg ? ' (8 caractères minimum)' : ''}</label>
+      <div class="pw-wrap">
+        <input class="input" id="au-pass" name="password" type="password" autocomplete="${isReg ? 'new-password' : 'current-password'}" required>
+        <button type="button" class="pw-eye" aria-label="Afficher le mot de passe" aria-pressed="false">${icon('eye')}</button>
+      </div>
       <button class="btn primary full big" id="au-go" type="submit">${isReg ? 'Créer mon compte' : 'Se connecter'}</button>
-      <p class="mut sm center" style="margin-top:10px">${isReg
+      <p class="mut sm center auth-hint">${isReg
         ? 'Ton compte permet de retrouver tes données sur n’importe quel téléphone, d’ajouter des amis et de partager tes programmes.'
         : 'Tes données locales seront fusionnées avec celles de ton compte.'}</p>
-    </form>
-    <div id="gsi-host"></div>`,
-    { title: isReg ? 'Créer un compte' : 'Connexion' });
+    </form>`;
 
-  mountGoogleButton(s.root.querySelector('#gsi-host'), onDone, () => s.close());
+  const renderForm = (focusNow) => {
+    const isReg = m === 'register';
+    setTitle(isReg ? 'Créer un compte' : 'Connexion');
+    wrap.innerHTML = formHtml(isReg);
 
-  s.root.querySelectorAll('[data-m]').forEach(b => b.onclick = (e) => {
-    e.preventDefault(); s.close(); openAuthSheet(b.dataset.m, onDone);
-  });
+    const userInp = wrap.querySelector('#au-user');
+    const passInp = wrap.querySelector('#au-pass');
 
-  s.root.querySelector('#auth-form').onsubmit = async (e) => {
-    e.preventDefault();
-    const btn = s.root.querySelector('#au-go');
-    btn.disabled = true; btn.textContent = '…';
-    const username = s.root.querySelector('#au-user').value.trim().toLowerCase();
-    const password = s.root.querySelector('#au-pass').value;
-    try {
-      let res;
-      if (isReg) {
-        const displayName = s.root.querySelector('#au-name').value.trim() || username;
-        res = await call('auth', 'register', {
-          username, password, displayName,
-          emoji: p?.emoji || null, accent: p?.accent || 'ember',
-        }, { auth: false });
-      } else {
-        res = await call('auth', 'login', { username, password }, { auth: false });
-      }
-      await applySession(res);
-      s.close();
-      toast(isReg ? `Bienvenue @${res.user.username} ! 🎉` : `Content de te revoir @${res.user.username} 💪`);
-      if (onDone) onDone(res);
-    } catch (err) {
-      toast(err.message, { type: 'error', duration: 4500 });
-      btn.disabled = false; btn.textContent = isReg ? 'Créer mon compte' : 'Se connecter';
+    // bascule inscription ↔ connexion sans fermer le sheet
+    wrap.querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
+      if (b.dataset.m === m) return;
+      m = b.dataset.m; renderForm(true);
+    });
+
+    // œil : afficher / masquer le mot de passe
+    const eye = wrap.querySelector('.pw-eye');
+    eye.onclick = () => {
+      const show = passInp.type === 'password';
+      passInp.type = show ? 'text' : 'password';
+      eye.setAttribute('aria-pressed', String(show));
+      eye.setAttribute('aria-label', show ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+      eye.innerHTML = icon(show ? 'eyeoff' : 'eye');
+      passInp.focus();
+    };
+
+    // connexion : pré-remplit le dernier pseudo utilisé
+    if (!isReg) {
+      const last = lastUsername();
+      if (last) userInp.value = last;
     }
+    const target = (!isReg && userInp.value) ? passInp : userInp;
+    setTimeout(() => target.focus(), focusNow ? 0 : 300); // après l'animation d'ouverture
+
+    wrap.querySelector('#auth-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const username = userInp.value.trim().toLowerCase();
+      const password = passInp.value;
+
+      // validation locale, en français et sous le bon champ
+      if (!USER_RX.test(username)) {
+        fieldError(userInp, username.length < 3
+          ? 'Au moins 3 caractères.'
+          : 'Lettres minuscules, chiffres, « _ » et « . » uniquement (3 à 20).');
+        return;
+      }
+      if (!password) { fieldError(passInp, 'Ton mot de passe.'); return; }
+      if (isReg && password.length < 8) { fieldError(passInp, '8 caractères minimum.'); return; }
+
+      const btn = wrap.querySelector('#au-go');
+      const label = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner" aria-label="Chargement"></span>';
+      try {
+        let res;
+        if (isReg) {
+          const displayName = (wrap.querySelector('#au-name')?.value || '').trim() || username;
+          res = await call('auth', 'register', {
+            username, password, displayName,
+            emoji: p?.emoji || null, accent: p?.accent || 'ember',
+          }, { auth: false });
+        } else {
+          res = await call('auth', 'login', { username, password }, { auth: false });
+        }
+        await applySession(res);
+        s.close();
+        toast(isReg ? `Bienvenue @${res.user.username} ! 🎉` : `Content de te revoir @${res.user.username} 💪`);
+        if (onDone) onDone(res);
+      } catch (err) {
+        btn.disabled = false; btn.innerHTML = label;
+        const form = wrap.querySelector('#auth-form');
+        form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
+        if (err.status === 409) fieldError(userInp, 'Ce pseudo est déjà pris.');
+        else if (err.status === 401) { fieldError(passInp, 'Pseudo ou mot de passe incorrect.'); passInp.select?.(); }
+        else toast(err.status === 0 ? 'Hors-ligne ou serveur injoignable' : err.message, { type: 'error', duration: 4500 });
+      }
+    };
   };
+
+  renderForm(false);
+  mountGoogleButton(s.root.querySelector('#gsi-host'), onDone, () => s.close());
 }
 
 export async function logout() {

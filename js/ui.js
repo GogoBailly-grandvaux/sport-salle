@@ -39,6 +39,8 @@ const P = {
   google:'<path d="M21.35 12.23c0-.68-.06-1.33-.17-1.96H12v3.7h5.24a4.48 4.48 0 01-1.94 2.94v2.45h3.14c1.84-1.7 2.91-4.2 2.91-7.13z" fill="#4285F4" stroke="none"/><path d="M12 21.5c2.62 0 4.82-.87 6.43-2.35l-3.14-2.45c-.87.58-1.98.93-3.29.93-2.53 0-4.68-1.71-5.44-4.01H3.31v2.52A9.7 9.7 0 0012 21.5z" fill="#34A853" stroke="none"/><path d="M6.56 13.62a5.84 5.84 0 010-3.73V7.37H3.31a9.72 9.72 0 000 8.77l3.25-2.52z" fill="#FBBC05" stroke="none"/><path d="M12 6.38c1.43 0 2.71.49 3.72 1.45l2.78-2.78A9.66 9.66 0 0012 2.5a9.7 9.7 0 00-8.69 5.37l3.25 2.52C7.32 8.09 9.47 6.38 12 6.38z" fill="#EA4335" stroke="none"/>',
   finger:'<path d="M12 11a2 2 0 012 2v3a7 7 0 01-1 3.5M12 11a2 2 0 00-2 2v1M12 7.5a5.5 5.5 0 015.5 5.5v2M12 7.5A5.5 5.5 0 006.5 13v3a9 9 0 00.8 3.5M12 4a9 9 0 019 9v1.5M12 4a9 9 0 00-8.2 5.3"/>',
   calc:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/>',
+  eye:'<path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M3 3l18 18M10.6 5.2A10.6 10.6 0 0112 5.1c6.5 0 10 6.9 10 6.9a17.6 17.6 0 01-3.3 4.1M6.5 6.6C3.7 8.5 2 12 2 12s3.5 6.9 10 6.9c1.5 0 2.9-.4 4.2-1"/><path d="M9.9 9.9a3 3 0 104.2 4.2"/>',
 };
 
 export function icon(name, cls = '') {
@@ -74,6 +76,7 @@ export function sheet(contentHtml, opts = {}) {
   const sheetEl = back.querySelector('.sheet');
   requestAnimationFrame(() => back.classList.add('in'));
   const close = (val) => {
+    sheetEl.style.transition = ''; sheetEl.style.transform = '';
     back.classList.remove('in');
     document.body.classList.remove('no-scroll');
     setTimeout(() => back.remove(), 240);
@@ -81,6 +84,31 @@ export function sheet(contentHtml, opts = {}) {
   };
   back.addEventListener('click', e => { if (e.target === back) close(); });
   back.querySelector('.sheet-x')?.addEventListener('click', () => close());
+  // glisser vers le bas (poignée ou en-tête) pour fermer, comme une app native
+  let dragY = null;
+  const dragMove = e => {
+    if (dragY == null) return;
+    sheetEl.style.transform = `translateY(${Math.max(0, e.clientY - dragY)}px)`;
+    e.preventDefault();
+  };
+  const dragEnd = e => {
+    if (dragY == null) return;
+    const d = (e.clientY ?? 0) - dragY; dragY = null;
+    sheetEl.style.transition = '';
+    if (e.type !== 'pointercancel' && d > 90) close(); else sheetEl.style.transform = '';
+    window.removeEventListener('pointermove', dragMove);
+    window.removeEventListener('pointerup', dragEnd);
+    window.removeEventListener('pointercancel', dragEnd);
+  };
+  const dragStart = e => {
+    if (e.target.closest('.sheet-x')) return;
+    dragY = e.clientY; sheetEl.style.transition = 'none';
+    window.addEventListener('pointermove', dragMove, { passive: false });
+    window.addEventListener('pointerup', dragEnd);
+    window.addEventListener('pointercancel', dragEnd);
+  };
+  back.querySelector('.sheet-grip')?.addEventListener('pointerdown', dragStart);
+  back.querySelector('.sheet-head')?.addEventListener('pointerdown', dragStart);
   const esckey = e => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esckey); } };
   document.addEventListener('keydown', esckey);
   if (opts.onMount) opts.onMount(sheetEl, close);
