@@ -636,6 +636,7 @@ body.welcome-mode .tabbar{display:none}
 .wel-actions{display:flex;flex-direction:column;gap:2px}
 .wel-guest{border:none;background:transparent;color:var(--muted);font-weight:600;padding:14px;font-size:.92rem}
 .wel-guest:active{color:var(--text)}
+.wel-req{color:var(--muted);font-size:.78rem;margin-top:14px;line-height:1.45}
 /* entrée en scène de l'écran de bienvenue */
 .wel-logo{animation:welPop .5s cubic-bezier(.2,.8,.2,1) both}
 .wel-title{animation:welUp .45s .08s cubic-bezier(.2,.8,.2,1) both}

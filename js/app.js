@@ -1,7 +1,7 @@
 // app.js — boot, router, tab bar, service worker, onboarding
 import { $, esc } from './util.js';
 import {
-  state, nav, emit, on, applyTheme, ACCENTS,
+  state, nav, emit, on, applyTheme, ACCENTS, ps,
   loadGlobal, saveGlobal, loadProfiles, loadPSettings, createProfile, setActiveProfile, activeProfile, accentHex,
 } from './store.js';
 import * as db from './db.js';
@@ -144,7 +144,7 @@ function welcome() {
           ${online ? `
           <button class="btn primary full big" id="wel-register">Créer un compte gratuit</button>
           <button class="btn ghost full" id="wel-login">J'ai déjà un compte</button>
-          <button class="wel-guest" id="wel-guest">Continuer sans compte →</button>`
+          <p class="wel-req">Compte gratuit obligatoire — tes séances, amis et programmes te suivent partout.</p>`
           : `<button class="btn primary full big" id="wel-guest">Commencer</button>`}
         </div>
       </div>
@@ -243,6 +243,9 @@ async function boot() {
     else {
       const active = state.global.activeProfileId && state.profiles.find(p => p.id === state.global.activeProfileId);
       await setActiveProfile(active ? active.id : state.profiles[0].id);
+      // compte OBLIGATOIRE dès que le serveur existe : sans session, on ne rentre pas.
+      // (une fois connecté, le jeton local de 90 jours suffit → l'app marche hors-ligne)
+      if (sync.isConfigured() && !ps('account')) { applyTheme(); await welcome(); }
     }
     applyTheme();
 

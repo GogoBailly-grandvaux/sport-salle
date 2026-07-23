@@ -224,7 +224,8 @@ export async function logout() {
   await savePSettings({ account: null });
   emit('account-changed');
   toast('Déconnecté');
-  nav.refresh();
+  // compte obligatoire : retour à l'écran de connexion
+  setTimeout(() => { location.hash = ''; location.reload(); }, 600);
 }
 
 export function accountCardHtml() {
@@ -260,7 +261,7 @@ async function deleteAccount() {
     await savePSettings({ account: null });
     emit('account-changed');
     toast('Compte supprimé. Tes données locales restent sur ce téléphone.');
-    nav.refresh();
+    setTimeout(() => { location.hash = ''; location.reload(); }, 1500);
   } catch (e) { toast(e.message, { type: 'error' }); }
 }
 
