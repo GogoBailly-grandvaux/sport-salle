@@ -15,6 +15,7 @@ $results = [];
 foreach ($files as $f) {
   if (!file_exists($f)) { $results[] = ['file' => basename($f), 'error' => 'absent']; continue; }
   $sql = file_get_contents($f);
+  $sql = preg_replace('/^\s*--.*$/m', '', $sql); // retire les commentaires (sinon ^CREATE ne matche pas)
   // sécurité : on ne garde que les CREATE TABLE IF NOT EXISTS
   $stmts = array_filter(array_map('trim', explode(';', $sql)), fn($s) => $s !== '');
   foreach ($stmts as $stmt) {
