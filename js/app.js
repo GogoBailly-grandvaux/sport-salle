@@ -218,23 +218,29 @@ function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   const hadController = !!navigator.serviceWorker.controller; // false = toute 1re visite (le claim() n'est pas une mise à jour)
   let userRequestedUpdate = false;
+  const applyUpdate = (sw) => { userRequestedUpdate = true; sw.postMessage('skipWaiting'); };
+  // Mise à jour AUTOMATIQUE (« hard refresh ») dès qu'une nouvelle version est
+  // téléchargée — jamais en pleine séance : là, elle s'installe dès la fin.
+  const applyWhenSafe = (sw) => {
+    if (!document.body.classList.contains('workout-mode')) { applyUpdate(sw); return; }
+    toast('Mise à jour prête — elle s\u2019installera après ta séance', { duration: 5000 });
+    const t = setInterval(() => {
+      if (!document.body.classList.contains('workout-mode')) { clearInterval(t); applyUpdate(sw); }
+    }, 20000);
+  };
   navigator.serviceWorker.register('sw.js').then(reg => {
-    // une mise à jour téléchargée lors d'une visite précédente attend encore :
-    // on l'applique immédiatement au démarrage (rien n'est saisi → reload indolore).
-    // Fini les appareils bloqués sur une vieille version faute d'avoir tapé « Recharger ».
-    if (reg.waiting && navigator.serviceWorker.controller) {
-      userRequestedUpdate = true;
-      reg.waiting.postMessage('skipWaiting');
-      return;
-    }
+    // une mise à jour attendait depuis une visite précédente → on l'applique
+    if (reg.waiting && navigator.serviceWorker.controller) applyWhenSafe(reg.waiting);
     reg.addEventListener('updatefound', () => {
       const nw = reg.installing;
       nw && nw.addEventListener('statechange', () => {
-        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-          toast('Mise à jour disponible', { actionText: 'Recharger', duration: 8000, onAction: () => { userRequestedUpdate = true; nw.postMessage('skipWaiting'); } });
-        }
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) applyWhenSafe(nw);
       });
     });
+    // détection rapide d'un déploiement pendant que l'app est ouverte :
+    // re-vérifie au retour au premier plan + toutes les 15 minutes
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+    setInterval(() => reg.update().catch(() => {}), 15 * 60 * 1000);
   }).catch(() => {});
   let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
