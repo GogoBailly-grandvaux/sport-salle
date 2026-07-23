@@ -29,7 +29,8 @@ jobs:
         run: node tests/merge.test.mjs
 
       - name: Données exercices valides
-        run: node -e "const d=require('./data/exercises.json'); if(!Array.isArray(d)||d.length<1000) throw new Error('exercises.json suspect: '+d.length); console.log('✓', d.length, 'exercices')"
+        run: |
+          node -e "const d=require('./data/exercises.json'); if(!Array.isArray(d)||d.length<1000) throw new Error('exercises.json suspect '+d.length); console.log('OK', d.length, 'exercices')"
 
       - uses: shivammathur/setup-php@v2
         with:
