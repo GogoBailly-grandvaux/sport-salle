@@ -308,6 +308,8 @@ textarea.input{height:auto;padding:12px 14px}
   padding:12px 14px calc(12px + var(--safe-b));background:var(--surface);border-top:1px solid var(--line2);
   max-width:620px;margin:0 auto;box-shadow:0 -6px 20px rgba(0,0,0,.15)}
 .rest-bar.show{display:flex}
+/* le repos continue hors séance : barre flottante au-dessus de la tabbar */
+body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--safe-b));border:1px solid var(--line2);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.28)}
 .rest-fill{position:absolute;left:0;top:0;height:3px;background:var(--accent);transition:width 1s linear}
 .rest-bar.ending .rest-fill{background:var(--danger)}
 .rest-time{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums;min-width:66px;text-align:center;color:var(--accent)}

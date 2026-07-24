@@ -15,7 +15,7 @@ let W = null;
 let prevMap = new Map();       // exerciseId -> [prev sets]
 let elapsedTimer = null;
 let onVis = null;              // handler visibilitychange (chrono actif)
-let rest = { timer: null, remaining: 0, total: 0, hideTimeout: null };
+let rest = { timer: null, endsAt: 0, total: 0, hideTimeout: null };
 let audioCtx = null;
 
 const persist = debounce(() => { if (W) saveWorkout(W); }, 350);
@@ -125,6 +125,8 @@ export function mount(root, params) {
   };
   document.addEventListener('visibilitychange', onVis);
 
+  resumeRestIfRunning(); // si un repos courait quand on a quitté l'écran, on le rattrape
+
   // delegated input
   exs.addEventListener('input', e => {
     const inp = e.target.closest('.set-in'); if (!inp) return;
@@ -162,8 +164,9 @@ export function mount(root, params) {
 export function unmount() {
   clearInterval(elapsedTimer); elapsedTimer = null;
   if (onVis) { document.removeEventListener('visibilitychange', onVis); onVis = null; }
-  freezeElapsed(); // fige le temps actif en quittant l'écran
-  clearRest();
+  freezeElapsed(); // fige le temps ACTIF (chrono séance) en quittant l'écran
+  // NB : on ne coupe PAS le minuteur de repos — il continue en horloge murale
+  // (barre flottante) et se reprend au retour sur l'écran.
   document.body.classList.remove('workout-mode');
   if (W && W.status === 'in_progress') saveWorkout(W);
 }
@@ -418,17 +421,38 @@ async function renameSession() {
 
 async function discard() {
   if (await confirmDialog({ title: t('Abandonner ?','Discard?'), message: t('La séance en cours sera supprimée. Sûr ?','The current workout will be deleted. Sure?'), confirmText: t('Abandonner','Discard'), danger: true })) {
-    await deleteWorkout(W.id); const id = W.id; W = null;
+    clearRest();
+    await deleteWorkout(W.id); W = null;
     nav.go('#/home');
   }
 }
 
+// recopie dans le modèle les valeurs actuellement tapées dans les champs
+function syncInputsFromDom() {
+  document.querySelectorAll('#wk-exs .wk-ex').forEach(exEl => {
+    const ex = findEx(exEl.dataset.ex); if (!ex) return;
+    exEl.querySelectorAll('.set-row').forEach(row => {
+      const s = findSet(ex, row.dataset.set); if (!s) return;
+      const w = row.querySelector('.set-in.w')?.value ?? '';
+      const r = row.querySelector('.set-in.r')?.value ?? '';
+      if (w !== '') s.weightKg = parseFloat(w.replace(',', '.'));
+      if (r !== '') s.reps = Math.round(parseFloat(r.replace(',', '.')));
+    });
+  });
+}
+
 async function finish() {
-  // Rien de validé ? On demande SANS toucher au modèle vivant.
+  syncInputsFromDom(); // récupère les dernières valeurs tapées (au cas où)
+  // Séries remplies (poids OU reps saisi) mais pas cochées → on les valide :
+  // avoir saisi ses chiffres, c'est avoir fait la série. Fini le « rien ne se passe ».
+  for (const ex of W.exercises) for (const s of ex.sets) {
+    if (!s.done && (s.weightKg != null || s.reps != null)) { s.done = true; if (!s.completedAt) s.completedAt = Date.now(); }
+  }
   const anyDone = W.exercises.some(ex => ex.sets.some(s => s.done));
   if (!anyDone) {
-    if (await confirmDialog({ title: t('Aucune série validée','No sets completed'), message: t('Rien n’a été validé. Abandonner la séance ?','Nothing was checked off. Discard the workout?'), confirmText: t('Abandonner','Discard'), danger: true })) {
-      await deleteWorkout(W.id); nav.go('#/home');
+    // vraiment aucune donnée saisie → la séance est vide, on propose de quitter
+    if (await confirmDialog({ title: t('Séance vide','Empty workout'), message: t('Tu n’as saisi aucune série. Quitter la séance ? (rien ne sera enregistré)','You didn’t log any set. Leave the workout? (nothing will be saved)'), confirmText: t('Quitter','Leave'), danger: true })) {
+      clearRest(); await deleteWorkout(W.id); W = null; nav.go('#/home');
     }
     return; // annulation : la séance continue, intacte
   }
@@ -466,32 +490,45 @@ function ensureRestBar() {
   }
   return bar;
 }
+// Minuteur de repos = HORLOGE MURALE : on stocke l'instant de fin (endsAt) et on
+// recalcule le restant à chaque tick. Le repos continue donc même si on quitte
+// l'écran de séance ou si le téléphone se verrouille (on le reprend au retour).
+function restRemaining() {
+  return rest.endsAt ? Math.max(0, Math.round((rest.endsAt - Date.now()) / 1000)) : 0;
+}
 function startRest(sec) {
   if (!sec || sec <= 0) return;
   clearRest(true);
-  rest.total = sec; rest.remaining = sec;
+  rest.total = sec;
+  rest.endsAt = Date.now() + sec * 1000;
+  if (W) { W._restEndsAt = rest.endsAt; W._restTotal = sec; persist(); }
   const bar = ensureRestBar(); bar.classList.remove('done'); bar.classList.add('show');
   updateRest();
-  rest.timer = setInterval(() => {
-    rest.remaining -= 1; updateRest();
-    if (rest.remaining <= 0) { restDone(); }
-  }, 1000);
+  rest.timer = setInterval(tickRest, 250); // 250 ms : fluide + robuste au throttling d'arrière-plan
+}
+function tickRest() {
+  updateRest();
+  if (restRemaining() <= 0) restDone();
 }
 function updateRest() {
   const bar = document.getElementById('rest-bar'); if (!bar) return;
-  bar.querySelector('#rest-time').textContent = fmtClock(Math.max(0, rest.remaining));
-  const pct = rest.total ? Math.max(0, rest.remaining) / rest.total * 100 : 0;
+  const rem = restRemaining();
+  bar.querySelector('#rest-time').textContent = fmtClock(rem);
+  const pct = rest.total ? rem / rest.total * 100 : 0;
   bar.querySelector('#rest-fill').style.width = pct + '%';
-  bar.classList.toggle('ending', rest.remaining <= 10 && rest.remaining > 0);
+  bar.classList.toggle('ending', rem <= 10 && rem > 0);
 }
 function adjustRest(delta) {
   if (!rest.timer) return;
-  rest.remaining = Math.max(1, rest.remaining + delta);
-  rest.total = Math.max(rest.total, rest.remaining);
+  rest.endsAt = Math.max(Date.now() + 1000, rest.endsAt + delta * 1000);
+  rest.total = Math.max(rest.total, restRemaining());
+  if (W) { W._restEndsAt = rest.endsAt; persist(); }
   updateRest();
 }
 function restDone() {
-  clearInterval(rest.timer); rest.timer = null;
+  if (rest.timer) { clearInterval(rest.timer); rest.timer = null; }
+  rest.endsAt = 0;
+  if (W) { W._restEndsAt = 0; persist(); }
   vibrate([120, 60, 120]); beep();
   const bar = document.getElementById('rest-bar');
   if (bar) {
@@ -502,10 +539,22 @@ function restDone() {
     try { new Notification(t('Repos terminé 💪','Rest over 💪'), { body: t('Série suivante !','Next set!'), silent: false }); } catch {}
   }
 }
+// Reprend l'affichage du repos s'il court encore (retour sur l'écran de séance,
+// ou relance de l'app en plein repos : endsAt est persisté sur la séance).
+function resumeRestIfRunning() {
+  if (!W || !W._restEndsAt) return;
+  if (W._restEndsAt <= Date.now()) { W._restEndsAt = 0; return; }
+  rest.endsAt = W._restEndsAt;
+  rest.total = W._restTotal || Math.max(1, restRemaining());
+  const bar = ensureRestBar(); bar.classList.remove('done'); bar.classList.add('show');
+  updateRest();
+  if (!rest.timer) rest.timer = setInterval(tickRest, 250);
+}
 function clearRest(keepBar) {
   if (rest.hideTimeout) { clearTimeout(rest.hideTimeout); rest.hideTimeout = null; } // évite qu'un ancien timeout masque le repos suivant
   if (rest.timer) { clearInterval(rest.timer); rest.timer = null; }
-  rest.remaining = 0;
+  rest.endsAt = 0;
+  if (W) W._restEndsAt = 0;
   if (!keepBar) { const bar = document.getElementById('rest-bar'); if (bar) bar.classList.remove('show','ending','done'); }
 }
 function beep() {
