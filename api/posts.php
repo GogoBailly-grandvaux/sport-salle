@@ -66,6 +66,38 @@ function post_author_visible(int $postId, int $viewer): int {
 }
 
 /** Exécute $fn ; si les tables du fil n'existent pas encore, les crée et réessaie. */
+function ensure_moderation(): void {
+  ensure_posts_tables();
+  db()->exec("CREATE TABLE IF NOT EXISTS content_reports (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    reporter_id INT UNSIGNED NOT NULL,
+    kind        ENUM('post','comment') NOT NULL,
+    ref_id      INT UNSIGNED NOT NULL,
+    reason      VARCHAR(200) DEFAULT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_report (reporter_id, kind, ref_id),
+    CONSTRAINT fk_cr_user FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  foreach ([
+    "ALTER TABLE posts ADD COLUMN hidden TINYINT(1) NOT NULL DEFAULT 0",
+    "ALTER TABLE post_comments ADD COLUMN hidden TINYINT(1) NOT NULL DEFAULT 0",
+  ] as $sql) {
+    try { db()->exec($sql); }
+    catch (PDOException $e) {
+      $m = $e->getMessage();
+      if ($e->getCode() !== '42S21' && strpos($m, '1060') === false) { throw $e; }
+    }
+  }
+}
+function with_moderation(callable $fn) {
+  try { return $fn(); }
+  catch (PDOException $e) {
+    if (!in_array($e->getCode(), ['42S02', '42S22'], true)) { throw $e; }
+    ensure_moderation();
+    return $fn();
+  }
+}
+
 function with_posts(callable $fn) {
   try { return $fn(); }
   catch (PDOException $e) {
@@ -89,12 +121,14 @@ switch ($action) {
     $params = $ids;
     $whereBefore = '';
     if ($before > 0) { $whereBefore = ' AND p.id < ?'; $params[] = $before; }
-    $rows = with_posts(function () use ($ph, $whereBefore, $params) {
+    $params[] = $me['id']; // pour le filtre « déjà signalé par moi »
+    $rows = with_moderation(function () use ($ph, $whereBefore, $params) {
       $st = db()->prepare(
         "SELECT p.id, p.user_id, p.kind, p.content, UNIX_TIMESTAMP(p.created_at) AS ts,
                 u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo, u.verified
          FROM posts p JOIN users u ON u.id = p.user_id
-         WHERE p.user_id IN ($ph)$whereBefore
+         WHERE p.user_id IN ($ph)$whereBefore AND COALESCE(p.hidden, 0) = 0
+           AND NOT EXISTS (SELECT 1 FROM content_reports cr WHERE cr.kind = 'post' AND cr.ref_id = p.id AND cr.reporter_id = ?)
          ORDER BY p.id DESC LIMIT 30"
       );
       $st->execute($params);
@@ -148,12 +182,12 @@ switch ($action) {
     if (!can_view_content($me['id'], $uid, $row['privacy'] ?? 'friends')) { fail(403, 'compte privé — ajoute cette personne pour voir ses posts'); }
     $params = [$uid]; $whereBefore = '';
     if ($before > 0) { $whereBefore = ' AND p.id < ?'; $params[] = $before; }
-    $rows = with_posts(function () use ($whereBefore, $params) {
+    $rows = with_moderation(function () use ($whereBefore, $params) {
       $st = db()->prepare(
         "SELECT p.id, p.user_id, p.kind, p.content, UNIX_TIMESTAMP(p.created_at) AS ts,
                 u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
          FROM posts p JOIN users u ON u.id = p.user_id
-         WHERE p.user_id = ?$whereBefore ORDER BY p.id DESC LIMIT 30");
+         WHERE p.user_id = ?$whereBefore AND COALESCE(p.hidden, 0) = 0 ORDER BY p.id DESC LIMIT 30");
       $st->execute($params);
       return $st->fetchAll(PDO::FETCH_ASSOC);
     });
@@ -271,13 +305,15 @@ switch ($action) {
   case 'comments': {
     $postId = (int)($b['postId'] ?? 0);
     post_author_visible($postId, $me['id']);
-    $rows = with_posts(function () use ($postId) {
+    $rows = with_moderation(function () use ($postId, $me) {
       $st = db()->prepare(
-        'SELECT c.id, c.text, UNIX_TIMESTAMP(c.created_at) AS ts, c.user_id,
+        "SELECT c.id, c.text, UNIX_TIMESTAMP(c.created_at) AS ts, c.user_id,
                 u.username, u.display_name, u.avatar_emoji, u.accent
          FROM post_comments c JOIN users u ON u.id = c.user_id
-         WHERE c.post_id = ? ORDER BY c.id ASC LIMIT 100');
-      $st->execute([$postId]);
+         WHERE c.post_id = ? AND COALESCE(c.hidden, 0) = 0
+           AND NOT EXISTS (SELECT 1 FROM content_reports cr WHERE cr.kind = 'comment' AND cr.ref_id = c.id AND cr.reporter_id = ?)
+         ORDER BY c.id ASC LIMIT 100");
+      $st->execute([$postId, $me['id']]);
       return $st->fetchAll(PDO::FETCH_ASSOC);
     });
     $out = [];

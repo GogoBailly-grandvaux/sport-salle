@@ -154,7 +154,7 @@ function postBody(p) {
   const c = p.content || {};
   if (p.kind === 'workout') {
     const chips = [
-      c.sets ? `<span class="fr-chip">${c.sets} ${t('séries','sets')}</span>` : '',
+      c.sets ? `<span class="fr-chip">${c.sets} ${t('série','set')}${c.sets > 1 ? 's' : ''}</span>` : '',
       c.volume ? `<span class="fr-chip">${Number(c.volume).toLocaleString(t('fr-FR','en-US'))} kg</span>` : '',
       c.durationSec ? `<span class="fr-chip">${fmtDur(c.durationSec)}</span>` : '',
       c.prs ? `<span class="fr-chip hot">${icon('trophy')} ${c.prs} PR${c.prs > 1 ? 's' : ''}</span>` : '',
@@ -199,7 +199,7 @@ function postCard(p) {
         ${avatarHtml(a)}
         <div class="post-who"><b>${esc(a.displayName || '')}${a.verified ? ` <span class="verif" role="img" aria-label="${t('Compte vérifié','Verified account')}">${icon('check')}</span>` : ''}</b><span class="mut sm">@${esc(a.username || '')} · ${ago(p.ts)}</span></div>
       </div>
-      ${p.isMine ? `<button class="icon-btn sm post-del" data-del="${p.id}" aria-label="${t('Supprimer le post','Delete post')}">${icon('trash')}</button>` : ''}
+      ${p.isMine ? `<button class="icon-btn sm post-del" data-del="${p.id}" aria-label="${t('Supprimer le post','Delete post')}">${icon('trash')}</button>` : `<button class="icon-btn sm post-flag" data-flag="${p.id}" aria-label="${t('Signaler ce post','Report this post')}">${icon('flag')}</button>`}
     </div>
     ${postBody(p)}
     <div class="react-bar">${reacts}${cChip}</div>
@@ -334,6 +334,28 @@ function wirePosts(root) {
     b.disabled = false;
   });
   root.querySelectorAll('[data-comments]').forEach(b => b.onclick = () => openCommentsSheet(+b.dataset.comments));
+  root.querySelectorAll('[data-flag]').forEach(b => b.onclick = () => openReportSheet('post', +b.dataset.flag, () => b.closest('.post')?.remove()));
+}
+
+// ---------------- modération : signaler un contenu ----------------
+function openReportSheet(kind, id, onDone) {
+  const reasons = [
+    t('Spam ou pub','Spam or ads'), t('Contenu déplacé','Inappropriate content'),
+    t('Harcèlement','Harassment'), t('Autre','Other'),
+  ];
+  const s = sheet(`
+    <p class="mut sm">${t('Ce contenu sera masqué pour toi immédiatement. À partir de 3 signalements, il est masqué pour tout le monde.','Hidden for you immediately. After 3 reports, hidden for everyone.')}</p>
+    ${reasons.map(r => `<button class="menu-row" data-reason="${esc(r)}">${icon('flag')} ${esc(r)}</button>`).join('')}
+  `, { title: t('Signaler','Report') });
+  s.root.querySelectorAll('[data-reason]').forEach(btn => btn.onclick = async () => {
+    btn.disabled = true;
+    try {
+      await call('posts', 'report', { kind, id, reason: btn.dataset.reason });
+      s.close();
+      toast(t('Merci — contenu masqué pour toi.','Thanks — hidden for you.'));
+      if (onDone) onDone();
+    } catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; }
+  });
 }
 
 // ---------------- réponses sous un post ----------------
@@ -343,7 +365,7 @@ function commentRow(c) {
     <div class="cmt-body">
       <div class="cmt-head"><b data-nav="#/u/${esc(c.author.username)}">${esc(c.author.displayName)}</b>
         <span class="mut sm">· ${ago(c.ts)}</span>
-        ${c.isMine ? `<button class="icon-btn sm cmt-del" data-cdel="${c.id}" aria-label="${t('Supprimer','Delete')}">${icon('trash')}</button>` : ''}
+        ${c.isMine ? `<button class="icon-btn sm cmt-del" data-cdel="${c.id}" aria-label="${t('Supprimer','Delete')}">${icon('trash')}</button>` : `<button class="icon-btn sm cmt-flag" data-cflag="${c.id}" aria-label="${t('Signaler','Report')}">${icon('flag')}</button>`}
       </div>
       <p class="cmt-text">${linkify(esc(c.text))}</p>
     </div>
@@ -367,6 +389,7 @@ function openCommentsSheet(postId) {
         ? d.comments.map(commentRow).join('')
         : `<p class="mut sm center" style="padding:18px 0">${t('Sois le premier à répondre','Be the first to reply')}</p>`;
       list.scrollTop = list.scrollHeight;
+      list.querySelectorAll('[data-cflag]').forEach(b => b.onclick = () => openReportSheet('comment', +b.dataset.cflag, () => b.closest('.cmt-row')?.remove()));
       list.querySelectorAll('[data-cdel]').forEach(b => b.onclick = async () => {
         if (!(await confirmDialog({ title: t('Supprimer','Delete'), message: t('Supprimer cette réponse ?','Delete this reply?'), confirmText: t('Supprimer','Delete'), danger: true }))) return;
         try { await call('posts', 'uncomment', { commentId: +b.dataset.cdel }); load(); }
