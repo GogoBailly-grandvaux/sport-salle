@@ -9,6 +9,7 @@ import * as db from '../db.js';
 import { icon, sheet, confirmDialog, toast } from '../ui.js';
 import { backBtn } from './common.js';
 import * as sync from '../sync.js';
+import { isLoggedIn, account } from '../api.js';
 import { accountCardHtml, mountAccountCard } from './account.js';
 import { appLockCardHtml, mountAppLockCard } from '../applock.js';
 import { APP_VERSION } from '../version.js';
@@ -49,6 +50,11 @@ export async function render() {
       </section>` : ''}
 
       ${sync.isConfigured() ? accountCardHtml() : ''}
+      ${sync.isConfigured() && isLoggedIn() ? `<section class="card">
+        <h3 class="card-t">🪪 ${t('Mon profil public','My public profile')}</h3>
+        <p class="mut sm">${t('Nom, bio et confidentialité — compte privé par défaut : seuls tes amis voient tes posts et stats.','Name, bio and privacy — private by default: only friends see your posts and stats.')}</p>
+        <button class="btn ghost full" id="edit-pub-profile">${t('Voir / modifier mon profil','View / edit my profile')}</button>
+      </section>` : ''}
       ${sync.isConfigured() ? appLockCardHtml() : ''}
 
       <section class="card">
@@ -92,6 +98,10 @@ export async function render() {
 }
 
 export function mount(root) {
+  root.querySelector('#edit-pub-profile')?.addEventListener('click', () => {
+    const acc = account();
+    if (acc?.user?.username) nav.go('#/u/' + acc.user.username);
+  });
   root.querySelector('#share-app')?.addEventListener('click', async () => {
     const url = 'https://sportsalle.hbaillyg.fr/';
     const text = t('Je suis mes séances sur Sport Salle — coach, programmes, amis. Gratuit, sans pub :','I track my workouts on Sport Salle — coach, programs, friends. Free, no ads:');

@@ -137,3 +137,8 @@ CREATE TABLE IF NOT EXISTS post_reactions (
   CONSTRAINT fk_pr_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
   CONSTRAINT fk_pr_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v3.2 : profil public — bio + confidentialité (privé par défaut, RGPD by design).
+-- Appliqué en lazy par lib.php ensure_profile_cols() ; ici pour les installations neuves.
+-- ALTER TABLE users ADD COLUMN bio VARCHAR(200) DEFAULT NULL;
+-- ALTER TABLE users ADD COLUMN privacy ENUM('friends','public') NOT NULL DEFAULT 'friends';

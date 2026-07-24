@@ -731,3 +731,26 @@ body.welcome-mode .tabbar{display:none}
 .add-land h2 { margin: 0 0 8px; }
 .add-land .mut { margin: 0 0 22px; }
 .add-land .btn { margin-bottom: 10px; }
+
+/* ---- page profil façon X (v3.2) ---- */
+.prof-head { text-align: center; padding: 8px 4px 2px; }
+.prof-head .avatar.big { width: 76px; height: 76px; font-size: 2rem; margin: 0 auto 10px; }
+.prof-name { margin: 2px 0 2px; font-size: 22px; letter-spacing: -0.01em; }
+.prof-bio { margin: 10px auto 2px; max-width: 46ch; font-size: 14.5px; line-height: 1.5; color: var(--fg); white-space: pre-wrap; word-break: break-word; }
+.prof-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+  margin: 16px 0 14px; padding: 12px 6px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+}
+.prof-stats > div { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.prof-stats b { font-size: 15.5px; font-variant-numeric: tabular-nums; }
+.prof-stats span { font-size: 10.5px; color: var(--mut); text-transform: uppercase; letter-spacing: .05em; }
+.prof-head .btn { margin-top: 4px; }
+.prof-lock {
+  text-align: center; padding: 22px 16px; margin-top: 14px;
+  background: var(--card); border: 1px dashed var(--line); border-radius: 14px;
+}
+.prof-lock p { margin: 6px 0 0; }
+.mention { color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer; }
+.post-a { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; border-radius: 10px; }
+.post-a:active { opacity: .75; }

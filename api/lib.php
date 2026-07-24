@@ -223,6 +223,38 @@ function group_comember_ids(int $userId): array {
   return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
 }
 
+/** Colonnes profil v3.2 (bio, confidentialité) — création lazy. */
+function ensure_profile_cols(): void {
+  foreach ([
+    "ALTER TABLE users ADD COLUMN bio VARCHAR(200) DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN privacy ENUM('friends','public') NOT NULL DEFAULT 'friends'",
+  ] as $sql) {
+    try { db()->exec($sql); }
+    catch (PDOException $e) {
+      // 42S21 / 1060 : colonne déjà là — ok
+      if ($e->getCode() !== '42S21' && strpos($e->getMessage(), '1060') === false) { throw $e; }
+    }
+  }
+}
+
+/** Exécute $fn ; si bio/privacy n'existent pas encore (42S22), migre et réessaie. */
+function with_profile_cols(callable $fn) {
+  try { return $fn(); }
+  catch (PDOException $e) {
+    if ($e->getCode() !== '42S22') { throw $e; }
+    ensure_profile_cols();
+    return $fn();
+  }
+}
+
+/** L'utilisateur $viewer peut-il voir le contenu (posts/stats/programmes) de $owner ?
+ *  Règle : soi-même, ami accepté, ou compte public. Appliquée CÔTÉ SERVEUR partout. */
+function can_view_content(int $viewer, int $ownerId, ?string $ownerPrivacy): bool {
+  if ($viewer === $ownerId) { return true; }
+  if (($ownerPrivacy ?? 'friends') === 'public') { return true; }
+  return are_friends($viewer, $ownerId);
+}
+
 function public_user(array $row): array {
   return [
     'id'          => (int)$row['id'],

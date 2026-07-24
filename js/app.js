@@ -42,6 +42,7 @@ const R = [
   { p:'#/progress/body', name:'progress-body', render:progress.renderBody, mount:progress.mountBody },
   { p:'#/social', name:'social', tab:'social', render:social.render, mount:social.mount },
   { p:'#/add/:username', name:'add-friend', render:social.renderAddFriend, mount:social.mountAddFriend },
+  { p:'#/u/:username', name:'user-profile', render:social.renderUserProfile, mount:social.mountUserProfile },
   { p:'#/social/group/:id', name:'social-group', render:social.renderGroup, mount:social.mountGroup },
   { p:'#/profile', name:'profile', render:profile.render, mount:profile.mount },
 ].map(r => {

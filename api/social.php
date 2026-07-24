@@ -77,6 +77,36 @@ switch ($action) {
     ok(['ok' => true]);
   }
 
+  case 'profile': {
+    // page profil publique : identité toujours ; contenu (stats/programmes)
+    // uniquement si autorisé (soi-même, ami, ou compte public) — RGPD by design
+    $username = strtolower(trim((string)($b['username'] ?? '')));
+    $row = with_profile_cols(function () use ($username) {
+      $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, bio, privacy, created_at FROM users WHERE username = ?');
+      $st->execute([$username]);
+      return $st->fetch(PDO::FETCH_ASSOC);
+    });
+    if (!$row) { fail(404, 'utilisateur introuvable'); }
+    $uid = (int)$row['id'];
+    $out = public_user($row);
+    $out['bio'] = $row['bio'];
+    $out['memberSince'] = substr((string)$row['created_at'], 0, 10);
+    $out['isPublic'] = ($row['privacy'] ?? 'friends') === 'public';
+    $out['relation'] = relation_state($me['id'], $uid);
+    $out['isMe'] = $uid === $me['id'];
+    $canView = can_view_content($me['id'], $uid, $row['privacy'] ?? 'friends');
+    $out['canView'] = $canView;
+    if ($canView) {
+      $stats = stats_for([$uid]);
+      $out['stats'] = $stats[$uid] ?? null;
+      $st = db()->prepare('SELECT id, name, downloads, group_id, created_at FROM shared_programs
+                           WHERE user_id = ? AND group_id IS NULL ORDER BY created_at DESC LIMIT 20');
+      $st->execute([$uid]);
+      $out['programs'] = array_map(fn($r) => ['id' => (int)$r['id'], 'name' => $r['name'], 'downloads' => (int)$r['downloads']], $st->fetchAll(PDO::FETCH_ASSOC));
+    }
+    ok(['profile' => $out]);
+  }
+
   case 'list': {
     // amis acceptés + demandes reçues + demandes envoyées, avec stats pour les amis
     $st = db()->prepare(

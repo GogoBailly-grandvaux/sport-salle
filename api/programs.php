@@ -53,9 +53,9 @@ switch ($action) {
     ok(['programs' => array_map('program_row', $st->fetchAll(PDO::FETCH_ASSOC))]);
   }
 
-  case 'of': { // programmes d'un ami (hors groupes)
+  case 'of': { // programmes d'un utilisateur (hors groupes) — amis ou compte public
     $uid = (int)($b['userId'] ?? 0);
-    if (!are_friends($me['id'], $uid)) { fail(403, 'réservé aux amis'); }
+    if (!owner_content_visible($me['id'], $uid)) { fail(403, 'réservé aux amis'); }
     $st = db()->prepare(
       'SELECT id, name, downloads, group_id, created_at FROM shared_programs
        WHERE user_id = ? AND group_id IS NULL ORDER BY created_at DESC'
@@ -92,7 +92,7 @@ switch ($action) {
     $gid = $r['group_id'] !== null ? (int)$r['group_id'] : null;
     $allowed = ($ownerId === $me['id'])
       || ($gid !== null && is_group_member($gid, $me['id']))
-      || ($gid === null && are_friends($me['id'], $ownerId));
+      || ($gid === null && owner_content_visible($me['id'], $ownerId));
     if (!$allowed) { fail(403, 'accès refusé'); }
     db()->prepare('UPDATE shared_programs SET downloads = downloads + 1 WHERE id = ?')->execute([$id]);
     ok(['payload' => json_decode($r['payload'], true)]);
@@ -100,6 +100,17 @@ switch ($action) {
 
   default:
     fail(400, 'action inconnue');
+}
+
+/** Contenu de $ownerId visible par $viewer ? (ami accepté ou compte public) */
+function owner_content_visible(int $viewer, int $ownerId): bool {
+  if ($viewer === $ownerId || are_friends($viewer, $ownerId)) { return true; }
+  $pub = with_profile_cols(function () use ($ownerId) {
+    $st = db()->prepare('SELECT privacy FROM users WHERE id = ?');
+    $st->execute([$ownerId]);
+    return $st->fetchColumn();
+  });
+  return ($pub ?: 'friends') === 'public';
 }
 
 /** Membres d'un groupe, sauf $except. */

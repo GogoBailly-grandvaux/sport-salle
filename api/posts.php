@@ -97,6 +97,55 @@ switch ($action) {
     ok(['posts' => $posts, 'hasMore' => count($rows) === 30]);
   }
 
+  case 'of': {
+    // posts d'UN utilisateur (page profil) — même règle de visibilité que profile
+    $username = strtolower(trim((string)($b['username'] ?? '')));
+    $before = (int)($b['before'] ?? 0);
+    $row = with_profile_cols(function () use ($username) {
+      $st = db()->prepare('SELECT id, privacy FROM users WHERE username = ?');
+      $st->execute([$username]);
+      return $st->fetch(PDO::FETCH_ASSOC);
+    });
+    if (!$row) { fail(404, 'utilisateur introuvable'); }
+    $uid = (int)$row['id'];
+    if (!can_view_content($me['id'], $uid, $row['privacy'] ?? 'friends')) { fail(403, 'compte privé — ajoute cette personne pour voir ses posts'); }
+    $params = [$uid]; $whereBefore = '';
+    if ($before > 0) { $whereBefore = ' AND p.id < ?'; $params[] = $before; }
+    $rows = with_posts(function () use ($whereBefore, $params) {
+      $st = db()->prepare(
+        "SELECT p.id, p.user_id, p.kind, p.content, UNIX_TIMESTAMP(p.created_at) AS ts,
+                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent
+         FROM posts p JOIN users u ON u.id = p.user_id
+         WHERE p.user_id = ?$whereBefore ORDER BY p.id DESC LIMIT 30");
+      $st->execute($params);
+      return $st->fetchAll(PDO::FETCH_ASSOC);
+    });
+    $posts = []; $postIds = array_map(fn($r) => (int)$r['id'], $rows);
+    $reactions = []; $mine = [];
+    if ($postIds) {
+      $ph2 = implode(',', array_fill(0, count($postIds), '?'));
+      $st = db()->prepare("SELECT post_id, emoji, COUNT(*) AS n FROM post_reactions WHERE post_id IN ($ph2) GROUP BY post_id, emoji");
+      $st->execute($postIds);
+      foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $reactions[(int)$r['post_id']][$r['emoji']] = (int)$r['n']; }
+      $st = db()->prepare("SELECT post_id, emoji FROM post_reactions WHERE user_id = ? AND post_id IN ($ph2)");
+      $st->execute(array_merge([$me['id']], $postIds));
+      foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $mine[(int)$r['post_id']] = $r['emoji']; }
+    }
+    foreach ($rows as $r) {
+      $pid = (int)$r['id'];
+      $posts[] = [
+        'id' => $pid, 'kind' => $r['kind'],
+        'content' => json_decode($r['content'], true) ?: new stdClass(),
+        'ts' => (int)$r['ts'],
+        'author' => public_user(['id' => $r['uid'], 'username' => $r['username'], 'display_name' => $r['display_name'], 'avatar_emoji' => $r['avatar_emoji'], 'accent' => $r['accent']]),
+        'isMine' => (int)$r['user_id'] === $me['id'],
+        'reactions' => $reactions[$pid] ?? new stdClass(),
+        'myReaction' => $mine[$pid] ?? null,
+      ];
+    }
+    ok(['posts' => $posts, 'hasMore' => count($rows) === 30]);
+  }
+
   case 'publish': {
     rate_limit('post', 20, 3600); // max 20 posts/h
     $kind = (string)($b['kind'] ?? '');
@@ -154,7 +203,14 @@ switch ($action) {
     });
     if ($author === false) { fail(404, 'post introuvable'); }
     $author = (int)$author;
-    if ($author !== $me['id'] && !are_friends($me['id'], $author)) { fail(403, 'réservé aux amis'); }
+    if ($author !== $me['id'] && !are_friends($me['id'], $author)) {
+      $pub = with_profile_cols(function () use ($author) {
+        $st = db()->prepare('SELECT privacy FROM users WHERE id = ?');
+        $st->execute([$author]);
+        return $st->fetchColumn();
+      });
+      if (($pub ?: 'friends') !== 'public') { fail(403, 'réservé aux amis'); }
+    }
     if ($emoji === '') {
       db()->prepare('DELETE FROM post_reactions WHERE post_id = ? AND user_id = ?')->execute([$postId, $me['id']]);
     } else {

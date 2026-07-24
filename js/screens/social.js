@@ -90,6 +90,10 @@ function ago(ts) {
   return d === 1 ? t('hier','yesterday') : t(`il y a ${d} j`,`${d} d ago`);
 }
 
+// linkifie les @mentions dans du texte DÉJÀ échappé (motif pseudo strict)
+const linkify = (escaped) => escaped.replace(/(^|[\s>])@([a-z0-9_.]{3,20})/gi,
+  (m, pre, u) => `${pre}<a class="mention" data-nav="#/u/${u.toLowerCase()}">@${u}</a>`);
+
 const fmtDur = (sec) => {
   const m = Math.round((sec || 0) / 60);
   return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m} min`;
@@ -115,7 +119,7 @@ function postBody(p) {
       ${p.isMine ? '' : `<button class="btn primary sm" data-import="${+c.sharedId}">${icon('download')} ${t('Importer','Import')}</button>`}
     </div>`;
   }
-  return `<p class="post-text">${esc(c.text || '')}</p>`;
+  return `<p class="post-text">${linkify(esc(c.text || ''))}</p>`;
 }
 
 function postCard(p) {
@@ -127,8 +131,10 @@ function postCard(p) {
   }).join('');
   return `<article class="post-card" data-pid="${p.id}">
     <div class="post-head">
-      ${avatarHtml(a)}
-      <div class="post-who"><b>${esc(a.displayName || '')}</b><span class="mut sm">@${esc(a.username || '')} · ${ago(p.ts)}</span></div>
+      <div class="post-a" data-nav="#/u/${esc(a.username || '')}" role="link" tabindex="0">
+        ${avatarHtml(a)}
+        <div class="post-who"><b>${esc(a.displayName || '')}</b><span class="mut sm">@${esc(a.username || '')} · ${ago(p.ts)}</span></div>
+      </div>
       ${p.isMine ? `<button class="icon-btn sm post-del" data-del="${p.id}" aria-label="${t('Supprimer le post','Delete post')}">${icon('trash')}</button>` : ''}
     </div>
     ${postBody(p)}
@@ -175,6 +181,22 @@ function wireFeed(root) {
       catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; btn.textContent = t('Publier','Post'); }
     };
   });
+  wirePosts(root);
+  root.querySelector('#feed-more')?.addEventListener('click', async () => {
+    const btn = root.querySelector('#feed-more');
+    btn.disabled = true;
+    try {
+      const d = await call('posts', 'feed', { before: +btn.dataset.before });
+      root.querySelector('#feed-list').insertAdjacentHTML('beforeend', d.posts.map(postCard).join(''));
+      if (d.hasMore && d.posts.length) { btn.dataset.before = d.posts[d.posts.length - 1].id; btn.disabled = false; }
+      else btn.remove();
+      wireFeed(root); // recâble les nouvelles cartes
+    } catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; }
+  });
+}
+
+// câblage commun des cartes de post (fil + page profil)
+function wirePosts(root) {
   root.querySelectorAll('[data-react]').forEach(b => b.onclick = async () => {
     const postId = +b.dataset.post;
     const emoji = b.dataset.react;
@@ -191,17 +213,6 @@ function wireFeed(root) {
     try { await call('posts', 'delete', { postId: +b.dataset.del }); toast(t('Post supprimé','Post deleted')); nav.refresh(); }
     catch (e) { toast(e.message, { type: 'error' }); }
   });
-  root.querySelector('#feed-more')?.addEventListener('click', async () => {
-    const btn = root.querySelector('#feed-more');
-    btn.disabled = true;
-    try {
-      const d = await call('posts', 'feed', { before: +btn.dataset.before });
-      root.querySelector('#feed-list').insertAdjacentHTML('beforeend', d.posts.map(postCard).join(''));
-      if (d.hasMore && d.posts.length) { btn.dataset.before = d.posts[d.posts.length - 1].id; btn.disabled = false; }
-      else btn.remove();
-      wireFeed(root); // recâble les nouvelles cartes
-    } catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; }
-  });
   root.querySelectorAll('[data-import]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     await importShared(+b.dataset.import);
@@ -209,30 +220,6 @@ function wireFeed(root) {
   });
 }
 
-function openFriendSheet(f) {
-  const s = sheet(`
-    <div class="fr-head">${avatarHtml({ ...f }, 'big')}<div><b>${esc(f.displayName)}</b><span class="mut sm">@${esc(f.username)}</span></div></div>
-    <div id="fr-programs"><p class="mut sm center">Chargement des programmes…</p></div>
-    <button class="btn danger-ghost full sm" id="fr-remove">Retirer de mes amis</button>`,
-    { title: t('Profil','Profile') });
-  (async () => {
-    try {
-      const d = await call('programs', 'of', { userId: f.id });
-      const host = s.root.querySelector('#fr-programs');
-      if (!d.programs.length) { host.innerHTML = `<p class="mut sm center">Aucun programme partagé pour l’instant.</p>`; return; }
-      host.innerHTML = `<h4 class="share-h">${icon('dumbbell')} ${t('Programmes partagés','Shared programs')}</h4>` + d.programs.map(p => `
-        <div class="share-row"><div><b>${esc(p.name)}</b><span class="mut sm">${p.downloads} import${p.downloads > 1 ? 's' : ''}</span></div>
-        <button class="btn primary sm" data-import="${p.id}">${icon('download')} ${t('Importer','Import')}</button></div>`).join('');
-      host.querySelectorAll('[data-import]').forEach(b => b.onclick = () => importShared(+b.dataset.import, s));
-    } catch (e) { s.root.querySelector('#fr-programs').innerHTML = `<p class="mut sm center">${esc(e.message)}</p>`; }
-  })();
-  s.root.querySelector('#fr-remove').onclick = async () => {
-    s.close();
-    if (await confirmDialog({ title: t('Retirer','Remove'), message: `${t('Retirer','Remove')} ${f.displayName} ${t('de tes amis ?','from your friends?')}`, confirmText: t('Retirer','Remove'), danger: true })) {
-      await call('social', 'remove', { userId: f.id }); toast('Retiré'); nav.refresh();
-    }
-  };
-}
 
 export async function importShared(id, sheetToClose = null) {
   try {
@@ -321,8 +308,8 @@ function wireActions(root) {
     try { await call('social', 'respond', { userId: +b.dataset.decline, accept: false }); nav.refresh(); }
     catch (e) { toast(e.message, { type: 'error' }); }
   });
-  root.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openFriendSheet(JSON.parse(b.dataset.open)));
-  root.querySelectorAll('[data-friend]').forEach(b => b.onclick = () => openFriendSheet(JSON.parse(b.dataset.friend)));
+  root.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { const u = JSON.parse(b.dataset.open); nav.go('#/u/' + u.username); });
+  root.querySelectorAll('[data-friend]').forEach(b => b.onclick = () => { const u = JSON.parse(b.dataset.friend); nav.go('#/u/' + u.username); });
   root.querySelectorAll('[data-seg-go]').forEach(b => b.onclick = () => { seg = b.dataset.segGo; nav.refresh(); });
 }
 
@@ -361,6 +348,153 @@ function wireGroupes(root) {
       nav.go(`#/social/group/${r.group.id}`);
     } catch (e) { toast(e.message, { type: 'error' }); }
   });
+}
+
+// ---------------- page profil (#/u/<pseudo>) — façon X ----------------
+export async function renderUserProfile(params) {
+  const username = decodeURIComponent(params.username || '').toLowerCase();
+  let pr;
+  try {
+    pr = (await call('social', 'profile', { username })).profile;
+  } catch (e) {
+    return `<div class="screen-pad">${emptyState('users', t('Introuvable','Not found'), e.message || '', `<button class="btn ghost" data-nav="#/social">Social</button>`)}</div>`;
+  }
+  const st = pr.stats || null;
+  const statBlock = pr.canView ? `
+    <div class="prof-stats">
+      <div><b>${st?.totalWorkouts ?? 0}</b><span>${t('séances','workouts')}</span></div>
+      <div><b>${st?.weekCount ?? 0}</b><span>${t('cette sem.','this wk')}</span></div>
+      <div><b>${st?.streak ? '🔥 ' + st.streak : '—'}</b><span>${t('série','streak')}</span></div>
+      <div><b>${st?.weekVolume ? Number(st.weekVolume).toLocaleString(t('fr-FR','en-US')) : '—'}</b><span>kg / ${t('sem','wk')}</span></div>
+    </div>` : '';
+  const relBtn = pr.isMe
+    ? `<button class="btn ghost full" id="pr-edit">${t('Modifier mon profil','Edit my profile')}</button>`
+    : pr.relation === 'friends'
+      ? `<button class="btn ghost full" id="pr-friends">✓ ${t('Amis','Friends')}</button>`
+      : pr.relation === 'sent'
+        ? `<button class="btn ghost full" disabled>⏳ ${t('Demande envoyée','Request sent')}</button>`
+        : pr.relation === 'received'
+          ? `<button class="btn primary full" id="pr-accept">${t('Accepter la demande','Accept request')}</button>`
+          : `<button class="btn primary full" id="pr-add">👊 ${t('Ajouter','Add friend')}</button>`;
+  const lock = !pr.canView ? `
+    <div class="prof-lock">🔒 <b>${t('Compte privé','Private account')}</b>
+      <p class="mut sm">${t('Ajoute','Add')} @${esc(pr.username)} ${t('pour voir ses séances, ses posts et ses programmes.','to see their workouts, posts and programs.')}</p>
+    </div>` : '';
+  const progs = (pr.programs || []).length ? `
+    <h4 class="share-h">${icon('dumbbell')} ${t('Programmes partagés','Shared programs')}</h4>
+    ${pr.programs.map(g => `<div class="share-row"><div><b>${esc(g.name)}</b><span class="mut sm">${g.downloads} import${g.downloads > 1 ? 's' : ''}</span></div>
+      ${pr.isMe ? '' : `<button class="btn primary sm" data-import="${g.id}">${icon('download')} ${t('Importer','Import')}</button>`}</div>`).join('')}` : '';
+  return `
+    <header class="topbar">
+      <div class="topbar-l">${backBtn('#/social')}</div>
+      <div class="topbar-c"><h1>@${esc(pr.username)}</h1></div>
+      <div class="topbar-r"><button class="icon-btn" id="pr-share" aria-label="${t('Partager le profil','Share profile')}">${icon('upload')}</button></div>
+    </header>
+    <div class="screen-pad">
+      <div class="prof-head">
+        ${avatarHtml(pr, 'big')}
+        <h2 class="prof-name">${esc(pr.displayName || '')}</h2>
+        <p class="mut sm">@${esc(pr.username)} · ${pr.isPublic ? t('compte public','public account') : t('compte privé','private account')} · ${t('membre depuis','member since')} ${esc(pr.memberSince || '')}</p>
+        ${pr.bio ? `<p class="prof-bio">${linkify(esc(pr.bio))}</p>` : ''}
+        ${statBlock}
+        ${relBtn}
+      </div>
+      ${lock}
+      ${progs}
+      <div id="pr-posts">${pr.canView ? `<p class="mut sm center">${t('Chargement des posts…','Loading posts…')}</p>` : ''}</div>
+    </div>`;
+}
+
+export function mountUserProfile(root, params) {
+  const username = decodeURIComponent(params.username || '').toLowerCase();
+  root.querySelector('#pr-add')?.addEventListener('click', async e => {
+    e.target.disabled = true;
+    try { const r = await call('social', 'request', { username }); toast(r.accepted ? t('Vous êtes amis ! 👊','You’re friends! 👊') : t('Demande envoyée ✓','Request sent ✓')); nav.refresh(); }
+    catch (err) { toast(err.message, { type: 'error' }); e.target.disabled = false; }
+  });
+  root.querySelector('#pr-accept')?.addEventListener('click', async () => {
+    try {
+      const sr = await call('social', 'search', { q: username });
+      const u = sr.results.find(x => x.username === username);
+      if (u) { await call('social', 'respond', { userId: u.id, accept: true }); toast(t('Ami ajouté 🤝','Friend added 🤝')); nav.refresh(); }
+    } catch (err) { toast(err.message, { type: 'error' }); }
+  });
+  root.querySelector('#pr-friends')?.addEventListener('click', async () => {
+    if (!(await confirmDialog({ title: t('Retirer','Remove'), message: `${t('Retirer','Remove')} @${username} ${t('de tes amis ?','from your friends?')}`, confirmText: t('Retirer','Remove'), danger: true }))) return;
+    try {
+      const sr = await call('social', 'search', { q: username });
+      const u = sr.results.find(x => x.username === username);
+      if (u) { await call('social', 'remove', { userId: u.id }); toast(t('Retiré','Removed')); nav.refresh(); }
+    } catch (err) { toast(err.message, { type: 'error' }); }
+  });
+  root.querySelector('#pr-edit')?.addEventListener('click', () => openEditProfileSheet());
+  root.querySelector('#pr-share')?.addEventListener('click', async () => {
+    const url = 'https://sportsalle.hbaillyg.fr/#/u/' + encodeURIComponent(username);
+    try { if (navigator.share) { await navigator.share({ title: 'Sport Salle', text: '@' + username + ' — Sport Salle', url }); return; } }
+    catch (e) { if (e?.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(url); toast(t('Lien copié ✓','Link copied ✓')); }
+    catch { toast(url, { duration: 6000 }); }
+  });
+  // posts du profil (chargés après le premier rendu)
+  (async () => {
+    const host = root.querySelector('#pr-posts');
+    if (!host || !host.innerHTML.trim()) return;
+    try {
+      const d = await call('posts', 'of', { username });
+      host.innerHTML = d.posts.length
+        ? `<h4 class="share-h">Posts</h4><div class="feed-list">${d.posts.map(postCard).join('')}</div>`
+        : `<p class="mut sm center" style="margin-top:18px">${t('Aucun post pour l’instant.','No posts yet.')}</p>`;
+      wirePosts(host);
+    } catch (e) { host.innerHTML = `<p class="mut sm center">${esc(e.message)}</p>`; }
+  })();
+}
+
+// ---------------- édition du profil public (bio, confidentialité) ----------------
+export function openEditProfileSheet(onDone = null) {
+  const acc = account();
+  if (!acc) return;
+  const s = sheet(`
+    <label class="field-label" for="ep-name">${t('Nom affiché','Display name')}</label>
+    <input class="input" id="ep-name" maxlength="40" value="${esc(acc.user.displayName || '')}">
+    <label class="field-label" for="ep-bio">Bio · ${t('160 caractères, visible par tous','160 chars, visible to everyone')}</label>
+    <textarea class="input" id="ep-bio" rows="3" maxlength="160" placeholder="${t('Ex. Push/pull/legs · Gold’s Serris · objectif -20 kg 💪','E.g. Push/pull/legs · chasing -20 kg 💪')}"></textarea>
+    <div class="setting" style="margin-top:12px"><span>${t('Compte public','Public account')}<br><span class="mut sm">${t('Activé : tout le monde voit tes posts et stats. Désactivé : tes amis uniquement.','On: anyone sees your posts and stats. Off: friends only.')}</span></span>
+      <button class="switch" id="ep-pub" role="switch" aria-checked="false"><span></span></button></div>
+    <button class="btn primary full" id="ep-save">${t('Enregistrer','Save')}</button>`,
+    { title: t('Mon profil public','My public profile') });
+  // précharger bio + confidentialité actuelles
+  (async () => {
+    try {
+      const pr = (await call('social', 'profile', { username: acc.user.username })).profile;
+      const bio = s.root.querySelector('#ep-bio'); if (bio && pr.bio) bio.value = pr.bio;
+      const sw = s.root.querySelector('#ep-pub');
+      if (sw && pr.isPublic) { sw.classList.add('on'); sw.setAttribute('aria-checked', 'true'); }
+    } catch {}
+  })();
+  const sw = s.root.querySelector('#ep-pub');
+  sw.onclick = () => { const on = sw.classList.toggle('on'); sw.setAttribute('aria-checked', String(on)); };
+  s.root.querySelector('#ep-save').onclick = async () => {
+    const btn = s.root.querySelector('#ep-save');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      await call('auth', 'profile_update', {
+        displayName: s.root.querySelector('#ep-name').value.trim(),
+        bio: s.root.querySelector('#ep-bio').value.trim(),
+        emoji: acc.user.emoji || '',
+        accent: acc.user.accent || 'ember',
+        privacy: sw.classList.contains('on') ? 'public' : 'friends',
+      });
+      // rafraîchir le cache local du compte (nom affiché)
+      const { savePSettings } = await import('../store.js');
+      const a = account(); a.user.displayName = s.root.querySelector('#ep-name').value.trim();
+      await savePSettings({ account: a });
+      s.close(); toast(t('Profil mis à jour ✓','Profile updated ✓'));
+      if (onDone) onDone(); else nav.refresh();
+    } catch (e) {
+      toast(e.message, { type: 'error' });
+      btn.disabled = false; btn.textContent = t('Enregistrer','Save');
+    }
+  };
 }
 
 // ---------------- deep link : #/add/<pseudo> (depuis un QR scanné) ----------------
