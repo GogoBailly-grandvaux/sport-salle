@@ -104,6 +104,9 @@ switch ($action) {
     $out['gym'] = $row['gym'] ?? null;
     $out['isPublic'] = ($row['privacy'] ?? 'friends') === 'public';
     $out['instagram'] = $row['instagram'] ?? null;
+    $fc = db()->prepare("SELECT COUNT(*) FROM friendships WHERE status = 'accepted' AND (user_lo = ? OR user_hi = ?)");
+    $fc->execute([(int)$row['id'], (int)$row['id']]);
+    $out['friendsCount'] = (int)$fc->fetchColumn();
     $out['verified'] = (int)($row['verified'] ?? 0) === 1;
     $out['relation'] = relation_state($me['id'], $uid);
     $out['isMe'] = $uid === $me['id'];

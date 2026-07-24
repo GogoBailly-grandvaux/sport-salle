@@ -548,13 +548,14 @@ export async function renderUserProfile(params) {
     return `<div class="screen-pad">${emptyState('users', t('Introuvable','Not found'), e.message || '', `<button class="btn ghost" data-nav="#/social">Social</button>`)}</div>`;
   }
   const st = pr.stats || null;
-  const statBlock = pr.canView ? `
-    <div class="prof-stats">
-      <div><b>${st?.totalWorkouts ?? 0}</b><span>${t('séances','workouts')}</span></div>
-      <div><b>${st?.weekCount ?? 0}</b><span>${t('cette sem.','this wk')}</span></div>
-      <div><b>${st?.streak ? icon('flame') + ' ' + st.streak : '—'}</b><span>${t('série','streak')}</span></div>
-      <div><b>${st?.weekVolume ? Number(st.weekVolume).toLocaleString(t('fr-FR','en-US')) : '—'}</b><span>kg / ${t('sem','wk')}</span></div>
-    </div>` : '';
+  // triptyque façon Instagram : Séances | Amis | Série
+  const statBlock = `
+    <div class="trip">
+      <div><b>${pr.canView ? (st?.totalWorkouts ?? 0) : '—'}</b><span>${t('Séances','Workouts')}</span></div>
+      <div><b>${pr.friendsCount ?? 0}</b><span>${t('Amis','Friends')}</span></div>
+      <div><b>${pr.canView && st?.streak ? st.streak : '—'}</b><span>${t('Série (sem)','Streak (wk)')}</span></div>
+    </div>
+    ${pr.canView && (st?.weekCount || st?.weekVolume) ? `<p class="trip-sub mut sm">${st?.weekCount || 0} ${t('séances cette semaine','workouts this week')}${st?.weekVolume ? ` · ${Number(st.weekVolume).toLocaleString(t('fr-FR','en-US'))} kg` : ''}</p>` : ''}`;
   const relBtn = pr.isMe
     ? `<button class="btn ghost full" id="pr-edit">${t('Modifier mon profil','Edit my profile')}</button>`
     : pr.relation === 'friends'
