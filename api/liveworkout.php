@@ -195,7 +195,7 @@ switch ($b['action'] ?? '') {
     rate_limit('lwcheer', 30, 900);
     $to = (int)($b['userId'] ?? 0);
     if (!$to || $to === $u['id'] || !are_friends($u['id'], $to)) { fail(403, 'réservé aux amis'); }
-    with_live_sessions(function () {}); // garantit l'ENUM cheer avant le notify
+    ensure_live_sessions(); // ALTER idempotent : garantit l'ENUM cheer avant le notify
     notify($to, $u['id'], 'cheer', null, null);
     bump_live([$to]);
     ok(['ok' => true]);
