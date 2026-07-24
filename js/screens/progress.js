@@ -3,7 +3,8 @@ import { t } from '../i18n.js';
 import { esc, fmtDate, relDate, todayISO, fmtWeight, round , isoToTs } from '../util.js';
 import { ps, state, nav } from '../store.js';
 import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
-import { getExercise, muscleFR, MUSCLE_GROUP } from '../data.js';
+import { getExercise, muscleFR, MUSCLE_GROUP, musclesMap } from '../data.js';
+import { recoveryOverview, hoursLeft } from '../recovery.js';
 import { emptyState, backBtn, exImage, GROUP_COLOR } from './common.js';
 import { openExercisePicker } from './picker.js';
 import { listWorkouts, listMetrics, addMetric, deleteMetric, latestMetric } from '../model.js';
@@ -63,6 +64,20 @@ export async function renderHub() {
   const ach = computeAchievements(workouts);
   const unlocked = ach.list.filter(a => a.done);
   const nextUp = ach.list.filter(a => !a.done).sort((a, b) => b.pct - a.pct)[0];
+  // récupération musculaire : anneau global + muscles en récup
+  const rec = recoveryOverview(workouts);
+  const recovering = rec.worked.filter(r => r.pct < 100).sort((a, b) => a.pct - b.pct).slice(0, 3);
+  const recTone = rec.global >= 80 ? 'good' : rec.global >= 50 ? 'mid' : 'low';
+  const recCard = `<button class="card rec-card" data-nav="#/progress/recovery">
+      <div class="recap-h"><span class="mut">${icon('heart')} ${t('Récupération musculaire','Muscle recovery')}</span>${icon('right')}</div>
+      <div class="rec-hub">
+        <div class="rec-ring ${recTone}" style="--p:${rec.global}"><b>${rec.global}%</b></div>
+        <div class="rec-hub-txt">${recovering.length
+          ? recovering.map(r => `<span>${esc(r.label)} <b>${r.pct}%</b></span>`).join('')
+          : `<span>${t('Tous tes muscles sont prêts. À toi de jouer.','All your muscles are ready. Go for it.')}</span>`}</div>
+      </div>
+    </button>`;
+
   const achCard = `<button class="card trophy-card" data-nav="#/achievements">
       <div class="recap-h"><span class="mut">${icon('medal')} ${t('Trophées','Achievements')} · ${unlocked.length}/${ach.list.length}</span>${icon('right')}</div>
       <div class="trophy-row">${(unlocked.length ? unlocked : ach.list).slice(0, 8).map(a => `<span class="trophy-mini ${a.done ? '' : 'locked'}" title="${esc(a.title)}">${icon(a.icon)}</span>`).join('')}</div>
@@ -72,6 +87,7 @@ export async function renderHub() {
   return `${hubHeader()}
     <div class="screen-pad">
       ${weekly ? `<section class="card coach-card"><div class="coach-head"><span class="coach-emoji">${icon(weekly.icon)}</span><b>${esc(weekly.title)}</b></div><p>${esc(weekly.text)}</p></section>` : ''}
+      ${recCard}
       ${achCard}
       <button class="btn primary full" id="pg-pick">${icon('search')} ${t('Progression d’un exercice','Exercise progression')}</button>
 
@@ -266,3 +282,76 @@ export function mountBody(root) {
   };
   root.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { await deleteMetric(b.dataset.del); nav.refresh(); });
 }
+
+// ---------------- récupération musculaire ----------------
+export async function renderRecovery() {
+  const workouts = await listWorkouts();
+  const rec = recoveryOverview(workouts);
+  const tone = rec.global >= 80 ? 'good' : rec.global >= 50 ? 'mid' : 'low';
+  const phrase = rec.global >= 95 ? t('Tout est prêt. Grosse séance en vue ?','Everything is ready. Big session ahead?')
+    : rec.global >= 70 ? t('Presque prêt — vise les muscles frais.','Almost ready — target the fresh muscles.')
+    : t('Laisse encore un peu de repos aux muscles marqués.','Give the marked muscles a bit more rest.');
+
+  // heatmap : silhouettes wger + intensité de la semaine par muscle
+  let heat = '';
+  const mm = await musclesMap();
+  const hot = rec.rows.filter(r => r.weekPts > 0);
+  if (mm && mm.byOurName && mm.bodyImages && hot.length) {
+    const side = (front) => {
+      const base = front ? mm.bodyImages.front : mm.bodyImages.back;
+      let ov = '';
+      for (const r of hot) {
+        const op = Math.min(.95, .3 + r.weekPts / 24);
+        for (const id of (mm.byOurName[r.muscle] || [])) {
+          const mu = mm.byWgerId[id];
+          if (mu && mu.isFront === front && mu.main) ov += `<img class="bm-overlay" style="opacity:${op}" src="${esc(mu.main)}" alt="" loading="lazy">`;
+        }
+      }
+      return `<div><div class="bm-side"><img src="${esc(base)}" alt="" loading="lazy">${ov}</div><div class="bm-cap">${front ? t('Face','Front') : t('Dos','Back')}</div></div>`;
+    };
+    heat = `<section class="card">
+      <h3 class="card-t">${icon('flame')} ${t('Sollicités ces 7 derniers jours','Worked in the last 7 days')}</h3>
+      <div class="bodymap">${side(true)}${side(false)}</div>
+      <p class="mut sm">${t('Plus c’est rouge, plus tu as enchaîné les séries.','The redder, the more sets you stacked.')}</p>
+    </section>`;
+  }
+
+  // liste : muscles sollicités (les moins récupérés d'abord), puis les frais
+  const workedRows = rec.worked.slice().sort((a, b) => a.pct - b.pct || b.weekPts - a.weekPts);
+  const rowHtml = (r) => {
+    const left = hoursLeft(r);
+    const cls = r.pct >= 100 ? 'ok' : r.pct >= 50 ? 'mid' : 'low';
+    return `<div class="rec-row">
+      <span class="rec-name">${esc(r.label)}</span>
+      <div class="rec-bar"><div class="${cls}" style="width:${r.pct}%"></div></div>
+      <span class="rec-val ${cls}">${r.pct >= 100 ? `${t('prêt','ready')}` : `${r.pct}%`}</span>
+      <span class="rec-sub">${r.pct >= 100 ? (r.weekPts ? `${round(r.weekPts, 0)} ${t('séries/sem','sets/wk')}` : '') : `~${left} h`}</span>
+    </div>`;
+  };
+  const freshCount = rec.rows.length - workedRows.length;
+  const list = `<section class="card">
+    <h3 class="card-t">${icon('heart')} ${t('Muscle par muscle','Muscle by muscle')}</h3>
+    ${workedRows.length ? workedRows.map(rowHtml).join('') : `<p class="mut sm">${t('Aucune séance sur les 14 derniers jours — tout est frais.','No workouts in the last 14 days — everything is fresh.')}</p>`}
+    ${freshCount > 0 && workedRows.length ? `<p class="mut sm" style="margin-top:10px">${freshCount} ${t('autres muscles sont frais et prêts.','other muscles are fresh and ready.')}</p>` : ''}
+  </section>`;
+
+  return `
+    <header class="topbar">
+      <div class="topbar-l">${backBtn('#/progress')}</div>
+      <div class="topbar-c"><h1>${t('Récupération','Recovery')}</h1></div>
+      <div class="topbar-r"></div>
+    </header>
+    <div class="screen-pad">
+      <section class="card rec-head-card">
+        <div class="rec-hub">
+          <div class="rec-ring big ${tone}" style="--p:${rec.global}"><b>${rec.global}%</b></div>
+          <div><b class="rec-title">${t('Prêt à l’entraînement','Training readiness')}</b>
+          <p class="mut sm" style="margin:4px 0 0">${phrase}</p></div>
+        </div>
+      </section>
+      ${heat}
+      ${list}
+    </div>`;
+}
+
+export function mountRecovery() { /* navigation seule */ }
