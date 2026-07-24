@@ -91,8 +91,10 @@ export async function renderHub() {
 
       <section class="card bw" data-nav="#/progress/body">
         <div class="recap-h"><span class="mut">${t('Mesures corporelles','Body measurements')}</span>${icon('right')}</div>
-        ${bw.length ? `<div class="bw-row"><b>${fmtWeight(bw[bw.length-1].value, unit)}</b>${sparkline(bw.map(m=>m.value))}</div>` : `<p class="mut sm">Ajoute ton poids pour suivre ta transformation.</p>`}
+        ${bw.length ? `<div class="bw-row"><b>${fmtWeight(bw[bw.length-1].value, unit)}</b>${sparkline(bw.map(m=>m.value))}</div>` : `<p class="mut sm">${t('Ajoute ton poids pour suivre ta transformation.','Add your weight to track your transformation.')}</p>`}
       </section>
+      <button class="card recap-h" data-nav="#/progress/photos" style="width:100%">
+        <span class="mut">📸 ${t('Photos de progression','Progress photos')}</span>${icon('right')}</button>
     </div>`;
 }
 function hubHeader() {
@@ -124,6 +126,78 @@ export async function renderAchievements() {
     <div class="screen-pad"><div class="ach-grid">${cards}</div></div>`;
 }
 export function mountAchievements() {}
+
+// ---------------- photos de progression (local uniquement) ----------------
+function compressImage(file, maxDim = 1080, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (Math.max(w, h) > maxDim) { const r = maxDim / Math.max(w, h); w = Math.round(w * r); h = Math.round(h * r); }
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(img.src);
+      c.toBlob(b => b ? resolve(b) : reject(new Error('compress')), 'image/jpeg', quality);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+let _photoUrls = [];
+export async function renderPhotos() {
+  return `
+    <header class="topbar"><div class="topbar-l">${backBtn('#/progress/body')}</div>
+      <div class="topbar-c"><h1>📸 ${t('Photos de progression','Progress photos')}</h1></div>
+      <div class="topbar-r"></div></header>
+    <div class="screen-pad">
+      <p class="mut sm">${t('Tes photos restent sur ton téléphone — jamais envoyées, jamais partagées. Prends-les dans les mêmes conditions pour bien voir l’évolution.','Your photos stay on your phone — never uploaded, never shared. Take them in the same conditions to really see your progress.')}</p>
+      <button class="btn primary full" id="ph-add">📸 ${t('Ajouter une photo','Add a photo')}</button>
+      <input type="file" id="ph-file" accept="image/*" capture="environment" hidden>
+      <div id="ph-gallery"></div>
+    </div>`;
+}
+export async function mountPhotos(root) {
+  const { listPhotos, addPhoto, deletePhoto } = await import('../model.js');
+  _photoUrls.forEach(u => URL.revokeObjectURL(u)); _photoUrls = [];
+  const gallery = root.querySelector('#ph-gallery');
+  const draw = async () => {
+    const photos = await listPhotos();
+    _photoUrls.forEach(u => URL.revokeObjectURL(u)); _photoUrls = [];
+    if (!photos.length) { gallery.innerHTML = `<div class="ph-empty">${t('Aucune photo pour l’instant. La première, c’est ton point de départ 💪','No photos yet. The first one is your baseline 💪')}</div>`; return; }
+    const url = p => { const u = URL.createObjectURL(p.blob); _photoUrls.push(u); return u; };
+    const cmp = photos.length >= 2 ? `<div class="ph-compare">
+      <figure><img src="${url(photos[0])}" alt=""><figcaption>${t('Avant','Before')} · ${esc(photos[0].date || '')}</figcaption></figure>
+      <figure><img src="${url(photos[photos.length-1])}" alt=""><figcaption>${t('Maintenant','Now')} · ${esc(photos[photos.length-1].date || '')}</figcaption></figure>
+    </div>` : '';
+    gallery.innerHTML = cmp + `<div class="ph-grid">${photos.slice().reverse().map(p => `<button class="ph-thumb" data-id="${p.id}"><img src="${url(p)}" alt=""><span>${esc(p.date || '')}</span></button>`).join('')}</div>`;
+    gallery.querySelectorAll('.ph-thumb').forEach(b => b.onclick = () => {
+      const p = photos.find(x => x.id === b.dataset.id); if (!p) return;
+      const u = url(p);
+      const s = sheet(`<img class="ph-full" src="${u}" alt="">
+        <p class="center"><b>${esc(p.date || '')}</b>${p.note ? ` · ${esc(p.note)}` : ''}</p>
+        <button class="btn danger-ghost full" id="ph-del">${icon('trash')} ${t('Supprimer','Delete')}</button>`, { title: t('Photo','Photo') });
+      s.root.querySelector('#ph-del').onclick = async () => {
+        s.close();
+        if (await confirmDialog({ title: t('Supprimer','Delete'), message: t('Supprimer cette photo ?','Delete this photo?'), confirmText: t('Supprimer','Delete'), danger: true })) {
+          await deletePhoto(p.id); toast(t('Photo supprimée','Photo deleted')); draw();
+        }
+      };
+    });
+  };
+  root.querySelector('#ph-add').onclick = () => root.querySelector('#ph-file').click();
+  root.querySelector('#ph-file').onchange = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const btn = root.querySelector('#ph-add'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      const blob = await compressImage(file);
+      await addPhoto({ blob, date: todayISO(), note: '' });
+      toast(t('Photo ajoutée 📸','Photo added 📸'));
+    } catch { toast(t('Image illisible','Unreadable image'), { type: 'error' }); }
+    e.target.value = ''; btn.disabled = false; btn.innerHTML = `📸 ${t('Ajouter une photo','Add a photo')}`;
+    draw();
+  };
+  draw();
+}
 
 // ---------------- per-exercise ----------------
 export async function renderExercise(params) {

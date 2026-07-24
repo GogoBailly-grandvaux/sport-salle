@@ -40,6 +40,7 @@ const R = [
   { p:'#/progress', name:'progress', tab:'progress', render:progress.renderHub, mount:progress.mountHub },
   { p:'#/progress/exercise/:id', name:'progress-ex', render:progress.renderExercise, mount:progress.mountExercise },
   { p:'#/progress/body', name:'progress-body', render:progress.renderBody, mount:progress.mountBody },
+  { p:'#/progress/photos', name:'progress-photos', render:progress.renderPhotos, mount:progress.mountPhotos },
   { p:'#/achievements', name:'achievements', render:progress.renderAchievements, mount:progress.mountAchievements },
   { p:'#/social', name:'social', tab:'social', render:social.render, mount:social.mount },
   { p:'#/add/:username', name:'add-friend', render:social.renderAddFriend, mount:social.mountAddFriend },

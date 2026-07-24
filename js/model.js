@@ -142,3 +142,15 @@ export async function latestMetric(type, profileId = state.activeProfileId) {
   const rows = await listMetrics(type, profileId);
   return rows.length ? rows[rows.length - 1] : null;
 }
+
+// ---------- photos de progression (LOCAL uniquement — jamais synchronisées) ----------
+export async function listPhotos(profileId = state.activeProfileId) {
+  const rows = await db.getAllByIndex('photos', 'profileId', profileId);
+  return rows.sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.createdAt - b.createdAt);
+}
+export async function addPhoto({ blob, date, note = '' }) {
+  const p = { id: uid(), profileId: state.activeProfileId, blob, date, note, createdAt: nowTs() };
+  await db.put('photos', p);
+  return p;
+}
+export async function deletePhoto(id) { return db.del('photos', id); }

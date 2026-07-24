@@ -2,7 +2,7 @@
 import { uid } from './util.js';
 
 const DB_NAME = 'gym-salle';
-const DB_VERSION = 2; // v2 : store 'deletions' (tombstones pour la synchro)
+const DB_VERSION = 3; // v3 : store 'photos' (photos de progression, LOCAL uniquement, jamais synchronisé)
 let _db = null;
 
 // Hook facultatif appelé après chaque écriture réussie (utilisé par la synchro).
@@ -44,6 +44,11 @@ export function openDB() {
       ]);
       mk('deletions', { keyPath: 'id' }, [
         ['profileId','profileId'],
+      ]);
+      // photos de progression : restent sur l'appareil (absent de SYNC_STORES) — vie privée
+      mk('photos', { keyPath: 'id' }, [
+        ['profileId','profileId'],
+        ['profile_date',['profileId','date']],
       ]);
     };
     req.onsuccess = () => { _db = req.result; resolve(_db); };
