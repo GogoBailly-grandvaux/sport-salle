@@ -1,5 +1,5 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v3.22.0';
+const VERSION = 'v3.23.0';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 
@@ -9,7 +9,7 @@ const ASSETS = [
   './fonts/manrope-var.woff2',
   './js/app.js', './js/util.js', './js/version.js', './js/i18n.js', './js/db.js', './js/store.js', './js/data.js',
   './js/model.js', './js/analytics.js', './js/charts.js', './js/ui.js', './js/templates.js',
-  './js/sync.js', './js/live.js', './js/livework.js', './js/qr.js', './js/push.js', './js/install.js', './js/achievements.js', './js/sync-merge.js', './js/sync-config.js',
+  './js/sync.js', './js/live.js', './js/livework.js', './js/monthly.js', './js/qr.js', './js/push.js', './js/install.js', './js/achievements.js', './js/sync-merge.js', './js/sync-config.js',
   './js/api.js', './js/coach.js', './js/applock.js', './js/generator.js', './js/voice.js',
   './js/screens/social.js', './js/screens/account.js', './js/screens/coach-gen.js',
   './js/screens/common.js', './js/screens/picker.js', './js/screens/home.js',

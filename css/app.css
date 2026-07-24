@@ -446,6 +446,13 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 .accent-dot.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
 .emoji-pick{display:flex;gap:8px;flex-wrap:wrap}
 [hidden]{display:none!important} /* l'attribut hidden doit TOUJOURS gagner (sinon .btn{display:flex} l'écrase) */
+/* Défis mensuels */
+.mch-row{display:flex;align-items:center;gap:12px;padding:8px 0}
+.mch-ico .ico{width:22px;height:22px;color:var(--accent)}
+.mch-row.done .mch-ico .ico{color:var(--good)}
+.mch-body{flex:1;display:flex;flex-direction:column;gap:4px}
+.mch-body .rec-bar{height:7px}
+.mch-done .ico{width:18px;height:18px;color:var(--good)}
 /* Séance de groupe */
 .together{border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
 .tg-head{display:flex;align-items:center;gap:7px;font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-bottom:8px}

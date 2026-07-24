@@ -1,7 +1,7 @@
 // screens/progress.js — progress hub, per-exercise charts, body metrics
 import { t } from '../i18n.js';
 import { esc, fmtDate, relDate, todayISO, fmtWeight, round, isoToTs, trimNum } from '../util.js';
-import { ps, state, nav } from '../store.js';
+import { ps, state, nav, savePSettings } from '../store.js';
 import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
 import { getExercise, muscleFR, MUSCLE_GROUP, musclesMap } from '../data.js';
 import { recoveryOverview, hoursLeft } from '../recovery.js';
@@ -14,6 +14,28 @@ import {
 } from '../analytics.js';
 import { lineChart, barChart, sparkline } from '../charts.js';
 import { computeAchievements } from '../achievements.js';
+import { monthlyChallenges, monthLabel, monthKey, wonThisMonth } from '../monthly.js';
+
+// ---- défis mensuels (locaux, offline) ----
+function monthlyCardHtml(workouts) {
+  const mch = monthlyChallenges(workouts);
+  const won = wonThisMonth(ps);
+  const fresh = mch.filter(c => c.done && !won.includes(c.id));
+  if (fresh.length) {
+    const all = { ...(ps('monthlyBadges') || {}) };
+    all[monthKey()] = [...won, ...fresh.map(c => c.id)];
+    savePSettings({ monthlyBadges: all });
+    setTimeout(() => toast(`${t('Défi du mois accompli','Monthly challenge complete')} : ${fresh[0].title} !`, { duration: 4500 }), 500);
+  }
+  return `<section class="card">
+    <h3 class="card-t">${icon('calendar')} ${t('Défis de','Challenges of')} ${monthLabel()}</h3>
+    ${mch.map(c => `<div class="mch-row ${c.done ? 'done' : ''}"><span class="mch-ico">${icon(c.icon)}</span>
+      <div class="mch-body"><b>${esc(c.title)}</b>
+        <div class="rec-bar"><div class="${c.done ? 'ok' : 'mid'}" style="width:${c.pct}%"></div></div>
+        <span class="mut sm">${esc(c.desc)} · ${c.label}</span></div>
+      ${c.done ? `<span class="mch-done">${icon('check')}</span>` : ''}</div>`).join('')}
+  </section>`;
+}
 
 // ---------------- hub ----------------
 export async function renderHub() {
@@ -88,6 +110,7 @@ export async function renderHub() {
     <div class="screen-pad">
       ${weekly ? `<section class="card coach-card"><div class="coach-head"><span class="coach-emoji">${icon(weekly.icon)}</span><b>${esc(weekly.title)}</b></div><p>${esc(weekly.text)}</p></section>` : ''}
       ${recCard}
+      ${monthlyCardHtml(workouts)}
       ${achCard}
       <button class="btn primary full" id="pg-pick">${icon('search')} ${t('Progression d’un exercice','Exercise progression')}</button>
 
@@ -123,6 +146,7 @@ export function mountHub(root) {
 // ---------------- trophées (écran complet) ----------------
 export async function renderAchievements() {
   const workouts = await listWorkouts();
+  const monthly = monthlyCardHtml(workouts);
   const ach = computeAchievements(workouts);
   const n = ach.list.filter(a => a.done).length;
   const cards = ach.list.map(a => `
@@ -139,7 +163,8 @@ export async function renderAchievements() {
     <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div>
       <div class="topbar-c"><h1>${t('Trophées','Achievements')}</h1><span class="topbar-sub">${n}/${ach.list.length} ${t('débloqués','unlocked')}</span></div>
       <div class="topbar-r"></div></header>
-    <div class="screen-pad"><div class="ach-grid">${cards}</div></div>`;
+    <div class="screen-pad">
+      ${monthly}<div class="ach-grid">${cards}</div></div>`;
 }
 export function mountAchievements() {}
 
