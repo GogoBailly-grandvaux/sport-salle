@@ -800,3 +800,30 @@ body.welcome-mode .tabbar{display:none}
   font-size:11px;font-weight:700;letter-spacing:.03em;padding:4px 9px;border-radius:999px;backdrop-filter:blur(4px)}
 .ex-demo.one .exd-badge,.ex-demo.noimg .exd-badge{display:none}
 @media (prefers-reduced-motion: reduce){.ex-demo .exd-1{animation:none;opacity:1}}
+
+/* ---- trophées / récompenses (v3.8) ---- */
+.trophy-card{display:block;width:100%;text-align:left;cursor:pointer}
+.trophy-row{display:flex;gap:8px;margin:10px 0 8px;flex-wrap:wrap}
+.trophy-mini{font-size:26px;line-height:1;filter:saturate(1)}
+.trophy-mini.locked{filter:grayscale(1);opacity:.32}
+.ach-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.ach-card{display:flex;gap:13px;align-items:center;padding:13px 14px;border-radius:16px;
+  background:var(--card);border:1px solid var(--line);opacity:.62}
+.ach-card.done{opacity:1;border-color:color-mix(in srgb,var(--accent) 45%,var(--line));
+  background:color-mix(in srgb,var(--accent) 7%,var(--card))}
+.ach-emoji{font-size:34px;line-height:1;flex:none;width:46px;text-align:center}
+.ach-card:not(.done) .ach-emoji{filter:grayscale(1)}
+.ach-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ach-body b{font-size:15px}
+.ach-tag{align-self:flex-start;margin-top:4px;font-size:11px;font-weight:700;color:#10120c;
+  background:var(--accent);padding:2px 9px;border-radius:999px}
+.ach-prog{display:flex;align-items:center;gap:8px;margin-top:6px}
+.ach-prog-bar{flex:1;height:6px;border-radius:3px;background:var(--line2);overflow:hidden}
+.ach-prog-bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.ach-prog span{font-size:11.5px;color:var(--mut);font-variant-numeric:tabular-nums}
+.ach-unlock{border:1px solid color-mix(in srgb,var(--accent) 55%,var(--line));
+  background:color-mix(in srgb,var(--accent) 9%,var(--card))}
+.ach-unlock-row{display:flex;gap:12px;align-items:center;padding:6px 0}
+.ach-unlock-row .ach-emoji{font-size:38px}
+.ach-unlock-row b{font-size:15px}
+.ach-unlock-row>div{display:flex;flex-direction:column;gap:1px}

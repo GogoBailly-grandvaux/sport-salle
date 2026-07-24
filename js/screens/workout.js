@@ -607,11 +607,38 @@ export async function renderSummary(params) {
       </div>
     </div>`;
 }
+async function celebrateAchievements(root) {
+  try {
+    const [{ computeAchievements, newlyUnlocked }, { listWorkouts }] = await Promise.all([import('../achievements.js'), import('../model.js')]);
+    const workouts = await listWorkouts();
+    const ach = computeAchievements(workouts);
+    const prev = ps('achievements') || [];
+    const fresh = newlyUnlocked(prev, ach.list);
+    if (ach.unlocked.length !== prev.length || fresh.length) {
+      const { savePSettings } = await import('../store.js');
+      await savePSettings({ achievements: ach.unlocked });
+    }
+    if (!fresh.length) return;
+    // carte de célébration insérée en tête du résumé
+    const host = root.querySelector('.summary');
+    if (host) {
+      const html = `<section class="card ach-unlock">
+        <h3 class="card-t">🎉 ${t(fresh.length > 1 ? 'Nouveaux trophées !' : 'Nouveau trophée !', fresh.length > 1 ? 'New achievements!' : 'New achievement!')}</h3>
+        ${fresh.map(a => `<div class="ach-unlock-row"><span class="ach-emoji">${a.emoji}</span><div><b>${esc(a.title)}</b><span class="mut sm">${esc(a.desc)}</span></div></div>`).join('')}
+        <button class="btn ghost full sm" data-nav="#/achievements">${t('Voir tous mes trophées','See all my achievements')}</button></section>`;
+      host.querySelector('.summary-hero')?.insertAdjacentHTML('afterend', html);
+      setTimeout(() => confetti(host.querySelector('.ach-unlock .ach-emoji')), 500);
+      vibrate([60, 30, 60, 30, 60, 30, 120]);
+    }
+  } catch (e) { console.error(e); }
+}
+
 export function mountSummary(root, params) {
   if ((root.querySelector('.pr-card'))) {
     setTimeout(() => confetti(root.querySelector('.summary-badge')), 250);
     vibrate([80, 40, 80, 40, 120]);
   }
+  celebrateAchievements(root); // badges nouvellement débloqués par cette séance
   // partage de la séance dans le fil (opt-in : rien ne part sans ce geste)
   root.querySelector('#sum-share')?.addEventListener('click', async () => {
     const btn = root.querySelector('#sum-share');

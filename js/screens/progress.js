@@ -12,6 +12,7 @@ import {
   e1rm, isWorkingSet, thisWeekCount, goalStreak,
 } from '../analytics.js';
 import { lineChart, barChart, sparkline } from '../charts.js';
+import { computeAchievements } from '../achievements.js';
 
 // ---------------- hub ----------------
 export async function renderHub() {
@@ -58,9 +59,20 @@ export async function renderHub() {
   const { coachWeekly } = await import('../coach.js');
   const weekly = coachWeekly(workouts, state.libraryById, ps('weeklyGoal'));
 
+  // trophées : aperçu (débloqués récents + compteur)
+  const ach = computeAchievements(workouts);
+  const unlocked = ach.list.filter(a => a.done);
+  const nextUp = ach.list.filter(a => !a.done).sort((a, b) => b.pct - a.pct)[0];
+  const achCard = `<button class="card trophy-card" data-nav="#/achievements">
+      <div class="recap-h"><span class="mut">🏅 ${t('Trophées','Achievements')} · ${unlocked.length}/${ach.list.length}</span>${icon('right')}</div>
+      <div class="trophy-row">${(unlocked.length ? unlocked : ach.list).slice(0, 8).map(a => `<span class="trophy-mini ${a.done ? '' : 'locked'}" title="${esc(a.title)}">${a.emoji}</span>`).join('')}</div>
+      ${nextUp ? `<p class="mut sm">${t('Prochain','Next')} : ${nextUp.emoji} ${esc(nextUp.title)} — ${nextUp.cur}/${nextUp.target}</p>` : `<p class="mut sm">${t('Tout débloqué, machine ! 🏆','All unlocked, machine! 🏆')}</p>`}
+    </button>`;
+
   return `${hubHeader()}
     <div class="screen-pad">
       ${weekly ? `<section class="card coach-card"><div class="coach-head"><span class="coach-emoji">${weekly.emoji}</span><b>${esc(weekly.title)}</b></div><p>${esc(weekly.text)}</p></section>` : ''}
+      ${achCard}
       <button class="btn primary full" id="pg-pick">${icon('search')} ${t('Progression d’un exercice','Exercise progression')}</button>
 
       <section class="card">
@@ -89,6 +101,29 @@ function hubHeader() {
 export function mountHub(root) {
   root.querySelector('#pg-pick')?.addEventListener('click', () => openExercisePicker({ multi:false, onPick: ids => nav.go(`#/progress/exercise/${encodeURIComponent(ids[0])}`) }));
 }
+
+// ---------------- trophées (écran complet) ----------------
+export async function renderAchievements() {
+  const workouts = await listWorkouts();
+  const ach = computeAchievements(workouts);
+  const n = ach.list.filter(a => a.done).length;
+  const cards = ach.list.map(a => `
+    <div class="ach-card ${a.done ? 'done' : ''}">
+      <div class="ach-emoji">${a.emoji}</div>
+      <div class="ach-body">
+        <b>${esc(a.title)}</b>
+        <span class="mut sm">${esc(a.desc)}</span>
+        ${a.done ? `<span class="ach-tag">${t('Débloqué','Unlocked')} ✓</span>`
+          : `<div class="ach-prog"><div class="ach-prog-bar"><i style="width:${a.pct}%"></i></div><span>${a.cur}/${a.target}</span></div>`}
+      </div>
+    </div>`).join('');
+  return `
+    <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div>
+      <div class="topbar-c"><h1>🏅 ${t('Trophées','Achievements')}</h1><span class="topbar-sub">${n}/${ach.list.length} ${t('débloqués','unlocked')}</span></div>
+      <div class="topbar-r"></div></header>
+    <div class="screen-pad"><div class="ach-grid">${cards}</div></div>`;
+}
+export function mountAchievements() {}
 
 // ---------------- per-exercise ----------------
 export async function renderExercise(params) {

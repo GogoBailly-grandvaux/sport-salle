@@ -40,6 +40,7 @@ const R = [
   { p:'#/progress', name:'progress', tab:'progress', render:progress.renderHub, mount:progress.mountHub },
   { p:'#/progress/exercise/:id', name:'progress-ex', render:progress.renderExercise, mount:progress.mountExercise },
   { p:'#/progress/body', name:'progress-body', render:progress.renderBody, mount:progress.mountBody },
+  { p:'#/achievements', name:'achievements', render:progress.renderAchievements, mount:progress.mountAchievements },
   { p:'#/social', name:'social', tab:'social', render:social.render, mount:social.mount },
   { p:'#/add/:username', name:'add-friend', render:social.renderAddFriend, mount:social.mountAddFriend },
   { p:'#/u/:username', name:'user-profile', render:social.renderUserProfile, mount:social.mountUserProfile },
@@ -202,7 +203,7 @@ function onboarding() {
     view.innerHTML = `<div class="onboard">
       <div class="onboard-icon">${icon('bolt')}</div>
       <h1>Sport Salle</h1>
-      <p>${t('Ton coach de poche pour la salle : programmes, séances, records et progression. Crée ton profil — chaque personne qui utilise ce téléphone peut avoir le sien.','Your pocket gym coach: programs, workouts, records and progress. Create your profile — everyone using this phone can have their own.')}</p>
+      <p>${t('Ton coach de poche pour la salle : programmes, séances, records et progression. Entraîne-toi, note tes perfs, et regarde-toi progresser.','Your pocket gym coach: programs, workouts, records and progress. Train, log, and watch yourself get stronger.')}</p>
       <label class="field-label">${t('Ton prénom','Your first name')}</label>
       <input class="input" id="ob-name" placeholder="${t('Prénom','First name')}" autocomplete="given-name">
       <label class="field-label">${t('Ta couleur','Your color')}</label>
