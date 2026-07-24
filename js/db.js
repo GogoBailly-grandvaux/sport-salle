@@ -4,15 +4,22 @@ import { uid } from './util.js';
 const DB_NAME = 'gym-salle';
 const DB_VERSION = 3; // v3 : store 'photos' (photos de progression, LOCAL uniquement, jamais synchronisé)
 let _db = null;
+let _opening = null; // promesse d'ouverture en cours (évite les ouvertures concurrentes)
 
 // Hook facultatif appelé après chaque écriture réussie (utilisé par la synchro).
 let _onWrite = null;
 export const setOnWrite = fn => { _onWrite = fn; };
 const notify = (store, obj, kind) => { try { _onWrite && _onWrite(store, obj, kind); } catch {} };
 
+// Safari iOS ferme les connexions IndexedDB quand l'app passe en arrière-plan
+// (« The database connection is closing »). On invalide le handle dès que la
+// connexion meurt, et chaque opération rouvre la base + réessaie une fois.
+function dropDB() { try { _db && _db.close(); } catch {} _db = null; }
+
 export function openDB() {
   if (_db) return Promise.resolve(_db);
-  return new Promise((resolve, reject) => {
+  if (_opening) return _opening;
+  _opening = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e) => {
       const db = req.result;
@@ -51,43 +58,65 @@ export function openDB() {
         ['profile_date',['profileId','date']],
       ]);
     };
-    req.onsuccess = () => { _db = req.result; resolve(_db); };
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      _db = req.result;
+      _db.onclose = () => { _db = null; };  // fermeture forcée par l'OS (Safari en arrière-plan)
+      _db.onversionchange = () => dropDB(); // un autre onglet migre la base → on libère
+      _opening = null;
+      resolve(_db);
+    };
+    req.onerror = () => { _opening = null; reject(req.error); };
   });
+  return _opening;
 }
 
-function tx(store, mode = 'readonly') {
-  return _db.transaction(store, mode).objectStore(store);
+// Retour d'arrière-plan (bfcache iOS) : le handle peut être mort sans événement — on repart propre.
+try { addEventListener('pageshow', (e) => { if (e.persisted) dropDB(); }); } catch {}
+
+// Ouvre une transaction en survivant aux fermetures sauvages de Safari :
+// connexion morte → on rouvre la base et on réessaie une fois.
+async function tx(store, mode = 'readonly') {
+  for (let attempt = 0; ; attempt++) {
+    const db = await openDB();
+    try { return db.transaction(store, mode); }
+    catch (e) {
+      const dead = e && (e.name === 'InvalidStateError' || e.name === 'UnknownError');
+      if (dead && attempt === 0) { if (_db === db) dropDB(); continue; }
+      throw e;
+    }
+  }
 }
+const os = async (store, mode) => (await tx(store, mode)).objectStore(store);
+
 const wrap = (req) => new Promise((res, rej) => {
   req.onsuccess = () => res(req.result);
   req.onerror = () => rej(req.error);
 });
 
-export const get      = (store, key)        => wrap(tx(store).get(key));
-export const getAll   = (store)             => wrap(tx(store).getAll());
-export const put      = (store, obj)        => wrap(tx(store, 'readwrite').put(obj)).then(v => { notify(store, obj, 'put'); return v; });
-export const del      = (store, key)        => wrap(tx(store, 'readwrite').delete(key)).then(v => { notify(store, key, 'del'); return v; });
-export const clear    = (store)             => wrap(tx(store, 'readwrite').clear());
+export const get      = async (store, key)  => wrap((await os(store)).get(key));
+export const getAll   = async (store)       => wrap((await os(store)).getAll());
+export const put      = async (store, obj)  => wrap((await os(store, 'readwrite')).put(obj)).then(v => { notify(store, obj, 'put'); return v; });
+export const del      = async (store, key)  => wrap((await os(store, 'readwrite')).delete(key)).then(v => { notify(store, key, 'del'); return v; });
+export const clear    = async (store)       => wrap((await os(store, 'readwrite')).clear());
 
 // Tombstone : trace de suppression, pour que la synchro la propage aux autres appareils.
 export function writeTombstone(profileId, storeName, recordId) {
   return put('deletions', { id: uid(), profileId, store: storeName, recordId, deletedAt: Date.now() });
 }
 
-export function getAllByIndex(store, index, query) {
-  return wrap(tx(store).index(index).getAll(query));
+export async function getAllByIndex(store, index, query) {
+  return wrap((await os(store)).index(index).getAll(query));
 }
 // Range over a compound index prefix: [value, low..high]
-export function getByProfile(store, index, profileId) {
+export async function getByProfile(store, index, profileId) {
   const range = IDBKeyRange.bound([profileId], [profileId, []]);
-  return wrap(tx(store).index(index).getAll(range));
+  return wrap((await os(store)).index(index).getAll(range));
 }
 
 export async function bulkPut(store, objs) {
-  const t = _db.transaction(store, 'readwrite');
-  const os = t.objectStore(store);
-  for (const o of objs) os.put(o);
+  const t = await tx(store, 'readwrite');
+  const s = t.objectStore(store);
+  for (const o of objs) s.put(o);
   return new Promise((res, rej) => {
     t.oncomplete = () => { for (const o of objs) notify(store, o, 'put'); res(true); };
     t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
@@ -96,9 +125,9 @@ export async function bulkPut(store, objs) {
 
 export async function deleteWhere(store, index, profileId) {
   const rows = await getAllByIndex(store, index, profileId);
-  const t = _db.transaction(store, 'readwrite');
-  const os = t.objectStore(store);
-  for (const r of rows) os.delete(os.keyPath && Array.isArray(os.keyPath) ? os.keyPath.map(k => r[k]) : r.id);
+  const t = await tx(store, 'readwrite');
+  const s = t.objectStore(store);
+  for (const r of rows) s.delete(s.keyPath && Array.isArray(s.keyPath) ? s.keyPath.map(k => r[k]) : r.id);
   return new Promise((res) => { t.oncomplete = () => res(rows.length); });
 }
 
