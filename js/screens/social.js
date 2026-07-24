@@ -618,15 +618,47 @@ export function openEditProfileSheet(onDone = null) {
 }
 
 // ---------------- « Ma salle » : classement des gens de ta salle ----------------
-export async function renderGym() {
+// Répertoire des salles (comptes publics)
+export async function renderGyms() {
+  return `<header class="topbar"><div class="topbar-l">${backBtn('#/social')}</div>
+      <div class="topbar-c"><h1>🏢 ${t('Salles de sport','Gyms')}</h1></div><div class="topbar-r"></div></header>
+    <div class="screen-pad">
+      <div class="input-ico search-friend">${icon('search')}<input class="input" id="gyms-q" placeholder="${t('Chercher une salle','Search a gym')}" autocomplete="off"></div>
+      <p class="mut sm">${t('Les salles avec des membres en compte public. Rends ton compte public pour y apparaître.','Gyms with members on public accounts. Make your account public to appear here.')}</p>
+      <div id="gyms-list"></div></div>`;
+}
+export function mountGyms(root) {
+  const list = root.querySelector('#gyms-list');
+  const load = async (q = '') => {
+    try {
+      const d = await call('social', 'gyms', { q });
+      list.innerHTML = d.gyms.length ? d.gyms.map(g => `
+        <button class="gym-row" data-nav="#/gym/${encodeURIComponent(g.key)}">
+          <span class="gym-ico2">🏋️</span>
+          <div class="fr-info"><b>${esc(g.gym)}</b><span class="mut sm">${g.count} ${t('membre','member')}${g.count > 1 ? 's' : ''} ${t('en public','public')}</span></div>
+          ${icon('right')}</button>`).join('')
+        : `<p class="mut sm center" style="margin-top:24px">${q ? t('Aucune salle trouvée.','No gym found.') : t('Aucune salle publique pour l’instant — sois le premier !','No public gyms yet — be the first!')}</p>`;
+    } catch (e) { list.innerHTML = `<p class="mut sm center">${esc(e.message)}</p>`; }
+  };
+  root.querySelector('#gyms-q').addEventListener('input', debounce(e => load(e.target.value.trim()), 250));
+  load();
+}
+
+export async function renderGym(params = {}) {
+  const key = params.key ? decodeURIComponent(params.key) : null;
   let d;
-  try { d = await call('social', 'gym'); }
+  try { d = await call('social', 'gym', key ? { key } : {}); }
   catch (e) { return `<div class="screen-pad">${emptyState('users', t('Oups','Oops'), e.message || '', `<button class="btn ghost" data-nav="#/social">Social</button>`)}</div>`; }
-  const head = `<header class="topbar"><div class="topbar-l">${backBtn('#/social')}</div>
-    <div class="topbar-c"><h1>🏋️ ${t('Ma salle','My gym')}</h1>${d.gym ? `<span class="topbar-sub">${esc(d.gym)}</span>` : ''}</div>
-    <div class="topbar-r"><button class="icon-btn" id="gym-edit" aria-label="${t('Changer de salle','Change gym')}">${icon('edit')}</button></div></header>`;
-  if (!d.gym) {
-    return `${head}<div class="screen-pad">${emptyState('users', t('Ta salle n’est pas renseignée','No gym set yet'), t('Indique ta salle pour voir qui s’y entraîne et te comparer.','Set your gym to see who trains there and compare.'), `<button class="btn primary" id="gym-set2">${t('Indiquer ma salle','Set my gym')}</button>`)}</div>`;
+  const mine = d.isMine;
+  const back = mine ? '#/social' : '#/gyms';
+  const head = `<header class="topbar"><div class="topbar-l">${backBtn(back)}</div>
+    <div class="topbar-c"><h1>🏋️ ${mine ? t('Ma salle','My gym') : esc(d.gym || t('Salle','Gym'))}</h1>${mine && d.gym ? `<span class="topbar-sub">${esc(d.gym)}</span>` : ''}</div>
+    <div class="topbar-r">${mine ? `<button class="icon-btn" id="gym-edit" aria-label="${t('Changer de salle','Change gym')}">${icon('edit')}</button>` : ''}</div></header>`;
+  if (!d.gym && mine) {
+    return `${head}<div class="screen-pad">${emptyState('users', t('Ta salle n’est pas renseignée','No gym set yet'), t('Indique ta salle pour voir qui s’y entraîne et te comparer.','Set your gym to see who trains there and compare.'), `<button class="btn primary" id="gym-set2">${t('Indiquer ma salle','Set my gym')}</button><button class="btn ghost full" data-nav="#/gyms">🏢 ${t('Parcourir les salles','Browse gyms')}</button>`)}</div>`;
+  }
+  if (!d.members.length) {
+    return `${head}<div class="screen-pad">${emptyState('users', esc(d.gym || ''), t('Personne de public ici pour l’instant.','No public members here yet.'), '')}</div>`;
   }
   const rows = d.members.map((m, i) => {
     const s = m.stats;
@@ -641,7 +673,8 @@ export async function renderGym() {
   }).join('');
   return `${head}<div class="screen-pad">
     <p class="mut sm center" style="margin:2px 0 12px">${t('Classement de la semaine · séances puis volume','This week’s ranking · workouts then volume')}</p>
-    <div class="friend-list">${rows}</div></div>`;
+    <div class="friend-list">${rows}</div>
+    ${mine ? `<button class="btn ghost full" style="margin-top:12px" data-nav="#/gyms">🏢 ${t('Parcourir les salles','Browse gyms')}</button>` : ''}</div>`;
 }
 export function mountGym(root) {
   root.querySelector('#gym-edit')?.addEventListener('click', () => openEditProfileSheet());

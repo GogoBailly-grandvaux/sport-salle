@@ -143,23 +143,56 @@ switch ($action) {
     ok(['friends' => $friends, 'incoming' => $incoming, 'outgoing' => $outgoing]);
   }
 
+  case 'gyms': {
+    // Répertoire des salles : celles ayant au moins un compte PUBLIC (confidentialité).
+    rate_limit('lookup', 100, 900);
+    $q = gym_key((string)($b['q'] ?? ''));
+    $rows = with_profile_cols(function () use ($q) {
+      if ($q !== '') {
+        $st = db()->prepare("SELECT MAX(gym) AS gym, gym_key, COUNT(*) AS n FROM users
+          WHERE gym_key IS NOT NULL AND privacy = 'public' AND gym_key LIKE ?
+          GROUP BY gym_key ORDER BY n DESC LIMIT 40");
+        $st->execute(['%' . $q . '%']);
+      } else {
+        $st = db()->prepare("SELECT MAX(gym) AS gym, gym_key, COUNT(*) AS n FROM users
+          WHERE gym_key IS NOT NULL AND privacy = 'public'
+          GROUP BY gym_key ORDER BY n DESC LIMIT 40");
+        $st->execute();
+      }
+      return $st->fetchAll(PDO::FETCH_ASSOC);
+    });
+    ok(['gyms' => array_map(fn($r) => ['gym' => $r['gym'], 'key' => $r['gym_key'], 'count' => (int)$r['n']], $rows)]);
+  }
+
   case 'gym': {
-    // « Ma salle » : tous les utilisateurs ayant la même salle que moi, classés
+    // « Ma salle » (sans key) ou une salle du répertoire (avec key).
+    // Confidentialité : seuls les comptes PUBLICS, mes amis, et moi sont listés.
+    $key = isset($b['key']) && $b['key'] !== '' ? gym_key((string)$b['key']) : null;
     $me2 = with_profile_cols(function () use ($me) {
       $st = db()->prepare('SELECT gym, gym_key FROM users WHERE id = ?'); $st->execute([$me['id']]);
       return $st->fetch(PDO::FETCH_ASSOC);
     });
-    if (empty($me2['gym_key'])) { ok(['gym' => null, 'members' => []]); }
-    $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent FROM users WHERE gym_key = ? LIMIT 200');
-    $st->execute([$me2['gym_key']]);
-    $members = array_map('public_user', $st->fetchAll(PDO::FETCH_ASSOC));
+    $targetKey = $key ?: ($me2['gym_key'] ?? null);
+    if (empty($targetKey)) { ok(['gym' => null, 'members' => [], 'isMine' => !$key]); }
+    $targetName = $key ? null : ($me2['gym'] ?? null);
+    $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, gym, privacy FROM users WHERE gym_key = ? LIMIT 300');
+    $st->execute([$targetKey]);
+    $members = [];
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+      $uid = (int)$r['id'];
+      $visible = $uid === $me['id'] || ($r['privacy'] ?? 'friends') === 'public' || are_friends($me['id'], $uid);
+      if (!$visible) { continue; }
+      if ($targetName === null) { $targetName = $r['gym']; }
+      $u = public_user($r); $u['isMe'] = $uid === $me['id'];
+      $members[] = $u;
+    }
     $stats = stats_for(array_map(fn($m) => $m['id'], $members));
-    foreach ($members as &$m) { $m['stats'] = $stats[$m['id']] ?? null; $m['isMe'] = $m['id'] === $me['id']; }
+    foreach ($members as &$m) { $m['stats'] = $stats[$m['id']] ?? null; }
     usort($members, function ($x, $y) {
       $c = (($y['stats']['weekCount'] ?? 0) <=> ($x['stats']['weekCount'] ?? 0));
       return $c !== 0 ? $c : (($y['stats']['weekVolume'] ?? 0) <=> ($x['stats']['weekVolume'] ?? 0));
     });
-    ok(['gym' => $me2['gym'], 'members' => $members, 'count' => count($members)]);
+    ok(['gym' => $targetName, 'members' => $members, 'count' => count($members), 'isMine' => !$key]);
   }
 
   case 'notifs': {
