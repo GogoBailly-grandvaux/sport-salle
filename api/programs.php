@@ -83,6 +83,26 @@ switch ($action) {
     ok(['programs' => $rows]);
   }
 
+  case 'explore': { // vitrine : les programmes partagés par MES AMIS, les plus importés d'abord
+    $ids = friend_ids($me['id']);
+    if (!$ids) { ok(['programs' => []]); }
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $st = db()->prepare(
+      "SELECT sp.id, sp.name, sp.downloads, sp.group_id, sp.created_at,
+              u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo, u.verified
+       FROM shared_programs sp JOIN users u ON u.id = sp.user_id
+       WHERE sp.user_id IN ($ph) AND sp.group_id IS NULL
+       ORDER BY sp.downloads DESC, sp.created_at DESC LIMIT 30");
+    $st->execute($ids);
+    $out = [];
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+      $row = program_row($r);
+      $row['by'] = public_user(['id' => $r['uid'], 'username' => $r['username'], 'display_name' => $r['display_name'], 'avatar_emoji' => $r['avatar_emoji'], 'accent' => $r['accent'], 'avatar_photo' => $r['avatar_photo'] ?? null, 'verified' => $r['verified'] ?? 0]);
+      $out[] = $row;
+    }
+    ok(['programs' => $out]);
+  }
+
   case 'import': {
     $id = (int)($b['id'] ?? 0);
     $st = db()->prepare('SELECT user_id, group_id, payload FROM shared_programs WHERE id = ?');

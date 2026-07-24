@@ -31,6 +31,75 @@ export async function beginRoutine(routine) {
 }
 
 // ---------------- list ----------------
+let rtSeg = 'mine'; // mes programmes | explorer (façon Lyfta)
+
+// couleur de couverture par objectif (dégradés stables)
+const EXP_HUES = { 'Full body': '#54c5f2', 'Push/Pull/Legs': '#f2679b', 'Haut/Bas': '#b989f2', 'Maison': '#3ee0a8', 'PPL': '#f2679b' };
+function expCover(t_) {
+  const hue = EXP_HUES[t_.goal] || ['#54c5f2', '#f2679b', '#b989f2', '#3ee0a8', '#f2a63c'][Math.abs([...t_.id].reduce((a, c) => a + c.charCodeAt(0), 0)) % 5];
+  return `background:linear-gradient(150deg,color-mix(in srgb,${hue} 55%,#101116),#101116 85%)`;
+}
+
+async function renderExplore() {
+  // à la une : rotation quotidienne parmi les modèles
+  const day = Math.floor(Date.now() / 864e5);
+  const hero = TEMPLATES[day % TEMPLATES.length];
+  const heroCard = `<button class="exp-hero" data-tpl="${esc(hero.id)}" style="${expCover(hero)}">
+    <span class="exp-hero-tag">${t('À la une aujourd’hui','Featured today')}</span>
+    <b>${esc(hero.name)}</b>
+    <span class="exp-meta"><span class="tpl-pill">${esc(hero.level)}</span><span class="tpl-pill alt">${esc(hero.goal)}</span><span>${hero.items.length} ${t('exercices','exercises')}</span></span>
+  </button>`;
+
+  const grid = `<div class="exp-grid">${TEMPLATES.map(t_ => `
+    <button class="exp-card" data-tpl="${esc(t_.id)}">
+      <span class="exp-cover" style="${expCover(t_)}"><span class="exp-cover-t">${esc(t_.goal)}</span></span>
+      <b>${esc(t_.name)}</b>
+      <span class="mut sm">${esc(t_.level)} · ${t_.items.length} ${t('exos','exos')}</span>
+    </button>`).join('')}</div>`;
+
+  // programmes partagés par mes amis (les plus importés d'abord)
+  let friends = '';
+  if (isLoggedIn()) {
+    try {
+      const d = await call('programs', 'explore');
+      if ((d.programs || []).length) {
+        friends = `<h2 class="exp-h">${t('Programmes de tes amis','Programs from your friends')}</h2>
+          ${d.programs.map(p => `<div class="share-row"><div><b>${esc(p.name)}</b>
+            <span class="mut sm">${t('par','by')} ${esc(p.by?.displayName || '?')} · ${p.downloads} import${p.downloads > 1 ? 's' : ''}</span></div>
+            <button class="btn primary sm" data-pimport="${p.id}">${icon('download')} ${t('Importer','Import')}</button></div>`).join('')}`;
+      }
+    } catch {}
+  }
+
+  return `
+    ${heroCard}
+    <h2 class="exp-h">${t('Modèles prêts à l’emploi','Ready-made templates')}</h2>
+    ${grid}
+    ${friends}
+    <h2 class="exp-h">${t('Explorer aussi','Also explore')}</h2>
+    <div class="exp-tiles">
+      <button class="exp-tile" data-nav="#/library">${icon('search')}<b>${t('Exercices','Exercises')}</b><span class="mut sm">${t('1 214 mouvements illustrés','1,214 illustrated moves')}</span></button>
+      <button class="exp-tile" data-nav="#/gyms">${icon('building')}<b>${t('Salles','Gyms')}</b><span class="mut sm">${t('Qui s’entraîne où','Who trains where')}</span></button>
+    </div>`;
+}
+
+function openTemplatePreview(tplId) {
+  const t_ = TEMPLATES.find(x => x.id === tplId);
+  if (!t_) return;
+  const s = sheet(`
+    <p class="tpl-tag">${esc(t_.tagline)}</p>
+    <div class="tpl-meta" style="margin-bottom:10px"><span class="tpl-pill">${esc(t_.level)}</span><span class="tpl-pill alt">${esc(t_.goal)}</span><span class="mut sm">${t_.items.length} ${t('exercices','exercises')}</span></div>
+    <div class="rt-exs">${t_.items.map(it => { const ex = getExercise(it.ex); return `<span class="rt-ex">${esc(ex ? ex.name : it.ex)} · ${it.sets}×${it.reps[0]}${it.reps[1] !== it.reps[0] ? '-' + it.reps[1] : ''}</span>`; }).join('')}</div>
+    <button class="btn primary full" id="tplp-add" style="margin-top:14px">${icon('plus')} ${t('Ajouter à mes programmes','Add to my programs')}</button>
+  `, { title: t_.name, cls: 'tall' });
+  s.root.querySelector('#tplp-add').onclick = async (e) => {
+    e.currentTarget.disabled = true;
+    const r = await addTemplate(t_);
+    s.close(); toast(`« ${r.name} » ${t('ajouté à tes programmes','added to your programs')} ✓`);
+    rtSeg = 'mine'; nav.refresh();
+  };
+}
+
 export async function renderList() {
   const routines = await listRoutines();
   const cards = routines.map(r => {
@@ -59,6 +128,11 @@ export async function renderList() {
       </div>
     </header>
     <div class="screen-pad">
+      <div class="segmented rtseg" id="rt-seg">
+        <button class="seg ${rtSeg === 'mine' ? 'on' : ''}" data-rtseg="mine">${t('Mes programmes','My programs')}</button>
+        <button class="seg ${rtSeg === 'explore' ? 'on' : ''}" data-rtseg="explore">${t('Explorer','Explore')}</button>
+      </div>
+      ${rtSeg === 'explore' ? await renderExplore() : `
       <button class="tpl-banner coach" id="rt-coach">
         <div class="tpl-banner-t"><b>${t('Le coach génère TON programme','The coach builds YOUR program')}</b><span>${t('Objectif, niveau, jours, matériel → ta semaine prête en 30 s','Goal, level, days, equipment → your week ready in 30 s')}</span></div>
         ${icon('right')}
@@ -71,24 +145,39 @@ export async function renderList() {
       <button class="btn ghost full mt" id="rt-new3">${icon('plus')} ${t('Nouveau programme','New program')}</button>` :
         emptyState('dumbbell', t('Aucun programme','No programs'), t('Pars d’un modèle prêt à l’emploi, ou crée ton circuit de zéro.','Start from a template, or build your own from scratch.'),
           `<button class="btn primary" id="rt-new2">${icon('plus')} ${t('Créer un programme','Create a program')}</button>`)}
+      `}
       <input type="file" id="rt-file" accept="application/json,.json" hidden>
     </div>`;
 }
 
 export function mountList(root) {
+  // segments Mes programmes | Explorer
+  root.querySelectorAll('[data-rtseg]').forEach(b => b.onclick = () => {
+    if (rtSeg === b.dataset.rtseg) return;
+    rtSeg = b.dataset.rtseg;
+    nav.refresh();
+  });
+  // explorer : aperçu de modèle + import des programmes d'amis
+  root.querySelectorAll('[data-tpl]').forEach(b => b.onclick = () => openTemplatePreview(b.dataset.tpl));
+  root.querySelectorAll('[data-pimport]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    const { importShared } = await import('./social.js');
+    await importShared(+b.dataset.pimport);
+    b.disabled = false;
+  });
   const create = async () => {
     const name = await promptDialog({ title: t('Nouveau programme','New program'), label: t('Nom','Name'), placeholder: t('Ex. Haut du corps A','E.g. Upper body A'), confirmText: t('Créer','Create') });
     if (name == null) return;
     const r = await newRoutine(name.trim() || t('Nouveau programme','New program'));
     nav.go(`#/routines/${r.id}/edit`);
   };
-  root.querySelector('#rt-new').onclick = create;
+  const newBtn = root.querySelector('#rt-new'); if (newBtn) newBtn.onclick = create;
   root.querySelector('#rt-new2')?.addEventListener('click', create);
   root.querySelector('#rt-new3')?.addEventListener('click', create);
-  root.querySelector('#rt-coach').onclick = () => nav.go('#/coach');
-  root.querySelector('#rt-templates').onclick = openTemplates;
+  const coachBtn = root.querySelector('#rt-coach'); if (coachBtn) coachBtn.onclick = () => nav.go('#/coach');
+  const tplBtn = root.querySelector('#rt-templates'); if (tplBtn) tplBtn.onclick = openTemplates;
   const fileInput = root.querySelector('#rt-file');
-  root.querySelector('#rt-import').onclick = () => fileInput.click();
+  const impBtn = root.querySelector('#rt-import'); if (impBtn) impBtn.onclick = () => fileInput.click();
   fileInput.onchange = async () => {
     const f = fileInput.files[0]; if (!f) return;
     try {
