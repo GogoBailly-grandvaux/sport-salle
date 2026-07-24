@@ -356,7 +356,19 @@ export async function renderExercise(params) {
 export function mountExercise() {}
 
 // ---------------- body metrics ----------------
-const METRICS = () => ({ weight: { label:t('Poids','Weight'), unit:'kg' }, bodyfat: { label:t('Masse grasse','Body fat'), unit:'%' }, waist: { label:t('Tour de taille','Waist'), unit:'cm' } });
+const METRICS = () => ({
+  weight:   { label: t('Poids','Weight'), unit: 'kg' },
+  bodyfat:  { label: t('Masse grasse','Body fat'), unit: '%' },
+  calories: { label: t('Calories','Calories'), unit: 'kcal' },
+  waist:    { label: t('Taille','Waist'), unit: 'cm' },
+  chest:    { label: t('Poitrine','Chest'), unit: 'cm' },
+  shoulders:{ label: t('Épaules','Shoulders'), unit: 'cm' },
+  neck:     { label: t('Cou','Neck'), unit: 'cm' },
+  bicepsL:  { label: t('Biceps G','Biceps L'), unit: 'cm' },
+  bicepsR:  { label: t('Biceps D','Biceps R'), unit: 'cm' },
+  thigh:    { label: t('Cuisse','Thigh'), unit: 'cm' },
+  calf:     { label: t('Mollet','Calf'), unit: 'cm' },
+});
 let bodyType = 'weight';
 
 export async function renderBody() {
@@ -370,7 +382,7 @@ export async function renderBody() {
   return `
     <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div><div class="topbar-c"><h1>${t('Mesures','Measurements')}</h1></div><div class="topbar-r"><button class="icon-btn" id="bm-add" aria-label="${t('Ajouter','Add')}">${icon('plus')}</button></div></header>
     <div class="screen-pad">
-      <div class="segmented">${seg}</div>
+      <div class="segmented bt-scroll">${seg}</div>
       <section class="card">
         <h3 class="card-t">${meta.label} (${meta.unit})</h3>
         ${pts.length>1 ? lineChart(trend,{valueKey:'value',trendKey:'trend',fmt:v=>round(v,1),height:150}) : (pts.length?`<div class="single-val">${pts[0].value} ${meta.unit}</div>`:`<p class="mut sm">${t('Aucune mesure. Appuie sur + pour commencer.','No measurements. Tap + to start.')}</p>`)}

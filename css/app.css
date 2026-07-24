@@ -453,6 +453,15 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 .mch-body{flex:1;display:flex;flex-direction:column;gap:4px}
 .mch-body .rec-bar{height:7px}
 .mch-done .ico{width:18px;height:18px;color:var(--good)}
+/* Mesures scrollables + punchline gratuite du welcome */
+.bt-scroll{overflow-x:auto;scrollbar-width:none;justify-content:flex-start}
+.bt-scroll::-webkit-scrollbar{display:none}
+.bt-scroll .seg{flex:none}
+.wel-punch{font-size:1.02rem;margin:14px 0 8px;text-align:center}
+.wel-punch b{color:var(--accent)}
+.wel-freebies{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:center;margin-bottom:14px}
+.wel-freebies span{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-weight:600;color:var(--text2)}
+.wel-freebies .ico{width:13px;height:13px;color:var(--good)}
 /* Radar équilibre musculaire + paliers de trophées */
 .radar-wrap{display:flex;justify-content:center}
 .radar{width:min(300px,86vw);height:auto}
