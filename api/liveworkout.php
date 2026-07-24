@@ -17,6 +17,36 @@ function ensure_live_workouts(): void {
     CONSTRAINT fk_lw_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
+function ensure_live_sessions(): void {
+  ensure_live_workouts();
+  db()->exec("CREATE TABLE IF NOT EXISTS live_sessions (
+    id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    creator_id  INT UNSIGNED NOT NULL,
+    name        VARCHAR(80) DEFAULT NULL,
+    routine_payload MEDIUMTEXT DEFAULT NULL,
+    created_at  BIGINT UNSIGNED NOT NULL,
+    CONSTRAINT fk_ls_user FOREIGN KEY (creator_id) REFERENCES users(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  foreach ([
+    "ALTER TABLE live_workouts ADD COLUMN session_id INT UNSIGNED DEFAULT NULL",
+    "ALTER TABLE notifs MODIFY kind ENUM('friend_req','friend_acc','react','comment','mention','challenge','livesession') NOT NULL",
+  ] as $sql) {
+    try { db()->exec($sql); }
+    catch (PDOException $e) {
+      $m = $e->getMessage();
+      if ($e->getCode() !== '42S21' && strpos($m, '1060') === false && strpos($m, '1061') === false) { throw $e; }
+    }
+  }
+}
+function with_live_sessions(callable $fn) {
+  try { return $fn(); }
+  catch (PDOException $e) {
+    if (!in_array($e->getCode(), ['42S02', '42S22'], true)) { throw $e; }
+    ensure_live_sessions();
+    return $fn();
+  }
+}
+
 function with_live_workouts(callable $fn) {
   try { return $fn(); }
   catch (PDOException $e) {
@@ -39,15 +69,16 @@ switch ($b['action'] ?? '') {
     $vol  = max(0, min(2000000, (int)($b['volumeKg'] ?? 0)));
     $start = (int)($b['startedAt'] ?? 0);
     if ($start <= 0) { $start = (int)(microtime(true) * 1000); }
-    $isNew = with_live_workouts(function () use ($u, $name, $ex, $sets, $vol, $start) {
+    $sess = (int)($b['sessionId'] ?? 0) ?: null;
+    $isNew = with_live_sessions(function () use ($u, $name, $ex, $sets, $vol, $start, $sess) {
       $st = db()->prepare('SELECT user_id FROM live_workouts WHERE user_id = ?');
       $st->execute([$u['id']]);
       $existed = (bool)$st->fetch();
-      db()->prepare('INSERT INTO live_workouts (user_id, name, current_ex, sets_done, volume_kg, started_at)
-                     VALUES (?,?,?,?,?,?)
+      db()->prepare('INSERT INTO live_workouts (user_id, name, current_ex, sets_done, volume_kg, started_at, session_id)
+                     VALUES (?,?,?,?,?,?,?)
                      ON DUPLICATE KEY UPDATE name = VALUES(name), current_ex = VALUES(current_ex),
-                       sets_done = VALUES(sets_done), volume_kg = VALUES(volume_kg), started_at = VALUES(started_at)')
-        ->execute([$u['id'], $name !== '' ? $name : null, $ex !== '' ? $ex : null, $sets, $vol, $start]);
+                       sets_done = VALUES(sets_done), volume_kg = VALUES(volume_kg), started_at = VALUES(started_at), session_id = VALUES(session_id)')
+        ->execute([$u['id'], $name !== '' ? $name : null, $ex !== '' ? $ex : null, $sets, $vol, $start, $sess]);
       return !$existed;
     });
     if ($isNew) { bump_live(friend_ids($u['id'])); } // leurs écrans montrent « en séance »
@@ -93,6 +124,69 @@ switch ($b['action'] ?? '') {
       ];
     }
     ok(['live' => $live]);
+  }
+
+  // créer une séance de groupe : invite des amis (notif + push), programme optionnel
+  case 'create_session': {
+    $u = require_user();
+    rate_limit('lwsess', 10, 900);
+    $name = mb_substr(trim(str_replace(['<', '>'], '', (string)($b['name'] ?? ''))), 0, 80);
+    $routine = null;
+    if (isset($b['routine']) && is_array($b['routine'])) {
+      $routine = json_encode($b['routine'], JSON_UNESCAPED_UNICODE);
+      if (strlen($routine) > 200000) { fail(400, 'programme trop lourd'); }
+    }
+    $sid = with_live_sessions(function () use ($u, $name, $routine) {
+      db()->prepare('INSERT INTO live_sessions (creator_id, name, routine_payload, created_at) VALUES (?,?,?,?)')
+        ->execute([$u['id'], $name !== '' ? $name : null, $routine, (int)(microtime(true) * 1000)]);
+      return (int)db()->lastInsertId();
+    });
+    $friends = friend_ids($u['id']);
+    $invited = array_values(array_intersect(array_map('intval', (array)($b['friendIds'] ?? [])), $friends));
+    foreach (array_slice($invited, 0, 20) as $fid) { notify($fid, $u['id'], 'livesession', $sid, $name !== '' ? $name : null); }
+    if ($invited) { bump_live($invited); }
+    ok(['sessionId' => $sid]);
+  }
+
+  // rejoindre : récupère le programme partagé (ou rien = séance libre)
+  case 'join_session': {
+    $u = require_user();
+    $sid = (int)($b['sessionId'] ?? 0);
+    $row = with_live_sessions(function () use ($sid) {
+      $st = db()->prepare('SELECT ls.*, u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
+                           FROM live_sessions ls JOIN users u ON u.id = ls.creator_id WHERE ls.id = ?');
+      $st->execute([$sid]);
+      return $st->fetch(PDO::FETCH_ASSOC);
+    });
+    if (!$row) { fail(404, 'séance introuvable'); }
+    if ((int)$row['creator_id'] !== $u['id'] && !are_friends($u['id'], (int)$row['creator_id'])) { fail(403, 'réservé aux amis'); }
+    ok([
+      'sessionId' => (int)$row['id'],
+      'name'      => $row['name'],
+      'creator'   => public_user(['id' => $row['uid'], 'username' => $row['username'], 'display_name' => $row['display_name'], 'avatar_emoji' => $row['avatar_emoji'], 'accent' => $row['accent'], 'avatar_photo' => $row['avatar_photo'] ?? null]),
+      'routine'   => $row['routine_payload'] ? json_decode($row['routine_payload'], true) : null,
+    ]);
+  }
+
+  // participants en direct d'une séance de groupe
+  case 'session': {
+    $u = require_user();
+    $sid = (int)($b['sessionId'] ?? 0);
+    $rows = with_live_sessions(function () use ($sid) {
+      $st = db()->prepare(
+        "SELECT lw.user_id, lw.name, lw.current_ex, lw.sets_done, lw.volume_kg, lw.started_at,
+                TIMESTAMPDIFF(SECOND, lw.updated_at, NOW()) AS age_s,
+                u.id, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
+         FROM live_workouts lw JOIN users u ON u.id = lw.user_id WHERE lw.session_id = ?");
+      $st->execute([$sid]);
+      return $st->fetchAll(PDO::FETCH_ASSOC);
+    });
+    $out = [];
+    foreach ($rows as $r) {
+      if ((int)$r['age_s'] > 150) { continue; }
+      $out[] = ['user' => public_user($r), 'currentEx' => $r['current_ex'], 'setsDone' => (int)$r['sets_done'], 'volumeKg' => (int)$r['volume_kg'], 'startedAt' => (int)$r['started_at']];
+    }
+    ok(['participants' => $out]);
   }
 
   default: fail(400, 'action inconnue');

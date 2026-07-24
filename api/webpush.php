@@ -135,6 +135,7 @@ function push_payload(string $kind, string $actorName, ?string $meta): array {
     case 'react':      return ['title' => "$n", 'body' => 'a réagi ' . ($meta ?: '👊') . ' à ton post'];
     case 'comment':    return ['title' => "$n a répondu", 'body' => $meta ?: '💬'];
     case 'mention':    return ['title' => "$n t’a mentionné", 'body' => $meta ?: ''];
+    case 'livesession': return ['title' => "$n s'entraîne maintenant", 'body' => ($meta ? "« $meta » — " : '') . 'rejoins la séance !'];
     case 'challenge':  return ['title' => "$n — défi 💪", 'body' => $meta === 'a rejoint' ? "$n a rejoint ton défi !" : "$n te défie cette semaine ($meta)"];
     default:           return ['title' => 'Sport Salle', 'body' => $n];
   }

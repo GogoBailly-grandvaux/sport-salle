@@ -154,8 +154,12 @@ function currentExName() {
 }
 
 export function mount(root, params) {
+  // séance de groupe : un sessionId en attente (créée ou rejointe) s'attache à CETTE séance
+  const stash = localStorage.getItem('ss-join-session');
+  if (stash && W && !W._sessionId) { W._sessionId = parseInt(stash, 10) || null; localStorage.removeItem('ss-join-session'); persist(); }
   // séance en direct : mes amis me voient m'entraîner (battements légers)
-  liveStart(() => ({ W, exName: currentExName() }));
+  liveStart(() => ({ W, exName: currentExName() }), W?._sessionId || null);
+  mountTogether(root);
   document.body.classList.add('workout-mode');
   const exs = root.querySelector('#wk-exs');
 
@@ -729,4 +733,31 @@ export function mountSummary(root, params) {
       btn.textContent = t('Partagé ✓ tes amis vont le voir','Shared ✓ your friends will see it');
     } catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; }
   });
+}
+
+
+// ---- panneau « Ensemble » : les participants de la séance de groupe ----
+let tgTimer = null;
+async function refreshTogether(host) {
+  if (!W?._sessionId) return;
+  try {
+    const d = await call('liveworkout', 'session', { sessionId: W._sessionId });
+    const me = (await import('../api.js')).account()?.user?.username;
+    host.innerHTML = `<div class="tg-head">${icon('users')} <b>${t('Ensemble','Together')}</b> · ${d.participants.length}</div>` +
+      d.participants.map(p => {
+        const mins = Math.max(1, Math.round((Date.now() - p.startedAt) / 60000));
+        return `<div class="tg-row"><b>${esc(p.user.displayName)}${p.user.username === me ? ` · ${t('toi','you')}` : ''}</b>
+          <span class="mut sm">${p.setsDone} ${t('séries','sets')} · ${p.volumeKg.toLocaleString('fr-FR')} kg · ${mins} min${p.currentEx ? ` · ${esc(p.currentEx)}` : ''}</span></div>`;
+      }).join('');
+  } catch {}
+}
+function mountTogether(root) {
+  clearInterval(tgTimer);
+  if (!W?._sessionId || !isLoggedIn()) return;
+  const view = root.querySelector('.screen-pad') || root;
+  const host = document.createElement('section');
+  host.className = 'card together';
+  view.prepend(host);
+  refreshTogether(host);
+  tgTimer = setInterval(() => { if (!document.body.contains(host)) { clearInterval(tgTimer); return; } refreshTogether(host); }, 15000);
 }

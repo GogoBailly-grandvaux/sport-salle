@@ -6,6 +6,7 @@ import { call, isLoggedIn } from './api.js';
 
 let timer = null;
 let getState = null; // () => ({ W, exName })
+let sessionId = null; // séance de groupe en cours
 let lastBeat = 0;
 
 function send(force = false) {
@@ -22,11 +23,13 @@ function send(force = false) {
     setsDone: done.length,
     volumeKg: Math.round(done.reduce((v, s) => v + (s.weightKg || 0) * (s.reps || 0), 0)),
     startedAt: W.startedAt || 0,
+    sessionId: sessionId || undefined,
   }).catch(() => {});
 }
 
-export function liveStart(stateFn) {
+export function liveStart(stateFn, sid = null) {
   getState = stateFn;
+  sessionId = sid;
   clearInterval(timer);
   timer = setInterval(() => send(true), 45000);
   send(true);
@@ -35,6 +38,6 @@ export function liveStart(stateFn) {
 export function liveBeat() { send(true); }
 
 export function liveStop() {
-  clearInterval(timer); timer = null; getState = null; lastBeat = 0;
+  clearInterval(timer); timer = null; getState = null; lastBeat = 0; sessionId = null;
   if (isLoggedIn()) call('liveworkout', 'stop', {}).catch(() => {});
 }

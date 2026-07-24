@@ -131,9 +131,11 @@ async function fabAction() {
   if (active) { nav.go(`#/workout/${active.id}`); return; }
   const rs = await listRoutines();
   const body = `<button class="menu-row big" id="fab-empty">${icon('play')} ${t('Séance libre','Free workout')}</button>
+    <button class="menu-row" id="fab-group">${icon('users')} ${t('Séance à plusieurs','Group workout')}</button>
     ${rs.length ? `<div class="fab-sep">${t('ou un programme','or a program')}</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} ${t('exercice','exercise')}${(r.items||[]).length>1?'s':''}</span></button>`).join('') : `<p class="mut sm center">${t('Aucun programme.','No programs yet.')} <a data-nav="#/routines">${t('En créer un','Create one')}</a> · <a data-nav="#/coach">${t('le coach s’en charge','let the coach do it')}</a></p>`}`;
   const s = sheet(body, { title: t('Démarrer','Start') });
   s.root.querySelector('#fab-empty').onclick = async () => { s.close(); const w = await startWorkout({}); nav.go(`#/workout/${w.id}`); };
+  s.root.querySelector('#fab-group').onclick = () => { s.close(); social.openGroupSessionSheet(); };
   s.root.querySelectorAll('[data-r]').forEach(b => b.onclick = async () => {
     s.close(); const r = await getRoutine(b.dataset.r);
     if (!(r.items||[]).length) { toast(t('Programme vide','Empty program')); nav.go(`#/routines/${r.id}/edit`); return; }

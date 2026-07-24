@@ -4,7 +4,9 @@ import { esc, relDate, debounce } from '../util.js';
 import { nav, ACCENTS } from '../store.js';
 import { icon, sheet, toast, confirmDialog, promptDialog } from '../ui.js';
 import { call, isLoggedIn, account } from '../api.js';
-import { importRoutinePayload } from '../templates.js';
+import { importRoutinePayload, routinePayload } from '../templates.js';
+import { beginRoutine } from './routines.js';
+import { listRoutines } from '../model.js';
 import { emptyState, backBtn } from './common.js';
 import { openAuthSheet } from './account.js';
 import * as sync from '../sync.js';
@@ -87,6 +89,7 @@ function notifLine(n) {
     react: t(`${who} a réagi ${esc(n.meta || '👊')} à ton post`, `${who} reacted ${esc(n.meta || '👊')} to your post`),
     comment: t(`${who} a répondu : « ${esc(n.meta || '')} »`, `${who} replied: “${esc(n.meta || '')}”`),
     mention: t(`${who} t’a mentionné : « ${esc(n.meta || '')} »`, `${who} mentioned you: “${esc(n.meta || '')}”`),
+    livesession: t(`${who} s'entraîne maintenant — rejoins la séance !`, `${who} is working out now — join in!`),
     challenge: n.meta === 'a rejoint' ? t(`${who} a rejoint ton défi`, `${who} joined your challenge`) : t(`${who} te défie cette semaine`, `${who} challenges you this week`),
   };
   return x[n.kind] || who;
@@ -109,6 +112,7 @@ function wireActivite(root) {
   root.querySelectorAll('.notif-row').forEach(b => b.onclick = () => {
     const { nkind, nref, nuser } = b.dataset;
     if ((nkind === 'react' || nkind === 'comment' || nkind === 'mention') && nref) { openCommentsSheet(+nref); return; }
+    if (nkind === 'livesession') { if (nref) joinLiveSession(+nref); return; }
     if (nkind === 'challenge') { nav.go('#/challenges'); return; }
     nav.go('#/u/' + nuser);
   });
@@ -868,4 +872,54 @@ export function mountGroup(root, params) {
       }
     };
   });
+}
+
+
+// ---- séance de groupe : créer (invite des amis) & rejoindre ----
+export async function openGroupSessionSheet() {
+  if (!isLoggedIn()) { openAuthSheet(); return; }
+  const [soc, routines] = await Promise.all([call('social', 'list'), listRoutines()]);
+  if (!soc.friends.length) { toast(t('Ajoute d’abord des amis.','Add friends first.')); return; }
+  const s = sheet(`
+    <p class="mut sm">${t('Choisis un programme (ou séance libre), invite tes potes — ils te rejoignent en un tap, avec ton programme ou le leur.','Pick a program (or free workout), invite friends — they join in one tap, with your program or their own.')}</p>
+    <select class="input select" id="gs-routine"><option value="">${t('Séance libre','Free workout')}</option>${routines.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('')}</select>
+    <div class="gs-friends">${soc.friends.map(f => `<label class="gs-friend"><input type="checkbox" value="${f.id}"> ${esc(f.displayName)}</label>`).join('')}</div>
+    <button class="btn primary full" id="gs-go">${t('Lancer la séance à plusieurs','Start group workout')}</button>
+  `, { title: t('Séance à plusieurs','Group workout') });
+  s.root.querySelector('#gs-go').onclick = async (e) => {
+    const btn = e.currentTarget; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try {
+      const rid = s.root.querySelector('#gs-routine').value;
+      const friendIds = [...s.root.querySelectorAll('.gs-friends input:checked')].map(i => +i.value);
+      const r = rid ? (await listRoutines()).find(x => x.id === rid) : null;
+      const res = await call('liveworkout', 'create_session', {
+        name: r ? r.name : t('Séance libre','Free workout'),
+        routine: r ? routinePayload(r) : undefined,
+        friendIds,
+      });
+      localStorage.setItem('ss-join-session', String(res.sessionId));
+      s.close();
+      if (r) { await beginRoutine(r); }
+      else { const m = await import('../model.js'); const w = await m.startWorkout({}); nav.go('#/workout/' + w.id); }
+    } catch (err) { toast(err.message, { type: 'error' }); btn.disabled = false; btn.textContent = t('Lancer la séance à plusieurs','Start group workout'); }
+  };
+}
+
+export async function joinLiveSession(sessionId) {
+  try {
+    const d = await call('liveworkout', 'join_session', { sessionId: +sessionId });
+    const s = sheet(`
+      <p class="mut sm"><b>${esc(d.creator.displayName)}</b> ${t('s’entraîne en ce moment','is working out right now')}${d.name ? ` — « ${esc(d.name)} »` : ''}.</p>
+      ${d.routine ? `<button class="btn primary full" id="js-same">${t('Suivre son programme','Follow their program')}</button>` : ''}
+      <button class="btn ${d.routine ? 'ghost' : 'primary'} full" id="js-own">${t('Ma propre séance','My own workout')}</button>
+    `, { title: t('Rejoindre la séance','Join the workout') });
+    const start = async (useRoutine) => {
+      localStorage.setItem('ss-join-session', String(d.sessionId));
+      s.close();
+      if (useRoutine) { const r = await importRoutinePayload(d.routine); await beginRoutine(r); }
+      else { const m = await import('../model.js'); const w = await m.startWorkout({}); nav.go('#/workout/' + w.id); }
+    };
+    s.root.querySelector('#js-same')?.addEventListener('click', () => start(true));
+    s.root.querySelector('#js-own').addEventListener('click', () => start(false));
+  } catch (e) { toast(e.message, { type: 'error' }); }
 }
