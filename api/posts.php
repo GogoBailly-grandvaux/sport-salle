@@ -225,14 +225,15 @@ switch ($action) {
     }
     $json = json_encode($content, JSON_UNESCAPED_UNICODE);
     if ($json === false || strlen($json) > 4096) { fail(413, 'post trop volumineux'); }
-    with_posts(function () use ($kind, $json, $me) {
+    $newId = with_posts(function () use ($kind, $json, $me) {
       db()->prepare('INSERT INTO posts (user_id, kind, content) VALUES (?,?,?)')
         ->execute([$me['id'], $kind, $json]);
+      return (int)db()->lastInsertId(); // capturé AVANT toute autre requête
     });
     // ménage opportuniste : les posts de plus de 180 jours s'effacent
     try { db()->exec('DELETE FROM posts WHERE created_at < DATE_SUB(NOW(), INTERVAL 180 DAY) LIMIT 50'); } catch (PDOException $e) {}
     bump_live(friend_ids($me['id']));
-    ok(['ok' => true, 'id' => (int)db()->lastInsertId()]);
+    ok(['ok' => true, 'id' => $newId]);
   }
 
   case 'comment': {
@@ -247,13 +248,14 @@ switch ($action) {
     if ((int)$st->fetchColumn() >= 500) { fail(429, 'trop de commentaires sur ce post'); }
     db()->prepare('INSERT INTO post_comments (post_id, user_id, text) VALUES (?,?,?)')
       ->execute([$postId, $me['id'], $text]);
+    $newId = (int)db()->lastInsertId(); // capturé AVANT les requêtes suivantes
     // réveiller l'auteur du post + les autres participants de la conversation
     $st = db()->prepare('SELECT DISTINCT user_id FROM post_comments WHERE post_id = ? AND user_id <> ?');
     $st->execute([$postId, $me['id']]);
     $watchers = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
     if ($author !== $me['id']) { $watchers[] = $author; }
     bump_live($watchers);
-    ok(['ok' => true, 'id' => (int)db()->lastInsertId()]);
+    ok(['ok' => true, 'id' => $newId]);
   }
 
   case 'comments': {
