@@ -13,6 +13,7 @@ import * as sync from '../sync.js';
 import { qrSvg } from '../qr.js';
 
 let seg = 'feed'; // feed | amis | groupes | activite (via la cloche)
+let _lastLive = []; // amis en séance (stories du fil)
 
 const avatarHtml = (u, size = '') =>
   `<span class="avatar ${size}" style="--a:${ACCENTS[u.accent]?.hex || ACCENTS.ember.hex}">${u.avatar ? `<img class="avatar-photo" src="${esc(u.avatar)}" alt="">` : u.emoji ? esc(u.emoji) : esc((u.displayName || u.username || '?').slice(0, 1).toUpperCase())}</span>`;
@@ -194,17 +195,18 @@ async function renderFeed() {
   const [d, soc, lw] = await Promise.all([call('posts', 'feed'), call('social', 'list'), call('liveworkout', 'friends').catch(() => ({ live: [] }))]);
   const { incoming, friends } = soc;
   const pending = incoming.length ? `<button class="pending-banner" data-seg-go="amis">${incoming.length} ${t('demande','friend request')}${incoming.length > 1 ? 's' : ''} ${t('d’ami en attente','pending')} ${icon('right')}</button>` : '';
-  // amis en séance MAINTENANT
-  const liveCard = (lw.live || []).length ? `<section class="card live-now">
-    <h3 class="card-t"><span class="live-dot"></span> ${t('En séance maintenant','Working out now')}</h3>
-    ${lw.live.map(l => {
+  // amis en séance MAINTENANT — rangée de stories façon Instagram (anneau live)
+  _lastLive = lw.live || [];
+  const liveCard = _lastLive.length ? `<div class="stories-row">
+    ${_lastLive.map((l, i) => {
       const mins = Math.max(1, Math.round((Date.now() - l.startedAt) / 60000));
-      return `<div class="friend-row" data-nav="#/u/${esc(l.user.username)}">${avatarHtml(l.user)}
-        <div class="fr-info"><b>${esc(l.user.displayName)}</b>
-          <span class="mut sm">${esc(l.name || t('Séance','Workout'))} · ${mins} min · ${l.setsDone} ${t('séries','sets')}${l.volumeKg ? ` · ${l.volumeKg.toLocaleString('fr-FR')} kg` : ''}${l.currentEx ? ` · ${esc(l.currentEx)}` : ''}</span></div>
-      </div>`;
+      return `<button class="story" data-story="${i}" aria-label="${esc(l.user.displayName)} ${t('en séance','working out')}">
+        <span class="story-ring">${avatarHtml(l.user, 'story')}</span>
+        <span class="story-name">${esc((l.user.displayName || '').split(' ')[0])}</span>
+        <span class="story-live">${mins} min</span>
+      </button>`;
     }).join('')}
-  </section>` : '';
+  </div>` : '';
 
   const acc = account();
   const composer = `<button class="feed-composer" id="feed-compose">
@@ -225,6 +227,25 @@ async function renderFeed() {
 }
 
 function wireFeed(root) {
+  // stories live : tap → fiche de la séance en cours (encourager / profil)
+  root.querySelectorAll('.story').forEach(b => b.onclick = () => {
+    const l = _lastLive[+b.dataset.story];
+    if (!l) return;
+    const mins = Math.max(1, Math.round((Date.now() - l.startedAt) / 60000));
+    const s = sheet(`
+      <div class="live-sheet-head">${avatarHtml(l.user)}<div><b>${esc(l.user.displayName)}</b><span class="mut sm">${esc(l.name || t('Séance','Workout'))} · ${t('depuis','for')} ${mins} min</span></div><span class="live-dot"></span></div>
+      <div class="mini-stats"><div><b>${l.setsDone}</b><span>${t('séries','sets')}</span></div><div><b>${(l.volumeKg || 0).toLocaleString('fr-FR')}</b><span>kg</span></div><div><b>${mins}</b><span>min</span></div></div>
+      ${l.currentEx ? `<p class="mut sm center" style="margin:10px 0 4px">${t('En ce moment','Right now')} : <b>${esc(l.currentEx)}</b></p>` : ''}
+      <button class="btn primary full" data-a="cheer">${t('Encourager','Cheer')}</button>
+      <button class="btn ghost full" data-a="prof">${t('Voir le profil','View profile')}</button>
+    `, { title: t('En séance','Live') });
+    s.root.querySelector('[data-a="cheer"]').onclick = async (e) => {
+      e.currentTarget.disabled = true;
+      try { await call('liveworkout', 'cheer', { userId: l.user.id }); toast(t('Encouragement envoyé !','Cheer sent!')); s.close(); }
+      catch (err) { toast(err.message, { type: 'error' }); }
+    };
+    s.root.querySelector('[data-a="prof"]').onclick = () => { s.close(); nav.go('#/u/' + l.user.username); };
+  });
   root.querySelector('#feed-compose')?.addEventListener('click', () => {
     const s = sheet(`
       <textarea class="input post-input" id="pc-text" rows="4" maxlength="500" placeholder="${t('Raconte ta séance, motive la team…','Tell about your workout, motivate the team…')}"></textarea>
