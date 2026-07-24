@@ -93,7 +93,7 @@ switch ($action) {
     // uniquement si autorisé (soi-même, ami, ou compte public) — RGPD by design
     $username = strtolower(trim((string)($b['username'] ?? '')));
     $row = with_profile_cols(function () use ($username) {
-      $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, avatar_photo, bio, privacy, gym, created_at FROM users WHERE username = ?');
+      $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, avatar_photo, instagram, verified, bio, privacy, gym, created_at FROM users WHERE username = ?');
       $st->execute([$username]);
       return $st->fetch(PDO::FETCH_ASSOC);
     });
@@ -103,6 +103,8 @@ switch ($action) {
     $out['memberSince'] = substr((string)$row['created_at'], 0, 10);
     $out['gym'] = $row['gym'] ?? null;
     $out['isPublic'] = ($row['privacy'] ?? 'friends') === 'public';
+    $out['instagram'] = $row['instagram'] ?? null;
+    $out['verified'] = (int)($row['verified'] ?? 0) === 1;
     $out['relation'] = relation_state($me['id'], $uid);
     $out['isMe'] = $uid === $me['id'];
     $canView = can_view_content($me['id'], $uid, $row['privacy'] ?? 'friends');

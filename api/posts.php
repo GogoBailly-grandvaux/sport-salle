@@ -92,7 +92,7 @@ switch ($action) {
     $rows = with_posts(function () use ($ph, $whereBefore, $params) {
       $st = db()->prepare(
         "SELECT p.id, p.user_id, p.kind, p.content, UNIX_TIMESTAMP(p.created_at) AS ts,
-                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
+                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo, u.verified
          FROM posts p JOIN users u ON u.id = p.user_id
          WHERE p.user_id IN ($ph)$whereBefore
          ORDER BY p.id DESC LIMIT 30"
@@ -208,6 +208,13 @@ switch ($action) {
         'prs' => max(0, min(50, (int)($c['prs'] ?? 0))),
         'note' => clean_str($c['note'] ?? '', 300),
       ];
+      // muscles travaillés (pour la mini-heatmap du fil) — noms internes, cap 8
+      $mus = [];
+      foreach (array_slice((array)($c['muscles'] ?? []), 0, 8) as $m) {
+        $m = strtolower(trim((string)$m));
+        if (preg_match('/^[a-z ]{3,20}$/', $m)) { $mus[] = $m; }
+      }
+      if ($mus) { $content['muscles'] = $mus; }
     } elseif ($kind === 'program') {
       $sharedId = (int)($c['sharedId'] ?? 0);
       // le programme référencé doit exister, m'appartenir et être visible amis (hors groupe)

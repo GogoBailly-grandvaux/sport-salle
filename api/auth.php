@@ -178,6 +178,12 @@ switch ($action) {
       $set[] = 'gym = ?'; $vals[] = $gym !== '' ? $gym : null;
       $set[] = 'gym_key = ?'; $vals[] = $gym !== '' ? gym_key($gym) : null;
     }
+    if (array_key_exists('instagram', $b)) {
+      $ig = trim((string)$b['instagram']);
+      $ig = ltrim($ig, '@');
+      if ($ig !== '' && !preg_match('/^[A-Za-z0-9._]{1,30}$/', $ig)) { fail(400, 'pseudo Instagram invalide'); }
+      $set[] = 'instagram = ?'; $vals[] = $ig !== '' ? $ig : null;
+    }
     if (array_key_exists('avatar', $b)) {
       // photo d'avatar : petite image en data-URI (compressée côté client)
       $avatar = (string)$b['avatar'];

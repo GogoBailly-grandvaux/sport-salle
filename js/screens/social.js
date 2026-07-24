@@ -11,6 +11,9 @@ import { emptyState, backBtn } from './common.js';
 import { openAuthSheet } from './account.js';
 import * as sync from '../sync.js';
 import { qrSvg } from '../qr.js';
+import { musclesMap } from '../data.js';
+
+let _mm = null; // silhouettes wger (mini-heatmaps du fil)
 
 let seg = 'feed'; // feed | amis | groupes | activite (via la cloche)
 let _lastLive = []; // amis en séance (stories du fil)
@@ -156,9 +159,21 @@ function postBody(p) {
       c.durationSec ? `<span class="fr-chip">${fmtDur(c.durationSec)}</span>` : '',
       c.prs ? `<span class="fr-chip hot">${icon('trophy')} ${c.prs} PR${c.prs > 1 ? 's' : ''}</span>` : '',
     ].filter(Boolean).join('');
-    return `<div class="post-wk"><b>${icon('dumbbell')} ${esc(c.name || t('Séance','Workout'))}</b>
+    let heat = '';
+    if (_mm && _mm.byOurName && _mm.bodyImages && (c.muscles || []).length) {
+      const side = (front) => {
+        let ov = '';
+        for (const m of c.muscles) for (const id of (_mm.byOurName[m] || [])) {
+          const mu = _mm.byWgerId[id];
+          if (mu && mu.isFront === front && mu.main) ov += `<img class="bm-overlay" src="${esc(mu.main)}" alt="" loading="lazy">`;
+        }
+        return `<span class="post-heat-side"><img src="${esc(front ? _mm.bodyImages.front : _mm.bodyImages.back)}" alt="" loading="lazy">${ov}</span>`;
+      };
+      heat = `<span class="post-heat">${side(true)}${side(false)}</span>`;
+    }
+    return `<div class="post-wk ${heat ? 'has-heat' : ''}">${heat}<div class="post-wk-txt"><b>${icon('dumbbell')} ${esc(c.name || t('Séance','Workout'))}</b>
       <div class="fr-chips">${chips}</div>
-      ${c.note ? `<p class="post-note">${esc(c.note)}</p>` : ''}</div>`;
+      ${c.note ? `<p class="post-note">${esc(c.note)}</p>` : ''}</div></div>`;
   }
   if (p.kind === 'program') {
     return `<div class="post-prog">
@@ -182,7 +197,7 @@ function postCard(p) {
     <div class="post-head">
       <div class="post-a" data-nav="#/u/${esc(a.username || '')}" role="link" tabindex="0">
         ${avatarHtml(a)}
-        <div class="post-who"><b>${esc(a.displayName || '')}</b><span class="mut sm">@${esc(a.username || '')} · ${ago(p.ts)}</span></div>
+        <div class="post-who"><b>${esc(a.displayName || '')}${a.verified ? ` <span class="verif">${icon('check')}</span>` : ''}</b><span class="mut sm">@${esc(a.username || '')} · ${ago(p.ts)}</span></div>
       </div>
       ${p.isMine ? `<button class="icon-btn sm post-del" data-del="${p.id}" aria-label="${t('Supprimer le post','Delete post')}">${icon('trash')}</button>` : ''}
     </div>
@@ -192,6 +207,7 @@ function postCard(p) {
 }
 
 async function renderFeed() {
+  if (_mm === null) { _mm = await musclesMap().catch(() => false) || false; }
   const [d, soc, lw] = await Promise.all([call('posts', 'feed'), call('social', 'list'), call('liveworkout', 'friends').catch(() => ({ live: [] }))]);
   const { incoming, friends } = soc;
   const pending = incoming.length ? `<button class="pending-banner" data-seg-go="amis">${incoming.length} ${t('demande','friend request')}${incoming.length > 1 ? 's' : ''} ${t('d’ami en attente','pending')} ${icon('right')}</button>` : '';
@@ -261,6 +277,24 @@ function wireFeed(root) {
       try { await call('posts', 'publish', { kind: 'text', content: { text } }); s.close(); toast(t('Publié ✓','Posted ✓')); nav.refresh(); }
       catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; btn.textContent = t('Publier','Post'); }
     };
+  });
+  // double-tap = 👊 (geste Instagram) avec pop visuel
+  root.querySelectorAll('.post').forEach(card => {
+    let lastTap = 0;
+    card.addEventListener('pointerup', (e) => {
+      if (e.target.closest('button, a, [data-nav], input, textarea')) return;
+      const now = Date.now();
+      if (now - lastTap < 320) {
+        const fist = [...card.querySelectorAll('.react-chip')].find(b => b.textContent.includes('👊'));
+        if (fist && !fist.classList.contains('on')) fist.click();
+        const pop = document.createElement('span');
+        pop.className = 'ig-pop';
+        pop.textContent = '👊';
+        card.appendChild(pop);
+        setTimeout(() => pop.remove(), 750);
+      }
+      lastTap = now;
+    });
   });
   wirePosts(root);
   root.querySelector('#feed-more')?.addEventListener('click', async () => {
@@ -547,9 +581,10 @@ export async function renderUserProfile(params) {
     <div class="screen-pad">
       <div class="prof-head">
         ${avatarHtml(pr, 'big')}
-        <h2 class="prof-name">${esc(pr.displayName || '')}</h2>
+        <h2 class="prof-name">${esc(pr.displayName || '')}${pr.verified ? ` <span class="verif big">${icon('check')}</span>` : ''}</h2>
         <p class="mut sm">@${esc(pr.username)} · ${pr.isPublic ? t('compte public','public account') : t('compte privé','private account')} · ${t('membre depuis','member since')} ${esc(pr.memberSince || '')}</p>
         ${pr.bio ? `<p class="prof-bio">${linkify(esc(pr.bio))}</p>` : ''}
+        ${pr.instagram ? `<a class="insta-link" href="https://instagram.com/${esc(pr.instagram)}" target="_blank" rel="noopener">${icon('camera')} @${esc(pr.instagram)}</a>` : ''}
         ${statBlock}
         ${relBtn}
       </div>
@@ -614,6 +649,8 @@ export function openEditProfileSheet(onDone = null) {
     <textarea class="input" id="ep-bio" rows="3" maxlength="160" placeholder="${t('Ex. Push/pull/legs · objectif -20 kg','E.g. Push/pull/legs · chasing -20 kg')}"></textarea>
     <label class="field-label" for="ep-gym">${t('Ma salle','My gym')} · ${t('retrouve les gens de ta salle','find people at your gym')}</label>
     <input class="input" id="ep-gym" maxlength="80" placeholder="${t('Ex. Gold’s Gym Serris','E.g. Gold’s Gym')}">
+    <label class="field-label" for="ep-insta">Instagram · ${t('affiché sur ton profil','shown on your profile')}</label>
+    <input class="input" id="ep-insta" maxlength="30" placeholder="${t('ton pseudo, sans le @','your handle, without @')}">
     <div class="setting" style="margin-top:12px"><span>${t('Compte public','Public account')}<br><span class="mut sm">${t('Activé : tout le monde voit tes posts et stats. Désactivé : tes amis uniquement.','On: anyone sees your posts and stats. Off: friends only.')}</span></span>
       <button class="switch" id="ep-pub" role="switch" aria-checked="false"><span></span></button></div>
     <button class="btn primary full" id="ep-save">${t('Enregistrer','Save')}</button>`,
@@ -624,6 +661,7 @@ export function openEditProfileSheet(onDone = null) {
       const pr = (await call('social', 'profile', { username: acc.user.username })).profile;
       const bio = s.root.querySelector('#ep-bio'); if (bio && pr.bio) bio.value = pr.bio;
       const gym = s.root.querySelector('#ep-gym'); if (gym && pr.gym) gym.value = pr.gym;
+      const ig = s.root.querySelector('#ep-insta'); if (ig && pr.instagram) ig.value = pr.instagram;
       const sw = s.root.querySelector('#ep-pub');
       if (sw && pr.isPublic) { sw.classList.add('on'); sw.setAttribute('aria-checked', 'true'); }
     } catch {}
@@ -641,6 +679,7 @@ export function openEditProfileSheet(onDone = null) {
         accent: acc.user.accent || 'ember',
         privacy: sw.classList.contains('on') ? 'public' : 'friends',
         gym: s.root.querySelector('#ep-gym').value.trim(),
+        instagram: s.root.querySelector('#ep-insta').value.trim(),
       });
       // rafraîchir le cache local du compte (nom affiché)
       const { savePSettings } = await import('../store.js');

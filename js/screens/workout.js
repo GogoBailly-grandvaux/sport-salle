@@ -747,9 +747,17 @@ export function mountSummary(root, params) {
       const w = await getWorkout(params.id);
       const { workoutStats } = await import('../analytics.js');
       const st = workoutStats(w);
+      // muscles primaires de la séance (mini-heatmap dans le fil)
+      const musSet = new Set();
+      for (const ex of (w.exercises || [])) {
+        if (!(ex.sets || []).some(s => s.done)) continue;
+        const lib = state.libraryById.get(ex.exerciseId);
+        for (const m of (lib?.primaryMuscles || [])) musSet.add(m);
+      }
       await call('posts', 'publish', { kind: 'workout', content: {
         name: w.name, sets: st.sets, volume: Math.round(st.volume),
         durationSec: w.durationSec || 0, prs: (w.prs || []).length,
+        muscles: [...musSet].slice(0, 8),
       } });
       btn.textContent = t('Partagé ✓ tes amis vont le voir','Shared ✓ your friends will see it');
     } catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; }

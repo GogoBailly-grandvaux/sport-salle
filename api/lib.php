@@ -233,6 +233,8 @@ function ensure_profile_cols(): void {
     "ALTER TABLE users ADD COLUMN gym VARCHAR(80) DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN gym_key VARCHAR(80) DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN avatar_photo MEDIUMTEXT DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN instagram VARCHAR(60) DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN verified TINYINT(1) NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD KEY idx_gym (gym_key)",
   ] as $sql) {
     try { db()->exec($sql); }
@@ -328,6 +330,7 @@ function public_user(array $row): array {
     'emoji'       => $row['avatar_emoji'],
     'accent'      => $row['accent'],
     'avatar'      => $row['avatar_photo'] ?? null,
+    'verified'    => (int)($row['verified'] ?? 0) === 1,
   ];
 }
 
