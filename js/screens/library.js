@@ -4,7 +4,7 @@ import { esc, debounce } from '../util.js';
 import { state, nav } from '../store.js';
 import { icon, sheet, toast } from '../ui.js';
 import {
-  searchExercises, getExercise, imageUrls, muscleFR, musclesFR,
+  searchExercises, getExercise, imageUrls, instructionsFor, muscleFR, musclesFR,
   MUSCLE_FR, EQUIP_FR, CATEGORY_FR, LEVEL_FR, FORCE_FR,
   loadFavorites, toggleFavorite, musclesMap,
 } from '../data.js';
@@ -182,7 +182,8 @@ export async function renderDetail(params) {
     }
   }
 
-  const instr = (ex.instructions||[]).length ? `<section class="card"><h3 class="card-t">${t('Exécution','How to')}</h3><ol class="steps">${ex.instructions.map(i=>`<li>${esc(i)}</li>`).join('')}</ol></section>` : '';
+  const instrList = await instructionsFor(ex);
+  const instr = instrList.length ? `<section class="card"><h3 class="card-t">${t('Exécution','How to')}</h3><ol class="steps">${instrList.map(i=>`<li>${esc(i)}</li>`).join('')}</ol></section>` : '';
 
   const hist = best.sessions ? `
     <section class="card"><h3 class="card-t">Ton historique</h3>

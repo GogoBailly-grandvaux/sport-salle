@@ -228,11 +228,16 @@ function ensure_profile_cols(): void {
   foreach ([
     "ALTER TABLE users ADD COLUMN bio VARCHAR(200) DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN privacy ENUM('friends','public') NOT NULL DEFAULT 'friends'",
+    "ALTER TABLE users ADD COLUMN gym VARCHAR(80) DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN gym_key VARCHAR(80) DEFAULT NULL",
+    "ALTER TABLE users ADD KEY idx_gym (gym_key)",
   ] as $sql) {
     try { db()->exec($sql); }
     catch (PDOException $e) {
       // 42S21 / 1060 : colonne déjà là — ok
-      if ($e->getCode() !== '42S21' && strpos($e->getMessage(), '1060') === false) { throw $e; }
+      $m = $e->getMessage();
+      // colonne (1060/42S21) ou index (1061) déjà présents -> on ignore
+      if ($e->getCode() !== '42S21' && strpos($m, '1060') === false && strpos($m, '1061') === false) { throw $e; }
     }
   }
 }
@@ -302,6 +307,14 @@ function notify_mentions(string $text, int $actor, ?int $refId, array $skip = []
     notify($uid, $actor, 'mention', $refId, mb_substr($text, 0, 80));
     bump_live([$uid]);
   }
+}
+
+/** Clé normalisée d'un nom de salle (minuscules, sans accents/ponctuation) pour regrouper. */
+function gym_key(string $name): string {
+  $n = mb_strtolower(trim($name));
+  $n = strtr($n, ['à'=>'a','â'=>'a','ä'=>'a','é'=>'e','è'=>'e','ê'=>'e','ë'=>'e','î'=>'i','ï'=>'i','ô'=>'o','ö'=>'o','û'=>'u','ù'=>'u','ü'=>'u','ç'=>'c','œ'=>'oe']);
+  $n = preg_replace('/[^a-z0-9]+/', '', $n);
+  return mb_substr($n, 0, 80);
 }
 
 function public_user(array $row): array {

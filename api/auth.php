@@ -155,9 +155,12 @@ switch ($action) {
     $emoji = substr(trim((string)($b['emoji'] ?? '')), 0, 16) ?: null;
     $accent = preg_match('/^[a-z]{3,10}$/', (string)($b['accent'] ?? '')) ? $b['accent'] : 'ember';
     $privacy = in_array($b['privacy'] ?? '', ['friends', 'public'], true) ? $b['privacy'] : 'friends';
-    with_profile_cols(function () use ($u, $displayName, $bio, $emoji, $accent, $privacy) {
-      db()->prepare('UPDATE users SET display_name = ?, bio = ?, avatar_emoji = ?, accent = ?, privacy = ? WHERE id = ?')
-        ->execute([$displayName, $bio !== '' ? $bio : null, $emoji, $accent, $privacy, $u['id']]);
+    $gym = trim(str_replace(['<', '>'], '', (string)($b['gym'] ?? '')));
+    if (mb_strlen($gym) > 80) { fail(400, 'nom de salle trop long'); }
+    $gymKey = $gym !== '' ? gym_key($gym) : null;
+    with_profile_cols(function () use ($u, $displayName, $bio, $emoji, $accent, $privacy, $gym, $gymKey) {
+      db()->prepare('UPDATE users SET display_name = ?, bio = ?, avatar_emoji = ?, accent = ?, privacy = ?, gym = ?, gym_key = ? WHERE id = ?')
+        ->execute([$displayName, $bio !== '' ? $bio : null, $emoji, $accent, $privacy, $gym !== '' ? $gym : null, $gymKey, $u['id']]);
     });
     bump_live(friend_ids($u['id'])); // leurs écrans affichent le nouveau nom/bio
     ok(['ok' => true]);

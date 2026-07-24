@@ -93,7 +93,7 @@ switch ($action) {
     // uniquement si autorisé (soi-même, ami, ou compte public) — RGPD by design
     $username = strtolower(trim((string)($b['username'] ?? '')));
     $row = with_profile_cols(function () use ($username) {
-      $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, bio, privacy, created_at FROM users WHERE username = ?');
+      $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, bio, privacy, gym, created_at FROM users WHERE username = ?');
       $st->execute([$username]);
       return $st->fetch(PDO::FETCH_ASSOC);
     });
@@ -101,6 +101,7 @@ switch ($action) {
     $uid = (int)$row['id'];
     $out = public_user($row);
     $out['memberSince'] = substr((string)$row['created_at'], 0, 10);
+    $out['gym'] = $row['gym'] ?? null;
     $out['isPublic'] = ($row['privacy'] ?? 'friends') === 'public';
     $out['relation'] = relation_state($me['id'], $uid);
     $out['isMe'] = $uid === $me['id'];
@@ -140,6 +141,25 @@ switch ($action) {
     // tri : dernière séance la plus récente d'abord
     usort($friends, fn($x, $y) => (($y['stats']['lastWorkoutAt'] ?? 0) <=> ($x['stats']['lastWorkoutAt'] ?? 0)));
     ok(['friends' => $friends, 'incoming' => $incoming, 'outgoing' => $outgoing]);
+  }
+
+  case 'gym': {
+    // « Ma salle » : tous les utilisateurs ayant la même salle que moi, classés
+    $me2 = with_profile_cols(function () use ($me) {
+      $st = db()->prepare('SELECT gym, gym_key FROM users WHERE id = ?'); $st->execute([$me['id']]);
+      return $st->fetch(PDO::FETCH_ASSOC);
+    });
+    if (empty($me2['gym_key'])) { ok(['gym' => null, 'members' => []]); }
+    $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent FROM users WHERE gym_key = ? LIMIT 200');
+    $st->execute([$me2['gym_key']]);
+    $members = array_map('public_user', $st->fetchAll(PDO::FETCH_ASSOC));
+    $stats = stats_for(array_map(fn($m) => $m['id'], $members));
+    foreach ($members as &$m) { $m['stats'] = $stats[$m['id']] ?? null; $m['isMe'] = $m['id'] === $me['id']; }
+    usort($members, function ($x, $y) {
+      $c = (($y['stats']['weekCount'] ?? 0) <=> ($x['stats']['weekCount'] ?? 0));
+      return $c !== 0 ? $c : (($y['stats']['weekVolume'] ?? 0) <=> ($x['stats']['weekVolume'] ?? 0));
+    });
+    ok(['gym' => $me2['gym'], 'members' => $members, 'count' => count($members)]);
   }
 
   case 'notifs': {

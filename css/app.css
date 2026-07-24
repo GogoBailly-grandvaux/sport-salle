@@ -827,3 +827,12 @@ body.welcome-mode .tabbar{display:none}
 .ach-unlock-row .ach-emoji{font-size:38px}
 .ach-unlock-row b{font-size:15px}
 .ach-unlock-row>div{display:flex;flex-direction:column;gap:1px}
+
+/* ---- « Ma salle » (v3.9) ---- */
+.gym-card{display:block;width:100%;text-align:left;cursor:pointer;margin-bottom:12px}
+.gym-card .gym-name{display:block;font-size:17px;margin:6px 0 2px}
+.gym-card.empty{border-style:dashed}
+.gym-row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:11px 12px;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;cursor:pointer}
+.gym-row.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--card))}
+.gym-rank{width:26px;text-align:center;font-weight:800;font-size:15px;flex:none;font-variant-numeric:tabular-nums}

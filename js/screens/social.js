@@ -408,6 +408,15 @@ function wireActions(root) {
 
 // ---------------- GROUPES ----------------
 async function renderGroupes() {
+  let gymCard = '';
+  try {
+    const g = await call('social', 'gym');
+    gymCard = g.gym
+      ? `<button class="card gym-card" data-nav="#/gym"><div class="recap-h"><span class="mut">🏋️ ${t('Ma salle','My gym')}</span>${icon('right')}</div>
+          <b class="gym-name">${esc(g.gym)}</b><span class="mut sm">${g.count} ${t('membre','member')}${g.count > 1 ? 's' : ''} ${t('ici','here')}</span></button>`
+      : `<button class="card gym-card empty" id="gym-set"><div class="recap-h"><span class="mut">🏋️ ${t('Ma salle','My gym')}</span>${icon('right')}</div>
+          <b class="gym-name">${t('Indique ta salle','Set your gym')}</b><span class="mut sm">${t('et retrouve qui s’y entraîne, avec un classement','and see who trains there, with a leaderboard')}</span></button>`;
+  } catch {}
   const d = await call('groups', 'mine');
   const cards = d.groups.map(g => `
     <button class="group-card" data-nav="#/social/group/${g.id}">
@@ -416,6 +425,7 @@ async function renderGroupes() {
       ${icon('right')}
     </button>`).join('');
   return `
+    ${gymCard}
     ${d.groups.length ? `<div class="friend-list">${cards}</div>` :
       emptyState('users', t('Aucun groupe','No groups'), t('Crée un groupe pour ta salle, ta team ou tes potes : classement hebdo et programmes partagés.','Create a group for your gym, your team or your crew: weekly leaderboard and shared programs.'), '')}
     <button class="btn primary full" id="grp-create">${icon('plus')} ${t('Créer un groupe','Create a group')}</button>
@@ -423,6 +433,7 @@ async function renderGroupes() {
 }
 
 function wireGroupes(root) {
+  root.querySelector('#gym-set')?.addEventListener('click', () => openEditProfileSheet());
   root.querySelector('#grp-create')?.addEventListener('click', async () => {
     const name = await promptDialog({ title: t('Créer un groupe','Create a group'), label: t('Nom du groupe','Group name'), placeholder: t('Ex. Team Gold’s Serris','E.g. Team Gold’s'), confirmText: t('Créer','Create') });
     if (!name?.trim()) return;
@@ -550,7 +561,9 @@ export function openEditProfileSheet(onDone = null) {
     <label class="field-label" for="ep-name">${t('Nom affiché','Display name')}</label>
     <input class="input" id="ep-name" maxlength="40" value="${esc(acc.user.displayName || '')}">
     <label class="field-label" for="ep-bio">Bio · ${t('160 caractères, visible par tous','160 chars, visible to everyone')}</label>
-    <textarea class="input" id="ep-bio" rows="3" maxlength="160" placeholder="${t('Ex. Push/pull/legs · Gold’s Serris · objectif -20 kg 💪','E.g. Push/pull/legs · chasing -20 kg 💪')}"></textarea>
+    <textarea class="input" id="ep-bio" rows="3" maxlength="160" placeholder="${t('Ex. Push/pull/legs · objectif -20 kg 💪','E.g. Push/pull/legs · chasing -20 kg 💪')}"></textarea>
+    <label class="field-label" for="ep-gym">🏋️ ${t('Ma salle','My gym')} · ${t('retrouve les gens de ta salle','find people at your gym')}</label>
+    <input class="input" id="ep-gym" maxlength="80" placeholder="${t('Ex. Gold’s Gym Serris','E.g. Gold’s Gym')}">
     <div class="setting" style="margin-top:12px"><span>${t('Compte public','Public account')}<br><span class="mut sm">${t('Activé : tout le monde voit tes posts et stats. Désactivé : tes amis uniquement.','On: anyone sees your posts and stats. Off: friends only.')}</span></span>
       <button class="switch" id="ep-pub" role="switch" aria-checked="false"><span></span></button></div>
     <button class="btn primary full" id="ep-save">${t('Enregistrer','Save')}</button>`,
@@ -560,6 +573,7 @@ export function openEditProfileSheet(onDone = null) {
     try {
       const pr = (await call('social', 'profile', { username: acc.user.username })).profile;
       const bio = s.root.querySelector('#ep-bio'); if (bio && pr.bio) bio.value = pr.bio;
+      const gym = s.root.querySelector('#ep-gym'); if (gym && pr.gym) gym.value = pr.gym;
       const sw = s.root.querySelector('#ep-pub');
       if (sw && pr.isPublic) { sw.classList.add('on'); sw.setAttribute('aria-checked', 'true'); }
     } catch {}
@@ -576,6 +590,7 @@ export function openEditProfileSheet(onDone = null) {
         emoji: acc.user.emoji || '',
         accent: acc.user.accent || 'ember',
         privacy: sw.classList.contains('on') ? 'public' : 'friends',
+        gym: s.root.querySelector('#ep-gym').value.trim(),
       });
       // rafraîchir le cache local du compte (nom affiché)
       const { savePSettings } = await import('../store.js');
@@ -588,6 +603,37 @@ export function openEditProfileSheet(onDone = null) {
       btn.disabled = false; btn.textContent = t('Enregistrer','Save');
     }
   };
+}
+
+// ---------------- « Ma salle » : classement des gens de ta salle ----------------
+export async function renderGym() {
+  let d;
+  try { d = await call('social', 'gym'); }
+  catch (e) { return `<div class="screen-pad">${emptyState('users', t('Oups','Oops'), e.message || '', `<button class="btn ghost" data-nav="#/social">Social</button>`)}</div>`; }
+  const head = `<header class="topbar"><div class="topbar-l">${backBtn('#/social')}</div>
+    <div class="topbar-c"><h1>🏋️ ${t('Ma salle','My gym')}</h1>${d.gym ? `<span class="topbar-sub">${esc(d.gym)}</span>` : ''}</div>
+    <div class="topbar-r"><button class="icon-btn" id="gym-edit" aria-label="${t('Changer de salle','Change gym')}">${icon('edit')}</button></div></header>`;
+  if (!d.gym) {
+    return `${head}<div class="screen-pad">${emptyState('users', t('Ta salle n’est pas renseignée','No gym set yet'), t('Indique ta salle pour voir qui s’y entraîne et te comparer.','Set your gym to see who trains there and compare.'), `<button class="btn primary" id="gym-set2">${t('Indiquer ma salle','Set my gym')}</button>`)}</div>`;
+  }
+  const rows = d.members.map((m, i) => {
+    const s = m.stats;
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+    return `<button class="gym-row ${m.isMe ? 'me' : ''}" ${m.isMe ? '' : `data-nav="#/u/${esc(m.username)}"`}>
+      <span class="gym-rank">${medal}</span>
+      ${avatarHtml(m)}
+      <div class="fr-info"><b>${esc(m.displayName)}${m.isMe ? ` · ${t('toi','you')}` : ''}</b>
+        <span class="mut sm">${s?.weekCount || 0} ${t('séance','workout')}${(s?.weekCount || 0) > 1 ? 's' : ''} · ${s?.weekVolume ? Number(s.weekVolume).toLocaleString(t('fr-FR','en-US')) + ' kg' : '—'}</span></div>
+      ${s?.streak ? `<span class="fr-chip hot">🔥 ${s.streak}</span>` : ''}
+    </button>`;
+  }).join('');
+  return `${head}<div class="screen-pad">
+    <p class="mut sm center" style="margin:2px 0 12px">${t('Classement de la semaine · séances puis volume','This week’s ranking · workouts then volume')}</p>
+    <div class="friend-list">${rows}</div></div>`;
+}
+export function mountGym(root) {
+  root.querySelector('#gym-edit')?.addEventListener('click', () => openEditProfileSheet());
+  root.querySelector('#gym-set2')?.addEventListener('click', () => openEditProfileSheet());
 }
 
 // ---------------- deep link : #/add/<pseudo> (depuis un QR scanné) ----------------

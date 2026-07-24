@@ -43,6 +43,20 @@ const MUSCLE_EN = {
 export const muscleFR = m => (locale() === 'en' ? (MUSCLE_EN[m] || m) : (MUSCLE_FR[m] || m));
 export const musclesFR = (arr=[]) => arr.map(muscleFR);
 
+// instructions localisées : en FR, on charge (paresseusement, une fois) la
+// traduction data/instructions-fr.json ; repli sur l'anglais d'origine.
+let _instrFr = null;
+export async function instructionsFor(ex) {
+  const base = ex?.instructions || [];
+  if (locale() === 'en' || !ex) return base;
+  if (_instrFr === null) {
+    try { _instrFr = await (await fetch('./data/instructions-fr.json?v=' + DATA_VERSION)).json(); }
+    catch { _instrFr = {}; }
+  }
+  const fr = _instrFr[ex.id];
+  return (fr && fr.length) ? fr : base;
+}
+
 export function imageUrls(ex) {
   if (!ex || !ex.images) return [];
   return ex.images.map(p => p.startsWith('http') ? p : CDN + p);
