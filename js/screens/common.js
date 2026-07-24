@@ -1,7 +1,31 @@
 // screens/common.js — shared render helpers
 import { esc } from '../util.js';
 import { icon } from '../ui.js';
+import { t } from '../i18n.js';
 import { imageUrls, muscleFR, MUSCLE_GROUP } from '../data.js';
+
+// Démo animée du mouvement : les images free-exercise-db sont 2 frames
+// (départ / fin) ; on les fait boucler en fondu = une vraie « vidéo » du geste,
+// 100% hors-ligne (aucune vidéo externe, compatible CSP). Repli si 1 seule image.
+export function exDemo(ex, cls = '') {
+  const urls = imageUrls(ex);
+  const col = groupColor(ex);
+  const initials = (ex?.name || '?').trim().slice(0, 1).toUpperCase();
+  if (urls.length >= 2) {
+    return `<div class="ex-demo ${cls}" style="--g:${col}">
+      <img class="exd exd-0" loading="lazy" src="${esc(urls[0])}" alt="" onerror="this.closest('.ex-demo').classList.add('noimg')">
+      <img class="exd exd-1" loading="lazy" src="${esc(urls[1])}" alt="" onerror="this.closest('.ex-demo').classList.add('noanim')">
+      <span class="exd-badge">▶ ${t('démo','demo')}</span>
+      <span class="ex-thumb-fallback big">${esc(initials)}</span>
+    </div>`;
+  }
+  if (urls.length === 1) {
+    return `<div class="ex-demo one ${cls}" style="--g:${col}">
+      <img class="exd" loading="lazy" src="${esc(urls[0])}" alt="" onerror="this.closest('.ex-demo').classList.add('noimg')">
+      <span class="ex-thumb-fallback big">${esc(initials)}</span></div>`;
+  }
+  return `<div class="ex-demo noimg ${cls}" style="--g:${col}"><span class="ex-thumb-fallback big">${esc(initials)}</span></div>`;
+}
 
 export const GROUP_COLOR = {
   'Pectoraux':'#ef6a4d', 'Dos':'#4f93d6', 'Épaules':'#b07fe0',

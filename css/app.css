@@ -784,3 +784,19 @@ body.welcome-mode .tabbar{display:none}
 .notif-body { flex: 1; min-width: 0; }
 .notif-body p { margin: 0; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
 .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+
+/* ---- démo animée du mouvement (v3.5, « vidéos » offline) ---- */
+.ex-demo{position:relative;width:100%;aspect-ratio:1/1;max-height:340px;border-radius:16px;overflow:hidden;
+  border:1px solid var(--line2);margin-bottom:10px;
+  background:color-mix(in srgb,var(--g,var(--accent)) 16%,var(--surface2))}
+.ex-demo .exd{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#f4f4f5;z-index:1}
+.ex-demo .exd-1{animation:exdemo 2.6s ease-in-out infinite alternate}
+@keyframes exdemo{0%,28%{opacity:0}72%,100%{opacity:1}}
+.ex-demo.noanim .exd-1{display:none}
+.ex-demo.noimg .exd{display:none}                    /* images cassées -> on montre l'initiale */
+.ex-thumb-fallback.big{position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;
+  font-size:3.2rem;font-weight:800;color:var(--g,var(--accent))}
+.ex-demo .exd-badge{position:absolute;bottom:9px;right:9px;z-index:2;background:rgba(12,13,16,.72);color:#fff;
+  font-size:11px;font-weight:700;letter-spacing:.03em;padding:4px 9px;border-radius:999px;backdrop-filter:blur(4px)}
+.ex-demo.one .exd-badge,.ex-demo.noimg .exd-badge{display:none}
+@media (prefers-reduced-motion: reduce){.ex-demo .exd-1{animation:none;opacity:1}}

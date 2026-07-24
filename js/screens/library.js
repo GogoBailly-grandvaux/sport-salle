@@ -8,7 +8,7 @@ import {
   MUSCLE_FR, EQUIP_FR, CATEGORY_FR, LEVEL_FR, FORCE_FR,
   loadFavorites, toggleFavorite, musclesMap,
 } from '../data.js';
-import { exImage, muscleChips, emptyState, backBtn, groupColor } from './common.js';
+import { exImage, exDemo, muscleChips, emptyState, backBtn, groupColor } from './common.js';
 import { listWorkouts, listRoutines, saveRoutine, getRoutine, mkRoutineItem } from '../model.js';
 import { allTimeBests } from '../analytics.js';
 
@@ -145,10 +145,12 @@ export async function renderDetail(params) {
   const urls = imageUrls(ex);
   const isFav = favSet.has(id);
 
-  const imgs = urls.length ? `<div class="detail-shots">
-      <figure><img loading="lazy" src="${esc(urls[0])}" alt="départ" onerror="this.closest('figure').style.display='none'"><figcaption>Départ</figcaption></figure>
-      ${urls[1] ? `<figure><img loading="lazy" src="${esc(urls[1])}" alt="effort" onerror="this.closest('figure').style.display='none'"><figcaption>Effort</figcaption></figure>` : ''}
-    </div>` : `<div class="detail-noimg" style="--g:${groupColor(ex)}">${esc(ex.name.slice(0,1).toUpperCase())}</div>`;
+  // démo animée du mouvement (boucle des 2 frames) + les 2 photos fixes en dessous
+  const imgs = `${exDemo(ex)}
+    ${urls.length >= 2 ? `<div class="detail-shots">
+      <figure><img loading="lazy" src="${esc(urls[0])}" alt="" onerror="this.closest('figure').style.display='none'"><figcaption>${t('Départ','Start')}</figcaption></figure>
+      <figure><img loading="lazy" src="${esc(urls[1])}" alt="" onerror="this.closest('figure').style.display='none'"><figcaption>${t('Effort','Effort')}</figcaption></figure>
+    </div>` : ''}`;
 
   const badges = [
     ex.equipment && EQUIP_FR[ex.equipment], ex.level && LEVEL_FR[ex.level],
@@ -180,7 +182,7 @@ export async function renderDetail(params) {
     }
   }
 
-  const instr = (ex.instructions||[]).length ? `<section class="card"><h3 class="card-t">Exécution</h3><ol class="steps">${ex.instructions.map(i=>`<li>${esc(i)}</li>`).join('')}</ol></section>` : '';
+  const instr = (ex.instructions||[]).length ? `<section class="card"><h3 class="card-t">${t('Exécution','How to')}</h3><ol class="steps">${ex.instructions.map(i=>`<li>${esc(i)}</li>`).join('')}</ol></section>` : '';
 
   const hist = best.sessions ? `
     <section class="card"><h3 class="card-t">Ton historique</h3>
