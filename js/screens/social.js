@@ -219,8 +219,60 @@ function wirePosts(root) {
     await importShared(+b.dataset.import);
     b.disabled = false;
   });
+  root.querySelectorAll('[data-comments]').forEach(b => b.onclick = () => openCommentsSheet(+b.dataset.comments));
 }
 
+// ---------------- réponses sous un post ----------------
+function commentRow(c) {
+  return `<div class="cmt-row" data-cid="${c.id}">
+    <span data-nav="#/u/${esc(c.author.username)}">${avatarHtml(c.author, 'sm')}</span>
+    <div class="cmt-body">
+      <div class="cmt-head"><b data-nav="#/u/${esc(c.author.username)}">${esc(c.author.displayName)}</b>
+        <span class="mut sm">· ${ago(c.ts)}</span>
+        ${c.isMine ? `<button class="icon-btn sm cmt-del" data-cdel="${c.id}" aria-label="${t('Supprimer','Delete')}">${icon('trash')}</button>` : ''}
+      </div>
+      <p class="cmt-text">${linkify(esc(c.text))}</p>
+    </div>
+  </div>`;
+}
+
+function openCommentsSheet(postId) {
+  const s = sheet(`
+    <div class="cmt-list" id="cmt-list"><p class="mut sm center">${t('Chargement…','Loading…')}</p></div>
+    <div class="cmt-composer">
+      <input class="input" id="cmt-in" maxlength="300" placeholder="${t('Réponds…','Reply…')}" autocomplete="off">
+      <button class="btn primary sm" id="cmt-send">${t('Envoyer','Send')}</button>
+    </div>`,
+    { title: t('Réponses','Replies') });
+  const list = s.root.querySelector('#cmt-list');
+  const input = s.root.querySelector('#cmt-in');
+  const load = async () => {
+    try {
+      const d = await call('posts', 'comments', { postId });
+      list.innerHTML = d.comments.length
+        ? d.comments.map(commentRow).join('')
+        : `<p class="mut sm center" style="padding:18px 0">${t('Sois le premier à répondre 💬','Be the first to reply 💬')}</p>`;
+      list.scrollTop = list.scrollHeight;
+      list.querySelectorAll('[data-cdel]').forEach(b => b.onclick = async () => {
+        if (!(await confirmDialog({ title: t('Supprimer','Delete'), message: t('Supprimer cette réponse ?','Delete this reply?'), confirmText: t('Supprimer','Delete'), danger: true }))) return;
+        try { await call('posts', 'uncomment', { commentId: +b.dataset.cdel }); load(); }
+        catch (e) { toast(e.message, { type: 'error' }); }
+      });
+    } catch (e) { list.innerHTML = `<p class="mut sm center">${esc(e.message)}</p>`; }
+  };
+  const send = async () => {
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    const btn = s.root.querySelector('#cmt-send');
+    btn.disabled = true;
+    try { await call('posts', 'comment', { postId, text }); input.value = ''; await load(); }
+    catch (e) { toast(e.message, { type: 'error' }); }
+    btn.disabled = false; input.focus();
+  };
+  s.root.querySelector('#cmt-send').onclick = send;
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); send(); } });
+  load();
+}
 
 export async function importShared(id, sheetToClose = null) {
   try {
