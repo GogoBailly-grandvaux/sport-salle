@@ -36,4 +36,12 @@ $st = db()->prepare('SELECT UNIX_TIMESTAMP(updated_at) FROM user_snapshots WHERE
 $st->execute([$me['id']]);
 $snap = (int)($st->fetchColumn() ?: 0);
 
-ok(['v' => $v, 'reqs' => $reqs, 'snap' => $snap]);
+// notifications non lues (badge Activité)
+$notifs = 0;
+try {
+  $st = db()->prepare('SELECT COUNT(*) FROM notifs WHERE user_id = ? AND seen = 0');
+  $st->execute([$me['id']]);
+  $notifs = (int)$st->fetchColumn();
+} catch (PDOException $e) { if ($e->getCode() !== '42S02') { throw $e; } }
+
+ok(['v' => $v, 'reqs' => $reqs, 'snap' => $snap, 'notifs' => $notifs]);

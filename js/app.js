@@ -319,11 +319,11 @@ async function boot() {
     // pouls : poll léger au premier plan ; les événements font vivre l'UI en place
     if (sync.isConfigured()) live.startLive();
     on('live-info', e => {
+      const n = (e?.detail?.reqs || 0) + (e?.detail?.notifs || 0);
       const dot = document.getElementById('soc-dot');
-      if (!dot) return;
-      const n = e?.detail?.reqs || 0;
-      dot.hidden = n === 0;
-      dot.textContent = n > 9 ? '9+' : String(n || '');
+      if (dot) { dot.hidden = n === 0; dot.textContent = n > 9 ? '9+' : String(n || ''); }
+      const bell = document.getElementById('bell-dot');
+      if (bell) bell.hidden = (e?.detail?.notifs || 0) === 0;
     });
     on('live-changed', () => {
       // rafraîchir en place les écrans sociaux — sans casser une saisie en cours

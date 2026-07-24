@@ -232,6 +232,7 @@ switch ($action) {
     });
     // ménage opportuniste : les posts de plus de 180 jours s'effacent
     try { db()->exec('DELETE FROM posts WHERE created_at < DATE_SUB(NOW(), INTERVAL 180 DAY) LIMIT 50'); } catch (PDOException $e) {}
+    if ($kind === 'text') { notify_mentions($content['text'] ?? '', $me['id'], $newId); }
     bump_live(friend_ids($me['id']));
     ok(['ok' => true, 'id' => $newId]);
   }
@@ -254,6 +255,8 @@ switch ($action) {
     $st->execute([$postId, $me['id']]);
     $watchers = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
     if ($author !== $me['id']) { $watchers[] = $author; }
+    notify($author, $me['id'], 'comment', $postId, $text);
+    notify_mentions($text, $me['id'], $postId, [$author]);
     bump_live($watchers);
     ok(['ok' => true, 'id' => $newId]);
   }
@@ -308,6 +311,7 @@ switch ($action) {
       db()->prepare('INSERT INTO post_reactions (post_id, user_id, emoji) VALUES (?,?,?)
                      ON DUPLICATE KEY UPDATE emoji = VALUES(emoji)')->execute([$postId, $me['id'], $emoji]);
     }
+    if ($author !== $me['id'] && $emoji !== '') { notify($author, $me['id'], 'react', $postId, $emoji); }
     if ($author !== $me['id']) { bump_live([$author]); }
     ok(['ok' => true]);
   }

@@ -770,3 +770,17 @@ body.welcome-mode .tabbar{display:none}
 .cmt-text { margin: 3px 0 0; font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
 .cmt-composer { display: flex; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .cmt-composer .input { flex: 1; }
+
+/* ---- activité 🔔 (v3.4) ---- */
+.icon-btn.bell { position: relative; font-size: 17px; }
+.icon-btn.bell.on { background: color-mix(in srgb, var(--accent) 18%, transparent); border-radius: 10px; }
+.bell-dot { position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
+.notif-list { display: flex; flex-direction: column; gap: 8px; }
+.notif-row { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+  padding: 11px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; cursor: pointer; }
+.notif-row.unseen { border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+.notif-body { flex: 1; min-width: 0; }
+.notif-body p { margin: 0; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }

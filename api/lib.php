@@ -255,6 +255,54 @@ function can_view_content(int $viewer, int $ownerId, ?string $ownerPrivacy): boo
   return are_friends($viewer, $ownerId);
 }
 
+// ---- notifications (onglet Activité ; alimentera les push) ----
+function ensure_notifs_table(): void {
+  db()->exec("CREATE TABLE IF NOT EXISTS notifs (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id    INT UNSIGNED NOT NULL,
+    actor_id   INT UNSIGNED NOT NULL,
+    kind       ENUM('friend_req','friend_acc','react','comment','mention') NOT NULL,
+    ref_id     INT UNSIGNED DEFAULT NULL,
+    meta       VARCHAR(120) DEFAULT NULL,
+    seen       TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_notif_user (user_id, id),
+    CONSTRAINT fk_n_user  FOREIGN KEY (user_id)  REFERENCES users (id) ON DELETE CASCADE,
+    CONSTRAINT fk_n_actor FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
+
+/** Dépose une notification (jamais à soi-même). Ne bloque jamais l'action principale. */
+function notify(int $to, int $actor, string $kind, ?int $refId = null, ?string $meta = null): void {
+  if ($to === $actor || $to <= 0) { return; }
+  $ins = function () use ($to, $actor, $kind, $refId, $meta) {
+    db()->prepare('INSERT INTO notifs (user_id, actor_id, kind, ref_id, meta) VALUES (?,?,?,?,?)')
+      ->execute([$to, $actor, $kind, $refId, $meta !== null ? mb_substr($meta, 0, 120) : null]);
+  };
+  try { $ins(); }
+  catch (PDOException $e) {
+    if ($e->getCode() !== '42S02') { error_log('notify: ' . $e->getMessage()); return; }
+    try { ensure_notifs_table(); $ins(); } catch (PDOException $e2) { error_log('notify2: ' . $e2->getMessage()); }
+  }
+  try { db()->exec('DELETE FROM notifs WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY) LIMIT 30'); } catch (PDOException $e) {}
+}
+
+/** Notifie les @mentions d'un texte (amis de l'auteur uniquement, hors $skip). */
+function notify_mentions(string $text, int $actor, ?int $refId, array $skip = []): void {
+  if (!preg_match_all('/(^|\s)@([a-z0-9_.]{3,20})/i', $text, $m)) { return; }
+  $names = array_slice(array_unique(array_map('strtolower', $m[2])), 0, 5);
+  foreach ($names as $name) {
+    $st = db()->prepare('SELECT id FROM users WHERE username = ?');
+    $st->execute([$name]);
+    $uid = (int)($st->fetchColumn() ?: 0);
+    if (!$uid || $uid === $actor || in_array($uid, $skip, true)) { continue; }
+    if (!are_friends($actor, $uid)) { continue; } // on ne mentionne-notifie que ses amis
+    notify($uid, $actor, 'mention', $refId, mb_substr($text, 0, 80));
+    bump_live([$uid]);
+  }
+}
+
 function public_user(array $row): array {
   return [
     'id'          => (int)$row['id'],

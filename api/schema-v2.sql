@@ -155,3 +155,19 @@ CREATE TABLE IF NOT EXISTS post_comments (
   CONSTRAINT fk_pc_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
   CONSTRAINT fk_pc_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v3.4 : notifications (onglet Activité ; créée en lazy par lib.php notify()).
+CREATE TABLE IF NOT EXISTS notifs (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id    INT UNSIGNED NOT NULL,
+  actor_id   INT UNSIGNED NOT NULL,
+  kind       ENUM('friend_req','friend_acc','react','comment','mention') NOT NULL,
+  ref_id     INT UNSIGNED DEFAULT NULL,
+  meta       VARCHAR(120) DEFAULT NULL,
+  seen       TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_notif_user (user_id, id),
+  CONSTRAINT fk_n_user  FOREIGN KEY (user_id)  REFERENCES users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_n_actor FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -42,11 +42,13 @@ switch ($action) {
       if ((int)$ex['requester'] === $me['id']) { fail(409, 'demande déjà envoyée'); }
       // l'autre m'avait déjà demandé -> on accepte
       db()->prepare("UPDATE friendships SET status = 'accepted' WHERE user_lo = ? AND user_hi = ?")->execute([$lo, $hi]);
+      notify($target, $me['id'], 'friend_acc');
       bump_live([$target]);
       ok(['ok' => true, 'accepted' => true]);
     }
     db()->prepare('INSERT INTO friendships (user_lo, user_hi, status, requester) VALUES (?,?,?,?)')
       ->execute([$lo, $hi, 'pending', $me['id']]);
+    notify($target, $me['id'], 'friend_req');
     bump_live([$target]);
     ok(['ok' => true, 'accepted' => false]);
   }
@@ -62,6 +64,7 @@ switch ($action) {
     if ((int)$req === $me['id']) { fail(400, 'tu ne peux pas répondre à ta propre demande'); }
     if ($accept) {
       db()->prepare("UPDATE friendships SET status = 'accepted' WHERE user_lo = ? AND user_hi = ?")->execute([$lo, $hi]);
+      notify($other, $me['id'], 'friend_acc');
     } else {
       db()->prepare('DELETE FROM friendships WHERE user_lo = ? AND user_hi = ?')->execute([$lo, $hi]);
     }
@@ -129,6 +132,34 @@ switch ($action) {
     // tri : dernière séance la plus récente d'abord
     usort($friends, fn($x, $y) => (($y['stats']['lastWorkoutAt'] ?? 0) <=> ($x['stats']['lastWorkoutAt'] ?? 0)));
     ok(['friends' => $friends, 'incoming' => $incoming, 'outgoing' => $outgoing]);
+  }
+
+  case 'notifs': {
+    $rows = [];
+    try {
+      $st = db()->prepare(
+        'SELECT n.id, n.kind, n.ref_id, n.meta, n.seen, UNIX_TIMESTAMP(n.created_at) AS ts,
+                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent
+         FROM notifs n JOIN users u ON u.id = n.actor_id
+         WHERE n.user_id = ? ORDER BY n.id DESC LIMIT 40');
+      $st->execute([$me['id']]);
+      $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) { if ($e->getCode() !== '42S02') { throw $e; } }
+    $out = [];
+    foreach ($rows as $r) {
+      $out[] = [
+        'id' => (int)$r['id'], 'kind' => $r['kind'],
+        'refId' => $r['ref_id'] !== null ? (int)$r['ref_id'] : null,
+        'meta' => $r['meta'], 'seen' => (bool)$r['seen'], 'ts' => (int)$r['ts'],
+        'actor' => public_user(['id' => $r['uid'], 'username' => $r['username'], 'display_name' => $r['display_name'], 'avatar_emoji' => $r['avatar_emoji'], 'accent' => $r['accent']]),
+      ];
+    }
+    // marquage lu à la consultation
+    if (!empty($b['markSeen'])) {
+      try { db()->prepare('UPDATE notifs SET seen = 1 WHERE user_id = ? AND seen = 0')->execute([$me['id']]); }
+      catch (PDOException $e) { if ($e->getCode() !== '42S02') { throw $e; } }
+    }
+    ok(['notifs' => $out]);
   }
 
   default:

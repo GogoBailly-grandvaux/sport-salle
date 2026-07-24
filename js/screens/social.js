@@ -10,7 +10,7 @@ import { openAuthSheet } from './account.js';
 import * as sync from '../sync.js';
 import { qrSvg } from '../qr.js';
 
-let seg = 'feed'; // feed | amis | groupes
+let seg = 'feed'; // feed | amis | groupes | activite (via la cloche)
 
 const avatarHtml = (u, size = '') =>
   `<span class="avatar ${size}" style="--a:${ACCENTS[u.accent]?.hex || ACCENTS.ember.hex}">${u.emoji ? esc(u.emoji) : esc((u.displayName || u.username || '?').slice(0, 1).toUpperCase())}</span>`;
@@ -58,7 +58,8 @@ export async function render() {
 
   let body = '';
   try {
-    if (seg === 'feed') body = await renderFeed();
+    if (seg === 'activite') body = await renderActivite();
+    else if (seg === 'feed') body = await renderFeed();
     else if (seg === 'amis') body = await renderAmis();
     else body = await renderGroupes();
   } catch (e) {
@@ -72,8 +73,47 @@ function header() {
   return `<header class="topbar">
     <div class="topbar-l">${backBtn('#/home')}</div>
     <div class="topbar-c"><h1>Social</h1>${acc ? `<span class="topbar-sub">@${esc(acc.user.username)}</span>` : ''}</div>
-    <div class="topbar-r"></div>
+    <div class="topbar-r">${isLoggedIn() ? `<button class="icon-btn bell ${seg === 'activite' ? 'on' : ''}" id="soc-bell" aria-label="${t('Activité','Activity')}">🔔<span class="bell-dot" id="bell-dot" hidden></span></button>` : ''}</div>
   </header>`;
+}
+
+// ---------------- ACTIVITÉ (🔔) ----------------
+function notifLine(n) {
+  const a = n.actor;
+  const who = `<b>${esc(a.displayName)}</b>`;
+  const x = {
+    friend_req: t(`${who} t’a envoyé une demande d’ami`, `${who} sent you a friend request`),
+    friend_acc: t(`${who} a accepté ta demande 🤝`, `${who} accepted your request 🤝`),
+    react: t(`${who} a réagi ${esc(n.meta || '👊')} à ton post`, `${who} reacted ${esc(n.meta || '👊')} to your post`),
+    comment: t(`${who} a répondu : « ${esc(n.meta || '')} »`, `${who} replied: “${esc(n.meta || '')}”`),
+    mention: t(`${who} t’a mentionné : « ${esc(n.meta || '')} »`, `${who} mentioned you: “${esc(n.meta || '')}”`),
+  };
+  return x[n.kind] || who;
+}
+
+async function renderActivite() {
+  const d = await call('social', 'notifs', { markSeen: true });
+  if (!d.notifs.length) {
+    return emptyState('users', t('Rien pour l’instant','Nothing yet'), t('Les demandes d’ami, réactions, réponses et mentions arriveront ici.','Friend requests, reactions, replies and mentions will show up here.'), '');
+  }
+  return `<div class="notif-list">${d.notifs.map(n => `
+    <button class="notif-row ${n.seen ? '' : 'unseen'}" data-nkind="${n.kind}" data-nref="${n.refId ?? ''}" data-nuser="${esc(n.actor.username)}">
+      ${avatarHtml(n.actor)}
+      <div class="notif-body"><p>${notifLine(n)}</p><span class="mut sm">${ago(n.ts)}</span></div>
+      ${n.seen ? '' : '<span class="notif-dot"></span>'}
+    </button>`).join('')}</div>`;
+}
+
+function wireActivite(root) {
+  root.querySelectorAll('.notif-row').forEach(b => b.onclick = () => {
+    const { nkind, nref, nuser } = b.dataset;
+    if ((nkind === 'react' || nkind === 'comment' || nkind === 'mention') && nref) { openCommentsSheet(+nref); return; }
+    nav.go('#/u/' + nuser);
+  });
+  // badge éteint localement (le serveur vient de marquer lu)
+  const dot = document.getElementById('bell-dot'); if (dot) dot.hidden = true;
+  const tabDot = document.getElementById('soc-dot');
+  if (tabDot) tabDot.hidden = true;
 }
 
 // ---------------- FIL ----------------
@@ -585,7 +625,9 @@ export function mount(root) {
   root.querySelector('#soc-register')?.addEventListener('click', () => openAuthSheet('register', () => nav.refresh()));
   root.querySelector('#soc-login')?.addEventListener('click', () => openAuthSheet('login', () => nav.refresh()));
   root.querySelectorAll('[data-seg]').forEach(b => b.onclick = () => { seg = b.dataset.seg; nav.refresh(); });
+  root.querySelector('#soc-bell')?.addEventListener('click', () => { seg = seg === 'activite' ? 'feed' : 'activite'; nav.refresh(); });
   wireActions(root);
+  if (seg === 'activite') wireActivite(root);
   if (seg === 'feed') wireFeed(root);
   if (seg === 'amis') wireAmis(root);
   if (seg === 'groupes') wireGroupes(root);
