@@ -446,6 +446,11 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 .accent-dot.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
 .emoji-pick{display:flex;gap:8px;flex-wrap:wrap}
 [hidden]{display:none!important} /* l'attribut hidden doit TOUJOURS gagner (sinon .btn{display:flex} l'écrase) */
+/* Séances en direct */
+.live-now{border-color:color-mix(in srgb,var(--danger) 30%,var(--line))}
+.live-dot{width:9px;height:9px;border-radius:50%;background:var(--danger);display:inline-block;animation:livepulse 1.6s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.8)}}
+@media (prefers-reduced-motion:reduce){.live-dot{animation:none}}
 /* Records enrichis + table %1RM */
 .pct-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
 .pct-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line)}

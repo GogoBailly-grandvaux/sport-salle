@@ -10,6 +10,7 @@ import { getWorkout, saveWorkout, deleteWorkout, finishWorkout, mkSet, mkExercis
 import { overloadHint } from '../coach.js';
 import { praise } from '../voice.js';
 import { call, isLoggedIn } from '../api.js';
+import { liveStart, liveBeat, liveStop } from '../livework.js';
 
 let W = null;
 let prevMap = new Map();       // exerciseId -> [prev sets]
@@ -146,7 +147,15 @@ function freezeElapsed() {
   if (W && W._resumedAt) { W.activeSec = elapsedSec(); W._resumedAt = null; }
 }
 
+function currentExName() {
+  const ex = (W?.exercises || []).find(e => (e.sets || []).some(s => !s.done)) || (W?.exercises || [])[0];
+  const meta = ex && getExercise(ex.exerciseId);
+  return meta ? meta.name : '';
+}
+
 export function mount(root, params) {
+  // séance en direct : mes amis me voient m'entraîner (battements légers)
+  liveStart(() => ({ W, exName: currentExName() }));
   document.body.classList.add('workout-mode');
   const exs = root.querySelector('#wk-exs');
 
@@ -227,6 +236,7 @@ function toggleDone(btn, ex) {
     s.completedAt = Date.now();
     row.classList.add('done');
     vibrate(15);
+    liveBeat(); // mes amis voient la série tomber
     if (ex.supersetGroup && !isLastOfSuperset(ex)) {
       toast(t('Superset : enchaîne direct sur le suivant !','Superset: go straight to the next one!'), { duration: 2000 });
     } else {
@@ -484,6 +494,7 @@ async function renameSession() {
 async function discard() {
   if (await confirmDialog({ title: t('Abandonner ?','Discard?'), message: t('La séance en cours sera supprimée. Sûr ?','The current workout will be deleted. Sure?'), confirmText: t('Abandonner','Discard'), danger: true })) {
     clearRest();
+    liveStop();
     await deleteWorkout(W.id); W = null;
     nav.go('#/home');
   }
@@ -514,6 +525,7 @@ async function finish() {
   if (!anyDone) {
     // vraiment aucune donnée saisie → la séance est vide, on propose de quitter
     if (await confirmDialog({ title: t('Séance vide','Empty workout'), message: t('Tu n’as saisi aucune série. Quitter la séance ? (rien ne sera enregistré)','You didn’t log any set. Leave the workout? (nothing will be saved)'), confirmText: t('Quitter','Leave'), danger: true })) {
+      liveStop();
       clearRest(); await deleteWorkout(W.id); W = null; nav.go('#/home');
     }
     return; // annulation : la séance continue, intacte
@@ -525,6 +537,7 @@ async function finish() {
   clearRest();
   const id = W.id;
   try {
+    liveStop();
     await finishWorkout(W);
   } catch (e) {
     console.error(e);

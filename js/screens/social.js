@@ -186,9 +186,21 @@ function postCard(p) {
 }
 
 async function renderFeed() {
-  const [d, soc] = await Promise.all([call('posts', 'feed'), call('social', 'list')]);
+  const [d, soc, lw] = await Promise.all([call('posts', 'feed'), call('social', 'list'), call('liveworkout', 'friends').catch(() => ({ live: [] }))]);
   const { incoming, friends } = soc;
   const pending = incoming.length ? `<button class="pending-banner" data-seg-go="amis">${incoming.length} ${t('demande','friend request')}${incoming.length > 1 ? 's' : ''} ${t('d’ami en attente','pending')} ${icon('right')}</button>` : '';
+  // amis en séance MAINTENANT
+  const liveCard = (lw.live || []).length ? `<section class="card live-now">
+    <h3 class="card-t"><span class="live-dot"></span> ${t('En séance maintenant','Working out now')}</h3>
+    ${lw.live.map(l => {
+      const mins = Math.max(1, Math.round((Date.now() - l.startedAt) / 60000));
+      return `<div class="friend-row" data-nav="#/u/${esc(l.user.username)}">${avatarHtml(l.user)}
+        <div class="fr-info"><b>${esc(l.user.displayName)}</b>
+          <span class="mut sm">${esc(l.name || t('Séance','Workout'))} · ${mins} min · ${l.setsDone} ${t('séries','sets')}${l.volumeKg ? ` · ${l.volumeKg.toLocaleString('fr-FR')} kg` : ''}${l.currentEx ? ` · ${esc(l.currentEx)}` : ''}</span></div>
+      </div>`;
+    }).join('')}
+  </section>` : '';
+
   const acc = account();
   const composer = `<button class="feed-composer" id="feed-compose">
     ${avatarHtml({ emoji: acc?.user?.emoji, displayName: acc?.user?.displayName, username: acc?.user?.username, accent: acc?.user?.accent })}
@@ -204,7 +216,7 @@ async function renderFeed() {
   } else {
     list = emptyState('users', t('Rien pour l’instant','Nothing yet'), t('Termine une séance et partage-la, ou écris le premier post !','Finish a workout and share it, or write the first post!'), '');
   }
-  return pending + composer + list;
+  return pending + liveCard + composer + list;
 }
 
 function wireFeed(root) {
