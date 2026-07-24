@@ -60,7 +60,7 @@ function post_author_visible(int $postId, int $viewer): int {
       $st->execute([$author]);
       return $st->fetchColumn();
     });
-    if (($pub ?: 'friends') !== 'public') { fail(403, 'réservé aux amis'); }
+    if (($pub ?: 'friends') !== 'public') { fail(404, 'post introuvable'); } // 404 uniforme : ne distingue pas privé vs inexistant
   }
   return $author;
 }
@@ -304,6 +304,10 @@ switch ($action) {
     $postId = (int)($b['postId'] ?? 0);
     $emoji = (string)($b['emoji'] ?? '');
     $author = post_author_visible($postId, $me['id']);
+    // état avant : pour ne notifier qu'au PREMIER passage (pas à chaque changement d'emoji)
+    $st = db()->prepare('SELECT 1 FROM post_reactions WHERE post_id = ? AND user_id = ?');
+    $st->execute([$postId, $me['id']]);
+    $had = (bool)$st->fetchColumn();
     if ($emoji === '') {
       db()->prepare('DELETE FROM post_reactions WHERE post_id = ? AND user_id = ?')->execute([$postId, $me['id']]);
     } else {
@@ -311,7 +315,7 @@ switch ($action) {
       db()->prepare('INSERT INTO post_reactions (post_id, user_id, emoji) VALUES (?,?,?)
                      ON DUPLICATE KEY UPDATE emoji = VALUES(emoji)')->execute([$postId, $me['id'], $emoji]);
     }
-    if ($author !== $me['id'] && $emoji !== '') { notify($author, $me['id'], 'react', $postId, $emoji); }
+    if ($author !== $me['id'] && $emoji !== '' && !$had) { notify($author, $me['id'], 'react', $postId, $emoji); }
     if ($author !== $me['id']) { bump_live([$author]); }
     ok(['ok' => true]);
   }

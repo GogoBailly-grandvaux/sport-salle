@@ -11,6 +11,7 @@ $me = require_user();
 switch ($action) {
 
   case 'search': {
+    rate_limit('search', 40, 900); // anti-énumération
     $q = strtolower(trim((string)($b['q'] ?? '')));
     if (strlen($q) < 2) { ok(['results' => []]); }
     $st = db()->prepare(
@@ -26,6 +27,7 @@ switch ($action) {
   }
 
   case 'request': {
+    rate_limit('friendreq', 30, 3600); // anti-spam de demandes/notifications
     $username = strtolower(trim((string)($b['username'] ?? '')));
     $st = db()->prepare('SELECT id FROM users WHERE username = ?');
     $st->execute([$username]);
@@ -46,8 +48,13 @@ switch ($action) {
       bump_live([$target]);
       ok(['ok' => true, 'accepted' => true]);
     }
-    db()->prepare('INSERT INTO friendships (user_lo, user_hi, status, requester) VALUES (?,?,?,?)')
-      ->execute([$lo, $hi, 'pending', $me['id']]);
+    try {
+      db()->prepare('INSERT INTO friendships (user_lo, user_hi, status, requester) VALUES (?,?,?,?)')
+        ->execute([$lo, $hi, 'pending', $me['id']]);
+    } catch (PDOException $e) {
+      if ((int)$e->getCode() === 23000) { fail(409, 'demande déjà envoyée'); } // course : déjà créée
+      throw $e;
+    }
     notify($target, $me['id'], 'friend_req');
     bump_live([$target]);
     ok(['ok' => true, 'accepted' => false]);
@@ -81,6 +88,7 @@ switch ($action) {
   }
 
   case 'profile': {
+    rate_limit('lookup', 100, 900); // anti-énumération (généreux : consultation légitime)
     // page profil publique : identité toujours ; contenu (stats/programmes)
     // uniquement si autorisé (soi-même, ami, ou compte public) — RGPD by design
     $username = strtolower(trim((string)($b['username'] ?? '')));
@@ -92,7 +100,6 @@ switch ($action) {
     if (!$row) { fail(404, 'utilisateur introuvable'); }
     $uid = (int)$row['id'];
     $out = public_user($row);
-    $out['bio'] = $row['bio'];
     $out['memberSince'] = substr((string)$row['created_at'], 0, 10);
     $out['isPublic'] = ($row['privacy'] ?? 'friends') === 'public';
     $out['relation'] = relation_state($me['id'], $uid);
@@ -100,6 +107,7 @@ switch ($action) {
     $canView = can_view_content($me['id'], $uid, $row['privacy'] ?? 'friends');
     $out['canView'] = $canView;
     if ($canView) {
+      $out['bio'] = $row['bio']; // bio = contenu libre : visible seulement si autorisé
       $stats = stats_for([$uid]);
       $out['stats'] = $stats[$uid] ?? null;
       $st = db()->prepare('SELECT id, name, downloads, group_id, created_at FROM shared_programs

@@ -12,6 +12,7 @@ $me = require_user();
 switch ($action) {
 
   case 'create': {
+    rate_limit('grpcreate', 12, 3600);
     $name = trim((string)($b['name'] ?? ''));
     if ($name === '' || mb_strlen($name) > 48) { fail(400, 'nom de groupe invalide (1-48 caractères)'); }
     $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -24,6 +25,7 @@ switch ($action) {
   }
 
   case 'join': {
+    rate_limit('grpjoin', 30, 900); // anti brute-force de codes
     $code = strtoupper(trim((string)($b['code'] ?? '')));
     $st = db()->prepare('SELECT id, name, code FROM sport_groups WHERE code = ?');
     $st->execute([$code]);

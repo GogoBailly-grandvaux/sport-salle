@@ -12,6 +12,7 @@ $me = require_user();
 switch ($action) {
 
   case 'publish': {
+    rate_limit('publish', 40, 3600);
     $name = trim((string)($b['name'] ?? ''));
     $payload = $b['payload'] ?? null;
     $groupId = isset($b['groupId']) ? (int)$b['groupId'] : null;

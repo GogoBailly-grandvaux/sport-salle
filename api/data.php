@@ -51,7 +51,7 @@ switch ($action) {
       )->execute([
         $me['id'],
         isset($s['lastWorkoutAt']) ? (int)$s['lastWorkoutAt'] : null,
-        isset($s['lastWorkout']) ? substr((string)$s['lastWorkout'], 0, 120) : null,
+        isset($s['lastWorkout']) ? mb_substr(str_replace(['<', '>'], '', (string)$s['lastWorkout']), 0, 120) : null,
         (int)($s['weekStart'] ?? 0),
         max(0, (int)($s['weekCount'] ?? 0)),
         max(0, (int)($s['weekVolume'] ?? 0)),

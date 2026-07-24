@@ -14,7 +14,7 @@ switch ($action) {
     rate_limit('register', 10, 3600); // max 10 créations/h par IP
     $username = strtolower(trim((string)($b['username'] ?? '')));
     $password = (string)($b['password'] ?? '');
-    $displayName = trim((string)($b['displayName'] ?? ''));
+    $displayName = trim(str_replace(['<', '>'], '', (string)($b['displayName'] ?? '')));
     $emoji = substr(trim((string)($b['emoji'] ?? '')), 0, 16) ?: null;
     $accent = preg_match('/^[a-z]{3,10}$/', (string)($b['accent'] ?? '')) ? $b['accent'] : 'ember';
 
@@ -148,7 +148,7 @@ switch ($action) {
     // édition du profil public : nom affiché, bio, emoji, couleur, confidentialité
     $u = require_user();
     rate_limit('profup', 10, 900);
-    $displayName = trim((string)($b['displayName'] ?? ''));
+    $displayName = trim(str_replace(['<', '>'], '', (string)($b['displayName'] ?? '')));
     if ($displayName === '' || mb_strlen($displayName) > 40) { fail(400, 'nom invalide (1-40 caractères)'); }
     $bio = trim(str_replace(['<', '>'], '', (string)($b['bio'] ?? '')));
     if (mb_strlen($bio) > 160) { fail(400, 'bio trop longue (160 caractères max)'); }
