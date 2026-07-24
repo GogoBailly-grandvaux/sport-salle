@@ -171,3 +171,23 @@ CREATE TABLE IF NOT EXISTS notifs (
   CONSTRAINT fk_n_user  FOREIGN KEY (user_id)  REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_n_actor FOREIGN KEY (actor_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v3.7 : notifications push (Web Push). app_kv stocke la clé VAPID auto-générée.
+CREATE TABLE IF NOT EXISTS app_kv (
+  k VARCHAR(40) NOT NULL PRIMARY KEY,
+  v MEDIUMTEXT NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS push_subs (
+  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id       INT UNSIGNED NOT NULL,
+  endpoint      TEXT NOT NULL,
+  endpoint_hash CHAR(64) NOT NULL,
+  p256dh        VARCHAR(120) NOT NULL,
+  auth          VARCHAR(40)  NOT NULL,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_ep (endpoint_hash),
+  KEY idx_ps_user (user_id),
+  CONSTRAINT fk_ps_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

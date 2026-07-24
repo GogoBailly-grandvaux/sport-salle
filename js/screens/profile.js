@@ -9,6 +9,7 @@ import { icon, sheet, confirmDialog, toast } from '../ui.js';
 import { backBtn } from './common.js';
 import * as sync from '../sync.js';
 import { isLoggedIn, account } from '../api.js';
+import { pushSupported, iosNeedsInstall, pushState, enablePush, disablePush } from '../push.js';
 import { accountCardHtml, mountAccountCard } from './account.js';
 import { appLockCardHtml, mountAppLockCard } from '../applock.js';
 import { APP_VERSION } from '../version.js';
@@ -38,6 +39,12 @@ export async function render() {
         <h3 class="card-t">🪪 ${t('Mon profil public','My public profile')}</h3>
         <p class="mut sm">${t('Nom, bio et confidentialité — compte privé par défaut : seuls tes amis voient tes posts et stats.','Name, bio and privacy — private by default: only friends see your posts and stats.')}</p>
         <button class="btn ghost full" id="edit-pub-profile">${t('Voir / modifier mon profil','View / edit my profile')}</button>
+      </section>` : ''}
+
+      ${sync.isConfigured() && isLoggedIn() ? `<section class="card" id="push-card">
+        <h3 class="card-t">🔔 ${t('Notifications push','Push notifications')}</h3>
+        <p class="mut sm" id="push-desc">${t('Sois prévenu des demandes d’ami, réactions, réponses et mentions — même l’app fermée.','Get notified of friend requests, reactions, replies and mentions — even when the app is closed.')}</p>
+        <div id="push-action"></div>
       </section>` : ''}
       ${sync.isConfigured() ? appLockCardHtml() : ''}
 
@@ -86,6 +93,7 @@ export function mount(root) {
     const acc = account();
     if (acc?.user?.username) nav.go('#/u/' + acc.user.username);
   });
+  mountPushCard(root);
   root.querySelector('#share-app')?.addEventListener('click', async () => {
     const url = 'https://sportsalle.hbaillyg.fr/';
     const text = t('Je suis mes séances sur Sport Salle — coach, programmes, amis. Gratuit, sans pub :','I track my workouts on Sport Salle — coach, programs, friends. Free, no ads:');
@@ -170,4 +178,38 @@ async function importData(file) {
   } catch (e) {
     toast(t('Fichier invalide','Invalid file'), { type:'error' });
   }
+}
+
+// ---- carte notifications push ----
+async function mountPushCard(root) {
+  const host = root.querySelector('#push-action');
+  if (!host) return;
+  const render = async () => {
+    if (!pushSupported()) {
+      if (iosNeedsInstall()) {
+        host.innerHTML = `<p class="mut sm">${t('Sur iPhone : ajoute d’abord l’app à ton écran d’accueil (bouton Partager → « Sur l’écran d’accueil »), puis rouvre-la pour activer les notifications.','On iPhone: first add the app to your Home Screen (Share → “Add to Home Screen”), then reopen it to enable notifications.')}</p>`;
+      } else {
+        host.innerHTML = `<p class="mut sm">${t('Non disponible sur ce navigateur.','Not available on this browser.')}</p>`;
+      }
+      return;
+    }
+    const st = await pushState();
+    if (st.permission === 'denied') {
+      host.innerHTML = `<p class="mut sm">${t('Notifications bloquées dans les réglages du navigateur — réautorise-les pour Sport Salle.','Notifications are blocked in your browser settings — re-allow them for Sport Salle.')}</p>`;
+      return;
+    }
+    host.innerHTML = st.subscribed
+      ? `<div class="setting"><span>${t('Activées sur cet appareil ✓','Enabled on this device ✓')}</span><button class="btn ghost sm" id="push-off">${t('Désactiver','Disable')}</button></div>`
+      : `<button class="btn primary full" id="push-on">🔔 ${t('Activer les notifications','Enable notifications')}</button>`;
+    host.querySelector('#push-on')?.addEventListener('click', async () => {
+      const btn = host.querySelector('#push-on'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      const r = await enablePush();
+      if (r.error) { toast(r.error, { type: 'error' }); } else { toast(t('Notifications activées ✓','Notifications enabled ✓')); }
+      render();
+    });
+    host.querySelector('#push-off')?.addEventListener('click', async () => {
+      await disablePush(); toast(t('Notifications désactivées','Notifications disabled')); render();
+    });
+  };
+  render();
 }

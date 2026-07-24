@@ -1,5 +1,5 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v3.6.0';
+const VERSION = 'v3.7.0';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 
@@ -8,7 +8,7 @@ const ASSETS = [
   './css/app.css',
   './js/app.js', './js/util.js', './js/version.js', './js/i18n.js', './js/db.js', './js/store.js', './js/data.js',
   './js/model.js', './js/analytics.js', './js/charts.js', './js/ui.js', './js/templates.js',
-  './js/sync.js', './js/live.js', './js/qr.js', './js/sync-merge.js', './js/sync-config.js',
+  './js/sync.js', './js/live.js', './js/qr.js', './js/push.js', './js/sync-merge.js', './js/sync-config.js',
   './js/api.js', './js/coach.js', './js/applock.js', './js/generator.js', './js/voice.js',
   './js/screens/social.js', './js/screens/account.js', './js/screens/coach-gen.js',
   './js/screens/common.js', './js/screens/picker.js', './js/screens/home.js',
@@ -91,4 +91,28 @@ self.addEventListener('fetch', (e) => {
       } catch { return Response.error(); }
     })());
   }
+});
+
+// ---- notifications push ----
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
+  const title = d.title || 'Sport Salle';
+  e.waitUntil(self.registration.showNotification(title, {
+    body: d.body || '',
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    tag: d.tag || 'sport-salle',
+    data: { url: d.url || '/#/social' },
+    vibrate: [80, 40, 80],
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const target = (e.notification.data && e.notification.data.url) || '/#/social';
+  e.waitUntil((async () => {
+    const all = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) { if ('focus' in c) { c.navigate(target); return c.focus(); } }
+    if (clients.openWindow) return clients.openWindow(target);
+  })());
 });

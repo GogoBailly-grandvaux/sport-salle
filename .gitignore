@@ -1,1 +1,5 @@
 api/config.php
+
+# fichiers temporaires de traduction (agents)
+data/_tr_in/
+data/_tr_out/

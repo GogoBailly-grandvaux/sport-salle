@@ -286,6 +286,7 @@ function notify(int $to, int $actor, string $kind, ?int $refId = null, ?string $
     try { ensure_notifs_table(); $ins(); } catch (PDOException $e2) { error_log('notify2: ' . $e2->getMessage()); }
   }
   try { db()->exec('DELETE FROM notifs WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY) LIMIT 30'); } catch (PDOException $e) {}
+  if (function_exists('push_enqueue')) { push_enqueue($to, $kind, $actor, $meta); } // notification push (best-effort)
 }
 
 /** Notifie les @mentions d'un texte (amis de l'auteur uniquement, hors $skip). */
@@ -320,3 +321,6 @@ function fail(int $status, string $msg): void {
   echo json_encode(['error' => $msg], JSON_UNESCAPED_UNICODE);
   exit;
 }
+
+// Web Push (crypto + envoi) — chargé en dernier : ses fonctions sont dispo au runtime.
+require __DIR__ . '/webpush.php';
