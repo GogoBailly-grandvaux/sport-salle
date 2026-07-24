@@ -372,6 +372,37 @@ switch ($action) {
     ok(['ok' => true]);
   }
 
+  // signaler un post ou un commentaire — masqué pour moi tout de suite,
+  // masqué pour tout le monde à partir de 3 signalements distincts
+  case 'report': {
+    rate_limit('report', 20, 900);
+    $kind = ($b['kind'] ?? '') === 'comment' ? 'comment' : 'post';
+    $id = (int)($b['id'] ?? 0);
+    if (!$id) { fail(400, 'contenu manquant'); }
+    $reason = mb_substr(trim(str_replace(['<', '>'], '', (string)($b['reason'] ?? ''))), 0, 200);
+    with_moderation(function () use ($me, $kind, $id, $reason) {
+      if ($kind === 'post') { $st = db()->prepare('SELECT user_id FROM posts WHERE id = ?'); }
+      else { $st = db()->prepare('SELECT user_id FROM post_comments WHERE id = ?'); }
+      $st->execute([$id]);
+      $owner = $st->fetchColumn();
+      if ($owner === false) { fail(404, 'contenu introuvable'); }
+      if ((int)$owner === $me['id']) { fail(400, 'tu ne peux pas signaler ton propre contenu'); }
+      try {
+        db()->prepare('INSERT INTO content_reports (reporter_id, kind, ref_id, reason) VALUES (?,?,?,?)')
+          ->execute([$me['id'], $kind, $id, $reason !== '' ? $reason : null]);
+      } catch (PDOException $e) {
+        if ((int)$e->getCode() !== 23000) { throw $e; } // déjà signalé par moi = ok
+      }
+      $st = db()->prepare('SELECT COUNT(DISTINCT reporter_id) FROM content_reports WHERE kind = ? AND ref_id = ?');
+      $st->execute([$kind, $id]);
+      if ((int)$st->fetchColumn() >= 3) {
+        $table = $kind === 'post' ? 'posts' : 'post_comments';
+        db()->prepare("UPDATE $table SET hidden = 1 WHERE id = ?")->execute([$id]);
+      }
+    });
+    ok(['ok' => true]);
+  }
+
   default:
     fail(400, 'action inconnue');
 }
