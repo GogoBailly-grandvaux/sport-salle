@@ -6,6 +6,23 @@
 require __DIR__ . '/lib.php';
 
 $b = read_body();
+
+/** Télécharge la photo de profil Google (~96px) et la convertit en data-URI (cap 40 Ko). */
+function google_picture_data_uri(?string $url): ?string {
+  if (!$url || !preg_match('#^https://[a-z0-9.-]*googleusercontent\.com/#', $url)) { return null; }
+  $img = @file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 6]]));
+  if ($img === false && function_exists('curl_init')) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 6]);
+    $img = curl_exec($ch);
+    curl_close($ch);
+  }
+  if (!is_string($img) || $img === '' || strlen($img) > 30000) { return null; }
+  $mime = (substr($img, 0, 3) === "\xff\xd8\xff") ? 'image/jpeg' : ((substr($img, 1, 3) === 'PNG') ? 'image/png' : null);
+  if (!$mime) { return null; }
+  $uri = 'data:' . $mime . ';base64,' . base64_encode($img);
+  return strlen($uri) <= 40000 ? $uri : null;
+}
 $action = (string)($b['action'] ?? '');
 
 switch ($action) {
@@ -101,6 +118,13 @@ switch ($action) {
     $st->execute([$sub]);
     $uid = $st->fetchColumn();
     if ($uid) {
+      // profil sans photo ? on rapatrie celle de Google
+      $pic = google_picture_data_uri((string)($info['picture'] ?? ''));
+      if ($pic) {
+        with_profile_cols(function () use ($pic, $uid) {
+          db()->prepare('UPDATE users SET avatar_photo = COALESCE(avatar_photo, ?) WHERE id = ?')->execute([$pic, (int)$uid]);
+        });
+      }
       $s = issue_session((int)$uid);
       $s['isNew'] = false;
       ok($s);
@@ -119,9 +143,60 @@ switch ($action) {
     }
     db()->prepare('INSERT INTO users (username, display_name, pass_hash, google_sub, email) VALUES (?,?,?,?,?)')
       ->execute([$username, mb_substr($name ?: $username, 0, 40), password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT, ['cost' => 11]), $sub, $email]);
-    $s = issue_session((int)db()->lastInsertId());
+    $newId = (int)db()->lastInsertId();
+    // photo de profil Google -> avatar (meilleur défaut qu'une initiale)
+    $pic = google_picture_data_uri((string)($info['picture'] ?? ''));
+    if ($pic) {
+      with_profile_cols(function () use ($pic, $newId) {
+        db()->prepare('UPDATE users SET avatar_photo = ? WHERE id = ?')->execute([$pic, $newId]);
+      });
+    }
+    $s = issue_session($newId);
     $s['isNew'] = true;
     ok($s);
+  }
+
+  case 'google_link': {
+    // associer Google à un compte existant (connecté) — permet ensuite le login en 1 tap
+    $u = require_user();
+    rate_limit('google', 20, 900);
+    $c = require __DIR__ . '/config.php';
+    $clientId = (string)($c['google_client_id'] ?? '');
+    if ($clientId === '') { fail(501, 'connexion Google non configurée'); }
+    $idToken = (string)($b['idToken'] ?? '');
+    if ($idToken === '' || strlen($idToken) > 4096) { fail(400, 'jeton manquant'); }
+    $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($idToken);
+    $resp = @file_get_contents($url, false, stream_context_create(['http' => ['timeout' => 8]]));
+    if ($resp === false && function_exists('curl_init')) {
+      $ch = curl_init($url);
+      curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8]);
+      $resp = curl_exec($ch);
+      curl_close($ch);
+    }
+    $info = is_string($resp) ? json_decode($resp, true) : null;
+    $iss = $info['iss'] ?? '';
+    $issOk = in_array($iss, ['accounts.google.com', 'https://accounts.google.com'], true);
+    if (!is_array($info) || ($info['aud'] ?? '') !== $clientId || (int)($info['exp'] ?? 0) < time() || !$issOk) {
+      fail(401, 'jeton Google invalide');
+    }
+    $sub = (string)($info['sub'] ?? '');
+    if ($sub === '') { fail(401, 'jeton Google invalide'); }
+    // ce compte Google est-il déjà lié ailleurs ?
+    $st = db()->prepare('SELECT id FROM users WHERE google_sub = ? AND id <> ?');
+    $st->execute([$sub, $u['id']]);
+    if ($st->fetchColumn()) { fail(409, 'ce compte Google est déjà associé à un autre profil'); }
+    $emailOk = (($info['email_verified'] ?? '') === true) || (($info['email_verified'] ?? '') === 'true');
+    $email = ($emailOk && isset($info['email'])) ? substr((string)$info['email'], 0, 190) : null;
+    db()->prepare('UPDATE users SET google_sub = ?, email = COALESCE(email, ?) WHERE id = ?')
+      ->execute([$sub, $email, $u['id']]);
+    // et la photo si le profil n'en a pas
+    $pic = google_picture_data_uri((string)($info['picture'] ?? ''));
+    if ($pic) {
+      with_profile_cols(function () use ($pic, $u) {
+        db()->prepare('UPDATE users SET avatar_photo = COALESCE(avatar_photo, ?) WHERE id = ?')->execute([$pic, $u['id']]);
+      });
+    }
+    ok(['ok' => true]);
   }
 
   case 'username': {
@@ -204,11 +279,14 @@ switch ($action) {
 
   case 'me': {
     $u = require_user();
+    $st = db()->prepare('SELECT google_sub IS NOT NULL FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    $hasGoogle = (bool)$st->fetchColumn();
     ok(['user' => public_user([
       'id' => $u['id'], 'username' => $u['username'], 'display_name' => $u['display_name'],
       'avatar_emoji' => $u['avatar_emoji'], 'accent' => $u['accent'],
       'avatar_photo' => $u['avatar_photo'] ?? null,
-    ])]);
+    ]), 'hasGoogle' => $hasGoogle]);
   }
 
   case 'delete': {

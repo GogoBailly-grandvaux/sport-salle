@@ -60,7 +60,7 @@ function loadGsi() {
     document.head.appendChild(sc);
   });
 }
-export async function mountGoogleButton(container, onDone, closeSheet, { sep = 'before' } = {}) {
+export async function mountGoogleButton(container, onDone, closeSheet, { sep = 'before', link = false } = {}) {
   const cid = await googleClientId();
   if (!cid || !container) return;
   try {
@@ -71,6 +71,14 @@ export async function mountGoogleButton(container, onDone, closeSheet, { sep = '
       client_id: cid,
       callback: async (resp) => {
         try {
+          if (link) {
+            // association à un compte déjà connecté (pas une connexion)
+            await call('auth', 'google_link', { idToken: resp.credential });
+            toast(t('Compte Google associé ✓ — connexion en 1 tap désormais','Google linked ✓ — one-tap sign-in from now on'));
+            closeSheet();
+            if (onDone) onDone({ linked: true });
+            return;
+          }
           const res = await call('auth', 'google', { idToken: resp.credential }, { auth: false });
           await applySession(res);
           closeSheet();
@@ -295,6 +303,7 @@ export function accountCardHtml() {
     <div class="acc-row"><b>@${esc(acc.user.username)}</b><span class="mut sm">${esc(acc.user.displayName)}</span></div>
     <p class="mut sm">${t('Données synchronisées sur ce compte · amis et groupes dans l’onglet Social.','Data synced to this account · friends and groups in the Social tab.')}</p>
     <button class="btn ghost full sm" id="acc-username">${t('Changer de pseudo','Change username')}</button>
+    <button class="btn ghost full sm" id="acc-glink" hidden>${icon('google')} ${t('Associer mon compte Google','Link my Google account')}</button>
     <button class="btn ghost full" id="acc-logout">${t('Se déconnecter','Sign out')}</button>
     <button class="btn danger-ghost full sm" id="acc-delete">${t('Supprimer définitivement mon compte','Permanently delete my account')}</button>
   </section>`;
@@ -325,6 +334,21 @@ export function mountAccountCard(root) {
     const acc = account(); if (!acc) return;
     openUsernameSheet(acc.user.username, () => nav.refresh());
   });
+  // « Associer Google » : visible seulement si le compte n'est pas déjà lié
+  const glink = root.querySelector('#acc-glink');
+  if (glink && isLoggedIn()) {
+    call('auth', 'me', {}).then(d => {
+      if (d.hasGoogle) return;
+      googleClientId().then(cid => { if (!cid) return;
+        glink.hidden = false;
+        glink.onclick = () => {
+          const s = sheet(`<p class="mut sm">${t('Associe ton compte Google pour te reconnecter en un tap (et récupérer ta photo de profil).','Link your Google account for one-tap sign-in (and your profile picture).')}</p><div id="glink-host"></div>`,
+            { title: t('Associer Google','Link Google') });
+          mountGoogleButton(s.root.querySelector('#glink-host'), () => nav.refresh(), () => s.close(), { link: true, sep: 'after' });
+        };
+      });
+    }).catch(() => {});
+  }
   root.querySelector('#acc-logout')?.addEventListener('click', logout);
   root.querySelector('#acc-delete')?.addEventListener('click', deleteAccount);
 }
