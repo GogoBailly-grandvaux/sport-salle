@@ -2,7 +2,7 @@
 import { t } from './i18n.js';
 import { $, esc } from './util.js';
 import {
-  state, nav, emit, on, applyTheme, ACCENTS, ps,
+  state, nav, emit, on, applyTheme, ACCENTS, AVATAR_EMOJIS, ps,
   loadGlobal, saveGlobal, loadProfiles, loadPSettings, createProfile, setActiveProfile, activeProfile, accentHex,
 } from './store.js';
 import * as db from './db.js';
@@ -201,7 +201,6 @@ function welcome() {
 }
 
 // ---------- onboarding local (sans compte) ----------
-export const AVATAR_EMOJIS = ['💪','🏋️','🔥','⚡','🚀','🦁','🐺','😤','🌸','👑','🎯','🥇'];
 
 function onboarding() {
   return new Promise(resolve => {

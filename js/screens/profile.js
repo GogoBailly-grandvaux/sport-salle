@@ -3,12 +3,13 @@ import { esc } from '../util.js';
 import {
   state, ps, nav,
   savePSettings, saveGlobal, applyTheme,
+  activeProfile, accentHex, updateProfile, ACCENTS, AVATAR_EMOJIS,
 } from '../store.js';
 import * as db from '../db.js';
 import { icon, sheet, confirmDialog, toast } from '../ui.js';
 import { backBtn } from './common.js';
 import * as sync from '../sync.js';
-import { isLoggedIn, account } from '../api.js';
+import { isLoggedIn, account, call } from '../api.js';
 import { pushSupported, iosNeedsInstall, pushState, enablePush, disablePush } from '../push.js';
 import { accountCardHtml, mountAccountCard } from './account.js';
 import { appLockCardHtml, mountAppLockCard } from '../applock.js';
@@ -35,6 +36,8 @@ export async function render() {
       </section>` : ''}
 
       ${sync.isConfigured() ? accountCardHtml() : ''}
+
+      ${avatarColorCardHtml()}
       ${sync.isConfigured() && isLoggedIn() ? `<section class="card">
         <h3 class="card-t">${icon('idcard')} ${t('Mon profil public','My public profile')}</h3>
         <p class="mut sm">${t('Nom, bio et confidentialité — compte privé par défaut : seuls tes amis voient tes posts et stats.','Name, bio and privacy — private by default: only friends see your posts and stats.')}</p>
@@ -88,7 +91,113 @@ export async function render() {
     </div>`;
 }
 
+// ---- Avatar (emoji ou photo) & couleur d'accent ----
+const avaInner = (p) => p?.photo
+  ? `<img class="avatar-photo" src="${p.photo}" alt="">`
+  : (p?.emoji ? esc(p.emoji) : esc((p?.name || '?').slice(0, 1).toUpperCase()));
+
+function avatarColorCardHtml() {
+  const p = activeProfile();
+  return `<section class="card" id="ava-card">
+    <h3 class="card-t">${icon('user')} ${t('Avatar & couleur','Avatar & color')}</h3>
+    <div class="ava-row">
+      <span class="avatar xl" id="ava-prev" style="--a:${accentHex(p)}">${avaInner(p)}</span>
+      <div class="ava-btns">
+        <button class="btn ghost sm" id="ava-photo-btn">${icon('camera')} ${t('Choisir une photo','Pick a photo')}</button>
+        <button class="btn ghost sm" id="ava-clear-btn" ${p?.photo ? '' : 'hidden'}>${icon('x')} ${t('Retirer la photo','Remove photo')}</button>
+      </div>
+    </div>
+    <div class="emoji-pick" id="ava-emoji">${AVATAR_EMOJIS.map(e => `<button class="emoji-dot ${!p?.photo && p?.emoji === e ? 'sel' : ''}" data-e="${e}" aria-label="Avatar ${e}">${e}</button>`).join('')}</div>
+    <p class="mut sm" style="margin:12px 0 6px">${t('Couleur de l’app','App color')}</p>
+    <div class="accent-pick" id="ava-accent">${Object.entries(ACCENTS).map(([k, v]) => `<button class="accent-dot ${(p?.accent || 'ember') === k ? 'sel' : ''}" data-ac="${k}" style="--a:${v.hex}" aria-label="${v.name}"></button>`).join('')}</div>
+    <input type="file" id="ava-file" accept="image/*" hidden>
+  </section>`;
+}
+
+// Photo → carré 128px compressé (data-URI ~4 Ko) : léger pour la synchro et les listes
+function compressAvatar(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const S = 128, c = document.createElement('canvas');
+      c.width = S; c.height = S;
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth - side) / 2, sy = (img.naturalHeight - side) / 2;
+      c.getContext('2d').drawImage(img, sx, sy, side, side, 0, 0, S, S);
+      resolve(c.toDataURL('image/jpeg', 0.78));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(t('Image illisible','Unreadable image'))); };
+    img.src = url;
+  });
+}
+
+// Pousse le changement au serveur (mise à jour PARTIELLE) + met à jour le compte en cache
+async function pushProfilePatch(patch, userPatch) {
+  if (!isLoggedIn()) return;
+  try {
+    await call('auth', 'profile_update', patch);
+    const acc = account();
+    if (acc?.user) await savePSettings({ account: { ...acc, user: { ...acc.user, ...userPatch } } });
+  } catch (e) { toast(e.message, { type: 'error' }); }
+}
+
+function mountAvatarCard(root) {
+  const card = root.querySelector('#ava-card');
+  if (!card) return;
+  const prev = card.querySelector('#ava-prev');
+  const clearBtn = card.querySelector('#ava-clear-btn');
+  const fileIn = card.querySelector('#ava-file');
+  const refresh = () => {
+    const p = activeProfile();
+    prev.style.setProperty('--a', accentHex(p));
+    prev.innerHTML = avaInner(p);
+    clearBtn.hidden = !p?.photo;
+    card.querySelectorAll('[data-e]').forEach(b => b.classList.toggle('sel', !p?.photo && p?.emoji === b.dataset.e));
+    card.querySelectorAll('[data-ac]').forEach(b => b.classList.toggle('sel', (p?.accent || 'ember') === b.dataset.ac));
+  };
+  // emoji : sélection (ou dé-sélection) — remplace la photo
+  card.querySelectorAll('[data-e]').forEach(b => b.onclick = async () => {
+    const p = activeProfile();
+    const emoji = (!p?.photo && p?.emoji === b.dataset.e) ? null : b.dataset.e;
+    await updateProfile(p.id, { emoji, photo: null });
+    refresh();
+    pushProfilePatch({ emoji: emoji || '', avatar: '' }, { emoji, avatar: null });
+  });
+  // couleur d'accent : appliquée en direct
+  card.querySelectorAll('[data-ac]').forEach(b => b.onclick = async () => {
+    const p = activeProfile();
+    await updateProfile(p.id, { accent: b.dataset.ac });
+    applyTheme();
+    refresh();
+    pushProfilePatch({ accent: b.dataset.ac }, { accent: b.dataset.ac });
+  });
+  // photo
+  card.querySelector('#ava-photo-btn').onclick = () => fileIn.click();
+  fileIn.onchange = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    try {
+      const dataUrl = await compressAvatar(f);
+      const p = activeProfile();
+      await updateProfile(p.id, { photo: dataUrl });
+      refresh();
+      pushProfilePatch({ avatar: dataUrl }, { avatar: dataUrl });
+      toast(t('Photo d’avatar mise à jour ✓','Avatar photo updated ✓'));
+    } catch (err) { toast(err.message, { type: 'error' }); }
+  };
+  clearBtn.onclick = async () => {
+    const p = activeProfile();
+    await updateProfile(p.id, { photo: null });
+    refresh();
+    pushProfilePatch({ avatar: '' }, { avatar: null });
+  };
+}
+
 export function mount(root) {
+  mountAvatarCard(root);
   root.querySelector('#edit-pub-profile')?.addEventListener('click', () => {
     const acc = account();
     if (acc?.user?.username) nav.go('#/u/' + acc.user.username);

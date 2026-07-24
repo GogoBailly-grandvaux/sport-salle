@@ -43,7 +43,7 @@ function with_challenges(callable $fn) {
 /** Classement d'un défi : membres acceptés triés par le score de la métrique (live). */
 function challenge_ranking(int $chId, string $metric, int $weekStart): array {
   $st = db()->prepare(
-    "SELECT u.id, u.username, u.display_name, u.avatar_emoji, u.accent
+    "SELECT u.id, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
      FROM challenge_members m JOIN users u ON u.id = m.user_id
      WHERE m.challenge_id = ? AND m.status = 'accepted'");
   $st->execute([$chId]);

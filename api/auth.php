@@ -139,30 +139,60 @@ switch ($action) {
         fail(500, 'erreur');
       }
     }
-    $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent FROM users WHERE id = ?');
-    $st->execute([$u['id']]);
-    ok(['user' => public_user($st->fetch(PDO::FETCH_ASSOC))]);
+    $row = with_profile_cols(function () use ($u) {
+      $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, avatar_photo FROM users WHERE id = ?');
+      $st->execute([$u['id']]);
+      return $st->fetch(PDO::FETCH_ASSOC);
+    });
+    ok(['user' => public_user($row)]);
   }
 
   case 'profile_update': {
-    // édition du profil public : nom affiché, bio, emoji, couleur, confidentialité
+    // édition du profil public — PARTIELLE : seuls les champs présents dans la
+    // requête sont modifiés (les anciens clients envoient tout : compatible).
     $u = require_user();
     rate_limit('profup', 10, 900);
-    $displayName = trim(str_replace(['<', '>'], '', (string)($b['displayName'] ?? '')));
-    if ($displayName === '' || mb_strlen($displayName) > 40) { fail(400, 'nom invalide (1-40 caractères)'); }
-    $bio = trim(str_replace(['<', '>'], '', (string)($b['bio'] ?? '')));
-    if (mb_strlen($bio) > 160) { fail(400, 'bio trop longue (160 caractères max)'); }
-    $emoji = substr(trim((string)($b['emoji'] ?? '')), 0, 16) ?: null;
-    $accent = preg_match('/^[a-z]{3,10}$/', (string)($b['accent'] ?? '')) ? $b['accent'] : 'ember';
-    $privacy = in_array($b['privacy'] ?? '', ['friends', 'public'], true) ? $b['privacy'] : 'friends';
-    $gym = trim(str_replace(['<', '>'], '', (string)($b['gym'] ?? '')));
-    if (mb_strlen($gym) > 80) { fail(400, 'nom de salle trop long'); }
-    $gymKey = $gym !== '' ? gym_key($gym) : null;
-    with_profile_cols(function () use ($u, $displayName, $bio, $emoji, $accent, $privacy, $gym, $gymKey) {
-      db()->prepare('UPDATE users SET display_name = ?, bio = ?, avatar_emoji = ?, accent = ?, privacy = ?, gym = ?, gym_key = ? WHERE id = ?')
-        ->execute([$displayName, $bio !== '' ? $bio : null, $emoji, $accent, $privacy, $gym !== '' ? $gym : null, $gymKey, $u['id']]);
+    $set = []; $vals = [];
+    if (array_key_exists('displayName', $b)) {
+      $displayName = trim(str_replace(['<', '>'], '', (string)$b['displayName']));
+      if ($displayName === '' || mb_strlen($displayName) > 40) { fail(400, 'nom invalide (1-40 caractères)'); }
+      $set[] = 'display_name = ?'; $vals[] = $displayName;
+    }
+    if (array_key_exists('bio', $b)) {
+      $bio = trim(str_replace(['<', '>'], '', (string)$b['bio']));
+      if (mb_strlen($bio) > 160) { fail(400, 'bio trop longue (160 caractères max)'); }
+      $set[] = 'bio = ?'; $vals[] = $bio !== '' ? $bio : null;
+    }
+    if (array_key_exists('emoji', $b)) {
+      $set[] = 'avatar_emoji = ?'; $vals[] = substr(trim((string)$b['emoji']), 0, 16) ?: null;
+    }
+    if (array_key_exists('accent', $b)) {
+      $set[] = 'accent = ?'; $vals[] = preg_match('/^[a-z]{3,10}$/', (string)$b['accent']) ? $b['accent'] : 'ember';
+    }
+    if (array_key_exists('privacy', $b)) {
+      $set[] = 'privacy = ?'; $vals[] = in_array($b['privacy'], ['friends', 'public'], true) ? $b['privacy'] : 'friends';
+    }
+    if (array_key_exists('gym', $b)) {
+      $gym = trim(str_replace(['<', '>'], '', (string)$b['gym']));
+      if (mb_strlen($gym) > 80) { fail(400, 'nom de salle trop long'); }
+      $set[] = 'gym = ?'; $vals[] = $gym !== '' ? $gym : null;
+      $set[] = 'gym_key = ?'; $vals[] = $gym !== '' ? gym_key($gym) : null;
+    }
+    if (array_key_exists('avatar', $b)) {
+      // photo d'avatar : petite image en data-URI (compressée côté client)
+      $avatar = (string)$b['avatar'];
+      if ($avatar === '') { $avatar = null; }
+      elseif (strlen($avatar) > 40000 || !preg_match('#^data:image/(jpeg|webp|png);base64,[A-Za-z0-9+/=]+$#', $avatar)) {
+        fail(400, 'photo invalide ou trop lourde');
+      }
+      $set[] = 'avatar_photo = ?'; $vals[] = $avatar;
+    }
+    if (!$set) { fail(400, 'rien à mettre à jour'); }
+    $vals[] = $u['id'];
+    with_profile_cols(function () use ($set, $vals) {
+      db()->prepare('UPDATE users SET ' . implode(', ', $set) . ' WHERE id = ?')->execute($vals);
     });
-    bump_live(friend_ids($u['id'])); // leurs écrans affichent le nouveau nom/bio
+    bump_live(friend_ids($u['id'])); // leurs écrans affichent le nouveau profil
     ok(['ok' => true]);
   }
 
@@ -200,7 +230,10 @@ function issue_session(int $userId): array {
     ->execute([hash('sha256', $token), $userId]);
   // ménage léger : purge des sessions expirées de cet utilisateur
   db()->prepare('DELETE FROM sessions WHERE user_id = ? AND expires_at < NOW()')->execute([$userId]);
-  $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent FROM users WHERE id = ?');
-  $st->execute([$userId]);
-  return ['token' => $token, 'user' => public_user($st->fetch(PDO::FETCH_ASSOC))];
+  $row = with_profile_cols(function () use ($userId) {
+    $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, avatar_photo FROM users WHERE id = ?');
+    $st->execute([$userId]);
+    return $st->fetch(PDO::FETCH_ASSOC);
+  });
+  return ['token' => $token, 'user' => public_user($row)];
 }

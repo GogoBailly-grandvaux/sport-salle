@@ -33,6 +33,7 @@ async function applySession(res) {
       name: res.user.displayName || res.user.username,
       accent: res.user.accent || 'ember',
       emoji: res.user.emoji || null,
+      photo: res.user.avatar || null,
     });
     await setActiveProfile(p.id);
   }

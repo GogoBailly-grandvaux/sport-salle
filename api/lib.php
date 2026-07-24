@@ -106,13 +106,15 @@ function require_user(): array {
   $tok = bearer_token();
   if ($tok === null) { fail(401, 'authentification requise'); }
   $th = hash('sha256', $tok);
-  $st = db()->prepare(
-    'SELECT u.id, u.username, u.display_name, u.avatar_emoji, u.accent
-     FROM sessions s JOIN users u ON u.id = s.user_id
-     WHERE s.token_hash = ? AND s.expires_at > NOW()'
-  );
-  $st->execute([$th]);
-  $u = $st->fetch(PDO::FETCH_ASSOC);
+  $u = with_profile_cols(function () use ($th) {
+    $st = db()->prepare(
+      'SELECT u.id, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
+       FROM sessions s JOIN users u ON u.id = s.user_id
+       WHERE s.token_hash = ? AND s.expires_at > NOW()'
+    );
+    $st->execute([$th]);
+    return $st->fetch(PDO::FETCH_ASSOC);
+  });
   if (!$u) { fail(401, 'session expirée — reconnecte-toi'); }
   // écritures conditionnelles : le poll temps réel passe ici toutes les ~12 s,
   // on ne réécrit la session/présence que quand ça change vraiment quelque chose
@@ -230,6 +232,7 @@ function ensure_profile_cols(): void {
     "ALTER TABLE users ADD COLUMN privacy ENUM('friends','public') NOT NULL DEFAULT 'friends'",
     "ALTER TABLE users ADD COLUMN gym VARCHAR(80) DEFAULT NULL",
     "ALTER TABLE users ADD COLUMN gym_key VARCHAR(80) DEFAULT NULL",
+    "ALTER TABLE users ADD COLUMN avatar_photo MEDIUMTEXT DEFAULT NULL",
     "ALTER TABLE users ADD KEY idx_gym (gym_key)",
   ] as $sql) {
     try { db()->exec($sql); }
@@ -324,6 +327,7 @@ function public_user(array $row): array {
     'displayName' => $row['display_name'],
     'emoji'       => $row['avatar_emoji'],
     'accent'      => $row['accent'],
+    'avatar'      => $row['avatar_photo'] ?? null,
   ];
 }
 

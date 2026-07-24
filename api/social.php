@@ -15,7 +15,7 @@ switch ($action) {
     $q = strtolower(trim((string)($b['q'] ?? '')));
     if (strlen($q) < 2) { ok(['results' => []]); }
     $st = db()->prepare(
-      'SELECT id, username, display_name, avatar_emoji, accent FROM users
+      'SELECT id, username, display_name, avatar_emoji, accent, avatar_photo FROM users
        WHERE (username LIKE ? OR LOWER(display_name) LIKE ?) AND id <> ? LIMIT 10'
     );
     $like = addcslashes($q, '%_\\') . '%';
@@ -93,7 +93,7 @@ switch ($action) {
     // uniquement si autorisé (soi-même, ami, ou compte public) — RGPD by design
     $username = strtolower(trim((string)($b['username'] ?? '')));
     $row = with_profile_cols(function () use ($username) {
-      $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, bio, privacy, gym, created_at FROM users WHERE username = ?');
+      $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, avatar_photo, bio, privacy, gym, created_at FROM users WHERE username = ?');
       $st->execute([$username]);
       return $st->fetch(PDO::FETCH_ASSOC);
     });
@@ -123,7 +123,7 @@ switch ($action) {
     // amis acceptés + demandes reçues + demandes envoyées, avec stats pour les amis
     $st = db()->prepare(
       'SELECT f.user_lo, f.user_hi, f.status, f.requester,
-              u.id, u.username, u.display_name, u.avatar_emoji, u.accent
+              u.id, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
        FROM friendships f
        JOIN users u ON u.id = IF(f.user_lo = ?, f.user_hi, f.user_lo)
        WHERE f.user_lo = ? OR f.user_hi = ?'
@@ -175,7 +175,7 @@ switch ($action) {
     $targetKey = $key ?: ($me2['gym_key'] ?? null);
     if (empty($targetKey)) { ok(['gym' => null, 'members' => [], 'isMine' => !$key]); }
     $targetName = $key ? null : ($me2['gym'] ?? null);
-    $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, gym, privacy FROM users WHERE gym_key = ? LIMIT 300');
+    $st = db()->prepare('SELECT id, username, display_name, avatar_emoji, accent, avatar_photo, gym, privacy FROM users WHERE gym_key = ? LIMIT 300');
     $st->execute([$targetKey]);
     $members = [];
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
@@ -200,7 +200,7 @@ switch ($action) {
     try {
       $st = db()->prepare(
         'SELECT n.id, n.kind, n.ref_id, n.meta, n.seen, UNIX_TIMESTAMP(n.created_at) AS ts,
-                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent
+                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
          FROM notifs n JOIN users u ON u.id = n.actor_id
          WHERE n.user_id = ? ORDER BY n.id DESC LIMIT 40');
       $st->execute([$me['id']]);
@@ -212,7 +212,7 @@ switch ($action) {
         'id' => (int)$r['id'], 'kind' => $r['kind'],
         'refId' => $r['ref_id'] !== null ? (int)$r['ref_id'] : null,
         'meta' => $r['meta'], 'seen' => (bool)$r['seen'], 'ts' => (int)$r['ts'],
-        'actor' => public_user(['id' => $r['uid'], 'username' => $r['username'], 'display_name' => $r['display_name'], 'avatar_emoji' => $r['avatar_emoji'], 'accent' => $r['accent']]),
+        'actor' => public_user(['id' => $r['uid'], 'username' => $r['username'], 'display_name' => $r['display_name'], 'avatar_emoji' => $r['avatar_emoji'], 'accent' => $r['accent'], 'avatar_photo' => $r['avatar_photo'] ?? null]),
       ];
     }
     // marquage lu à la consultation

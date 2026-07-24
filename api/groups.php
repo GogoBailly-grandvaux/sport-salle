@@ -82,7 +82,7 @@ switch ($action) {
     $g = $st->fetch(PDO::FETCH_ASSOC);
     if (!$g) { fail(404, 'groupe introuvable'); }
     $st = db()->prepare(
-      'SELECT u.id, u.username, u.display_name, u.avatar_emoji, u.accent
+      'SELECT u.id, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
        FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?'
     );
     $st->execute([$gid]);

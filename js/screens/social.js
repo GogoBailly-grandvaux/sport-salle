@@ -13,7 +13,7 @@ import { qrSvg } from '../qr.js';
 let seg = 'feed'; // feed | amis | groupes | activite (via la cloche)
 
 const avatarHtml = (u, size = '') =>
-  `<span class="avatar ${size}" style="--a:${ACCENTS[u.accent]?.hex || ACCENTS.ember.hex}">${u.emoji ? esc(u.emoji) : esc((u.displayName || u.username || '?').slice(0, 1).toUpperCase())}</span>`;
+  `<span class="avatar ${size}" style="--a:${ACCENTS[u.accent]?.hex || ACCENTS.ember.hex}">${u.avatar ? `<img class="avatar-photo" src="${esc(u.avatar)}" alt="">` : u.emoji ? esc(u.emoji) : esc((u.displayName || u.username || '?').slice(0, 1).toUpperCase())}</span>`;
 
 const statsLine = (s) => {
   if (!s || !s.totalWorkouts) return `<span class="mut sm">Pas encore de séance</span>`;

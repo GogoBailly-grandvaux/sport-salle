@@ -26,7 +26,7 @@ export async function render() {
   const helloRaw = voiceHello(); // la voix de l'app : varie selon l'heure, le jour… et le lundi
   const hello = /[?!…)]$/.test(helloRaw) ? helloRaw : helloRaw + ','; // virgule seulement si la phrase n'a pas déjà sa ponctuation
 
-  const avatar = `<button class="avatar" data-nav="#/profile" style="--a:${accentHex(p)}">${p?.emoji || esc((p?.name||'?').slice(0,1).toUpperCase())}</button>`;
+  const avatar = `<button class="avatar" data-nav="#/profile" style="--a:${accentHex(p)}">${p?.photo ? `<img class="avatar-photo" src="${p.photo}" alt="">` : p?.emoji || esc((p?.name||'?').slice(0,1).toUpperCase())}</button>`;
 
   const heroActive = active ? `
     <div class="hero resume" data-nav="#/workout/${active.id}">

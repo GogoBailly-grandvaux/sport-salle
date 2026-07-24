@@ -92,7 +92,7 @@ switch ($action) {
     $rows = with_posts(function () use ($ph, $whereBefore, $params) {
       $st = db()->prepare(
         "SELECT p.id, p.user_id, p.kind, p.content, UNIX_TIMESTAMP(p.created_at) AS ts,
-                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent
+                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
          FROM posts p JOIN users u ON u.id = p.user_id
          WHERE p.user_id IN ($ph)$whereBefore
          ORDER BY p.id DESC LIMIT 30"
@@ -151,7 +151,7 @@ switch ($action) {
     $rows = with_posts(function () use ($whereBefore, $params) {
       $st = db()->prepare(
         "SELECT p.id, p.user_id, p.kind, p.content, UNIX_TIMESTAMP(p.created_at) AS ts,
-                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent
+                u.id AS uid, u.username, u.display_name, u.avatar_emoji, u.accent, u.avatar_photo
          FROM posts p JOIN users u ON u.id = p.user_id
          WHERE p.user_id = ?$whereBefore ORDER BY p.id DESC LIMIT 30");
       $st->execute($params);

@@ -9,6 +9,8 @@ export const on = (name, fn) => bus.addEventListener(name, fn);
 // Router bridge — app.js fills these in.
 export const nav = { go(){}, refresh(){}, back(){ history.back(); }, current: '' };
 
+export const AVATAR_EMOJIS = ['💪','🏋️','🔥','⚡','🚀','🦁','🐺','😤','🌸','👑','🎯','🥇'];
+
 export const ACCENTS = {
   volt:  { name: 'Volt',  hex: '#c7f24e' },
   ember: { name: 'Ember', hex: '#f2a63c' },
@@ -74,8 +76,8 @@ export async function loadProfiles() {
   state.profiles = (await db.getAll('profiles')).sort((a, b) => a.createdAt - b.createdAt);
   return state.profiles;
 }
-export async function createProfile({ name, accent = 'ember', emoji = null }) {
-  const p = { id: uid(), name: name.trim() || 'Athlète', accent, emoji,
+export async function createProfile({ name, accent = 'ember', emoji = null, photo = null }) {
+  const p = { id: uid(), name: name.trim() || 'Athlète', accent, emoji, photo,
     heightCm: null, sex: null, createdAt: nowTs(), updatedAt: nowTs() };
   await db.put('profiles', p);
   await db.put('settings', { id: 'p:' + p.id, data: { ...DEFAULT_PSETTINGS }, updatedAt: nowTs() });
