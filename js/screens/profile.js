@@ -36,13 +36,13 @@ export async function render() {
 
       ${sync.isConfigured() ? accountCardHtml() : ''}
       ${sync.isConfigured() && isLoggedIn() ? `<section class="card">
-        <h3 class="card-t">🪪 ${t('Mon profil public','My public profile')}</h3>
+        <h3 class="card-t">${icon('idcard')} ${t('Mon profil public','My public profile')}</h3>
         <p class="mut sm">${t('Nom, bio et confidentialité — compte privé par défaut : seuls tes amis voient tes posts et stats.','Name, bio and privacy — private by default: only friends see your posts and stats.')}</p>
         <button class="btn ghost full" id="edit-pub-profile">${t('Voir / modifier mon profil','View / edit my profile')}</button>
       </section>` : ''}
 
       ${sync.isConfigured() && isLoggedIn() ? `<section class="card" id="push-card">
-        <h3 class="card-t">🔔 ${t('Notifications push','Push notifications')}</h3>
+        <h3 class="card-t">${icon('bell')} ${t('Notifications push','Push notifications')}</h3>
         <p class="mut sm" id="push-desc">${t('Sois prévenu des demandes d’ami, réactions, réponses et mentions — même l’app fermée.','Get notified of friend requests, reactions, replies and mentions — even when the app is closed.')}</p>
         <div id="push-action"></div>
       </section>` : ''}
@@ -69,13 +69,13 @@ export async function render() {
       </section>
 
       <section class="card">
-        <h3 class="card-t">📣 ${t('Fais tourner','Spread the word')}</h3>
+        <h3 class="card-t">${icon('megaphone')} ${t('Fais tourner','Spread the word')}</h3>
         <p class="mut sm">${t('Sport Salle est gratuit et sans pub — le meilleur moyen de soutenir l’app, c’est d’en parler.','Sport Salle is free with no ads — the best way to support it is to tell people.')}</p>
         <button class="btn ghost full" id="share-app">${icon('upload')} ${t('Partager l’appli','Share the app')}</button>
       </section>
 
       <section class="card maker-card">
-        <h3 class="card-t">👋 ${t('Le mot du créateur','A word from the maker')}</h3>
+        <h3 class="card-t">${icon('hand')} ${t('Le mot du créateur','A word from the maker')}</h3>
         <p class="mut sm">${t('Salut, moi c’est Hugo. J’ai créé Sport Salle en reprenant la salle après une longue pause — je voulais un carnet simple, gratuit, sans pub, qui me pousse vraiment. Je m’en sers à chaque séance à Val d’Europe. Si tu l’utilises aussi : bienvenue dans l’équipe. 💛','Hi, I’m Hugo. I built Sport Salle while getting back into the gym after a long break — I wanted a simple, free, ad-free logbook that actually pushes me. I use it at every workout. If you use it too: welcome to the team. 💛')}</p>
       </section>
 
@@ -108,7 +108,7 @@ export function mount(root) {
     window.__deferredInstall = null; // événement à usage unique — on le consomme quoi qu'il arrive
     dp.prompt();
     const { outcome } = await dp.userChoice;
-    if (outcome === 'accepted') toast('Installation lancée 🎉');
+    if (outcome === 'accepted') toast('Installation lancée ✓');
     nav.refresh(); // la carte d'installation disparaît (prompt consommé)
   });
 
@@ -200,7 +200,7 @@ async function mountPushCard(root) {
     }
     host.innerHTML = st.subscribed
       ? `<div class="setting"><span>${t('Activées sur cet appareil ✓','Enabled on this device ✓')}</span><button class="btn ghost sm" id="push-off">${t('Désactiver','Disable')}</button></div>`
-      : `<button class="btn primary full" id="push-on">🔔 ${t('Activer les notifications','Enable notifications')}</button>`;
+      : `<button class="btn primary full" id="push-on">${icon('bell')} ${t('Activer les notifications','Enable notifications')}</button>`;
     host.querySelector('#push-on')?.addEventListener('click', async () => {
       const btn = host.querySelector('#push-on'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
       const r = await enablePush();

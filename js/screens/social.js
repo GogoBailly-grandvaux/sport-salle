@@ -25,7 +25,7 @@ const statsLine = (s) => {
 const statChips = (s) => {
   if (!s) return '';
   return `<div class="fr-chips">
-    ${s.streak ? `<span class="fr-chip hot">🔥 ${s.streak} sem</span>` : ''}
+    ${s.streak ? `<span class="fr-chip hot">${icon('flame')} ${s.streak} sem</span>` : ''}
     <span class="fr-chip">${s.weekCount || 0} ${t('séance','workout')}${(s.weekCount || 0) > 1 ? 's' : ''} / ${t('sem','wk')}</span>
     ${s.weekVolume ? `<span class="fr-chip">${Number(s.weekVolume).toLocaleString('fr-FR')} kg</span>` : ''}
   </div>`;
@@ -73,7 +73,7 @@ function header() {
   return `<header class="topbar">
     <div class="topbar-l">${backBtn('#/home')}</div>
     <div class="topbar-c"><h1>Social</h1>${acc ? `<span class="topbar-sub">@${esc(acc.user.username)}</span>` : ''}</div>
-    <div class="topbar-r">${isLoggedIn() ? `<button class="icon-btn bell ${seg === 'activite' ? 'on' : ''}" id="soc-bell" aria-label="${t('Activité','Activity')}">🔔<span class="bell-dot" id="bell-dot" hidden></span></button>` : ''}</div>
+    <div class="topbar-r">${isLoggedIn() ? `<button class="icon-btn bell ${seg === 'activite' ? 'on' : ''}" id="soc-bell" aria-label="${t('Activité','Activity')}">${icon('bell')}<span class="bell-dot" id="bell-dot" hidden></span></button>` : ''}</div>
   </header>`;
 }
 
@@ -83,11 +83,11 @@ function notifLine(n) {
   const who = `<b>${esc(a.displayName)}</b>`;
   const x = {
     friend_req: t(`${who} t’a envoyé une demande d’ami`, `${who} sent you a friend request`),
-    friend_acc: t(`${who} a accepté ta demande 🤝`, `${who} accepted your request 🤝`),
+    friend_acc: t(`${who} a accepté ta demande`, `${who} accepted your request`),
     react: t(`${who} a réagi ${esc(n.meta || '👊')} à ton post`, `${who} reacted ${esc(n.meta || '👊')} to your post`),
     comment: t(`${who} a répondu : « ${esc(n.meta || '')} »`, `${who} replied: “${esc(n.meta || '')}”`),
     mention: t(`${who} t’a mentionné : « ${esc(n.meta || '')} »`, `${who} mentioned you: “${esc(n.meta || '')}”`),
-    challenge: n.meta === 'a rejoint' ? t(`${who} a rejoint ton défi 💪`, `${who} joined your challenge 💪`) : t(`${who} te défie cette semaine ⚔️`, `${who} challenges you this week ⚔️`),
+    challenge: n.meta === 'a rejoint' ? t(`${who} a rejoint ton défi`, `${who} joined your challenge`) : t(`${who} te défie cette semaine`, `${who} challenges you this week`),
   };
   return x[n.kind] || who;
 }
@@ -148,15 +148,15 @@ function postBody(p) {
       c.sets ? `<span class="fr-chip">${c.sets} ${t('séries','sets')}</span>` : '',
       c.volume ? `<span class="fr-chip">${Number(c.volume).toLocaleString(t('fr-FR','en-US'))} kg</span>` : '',
       c.durationSec ? `<span class="fr-chip">${fmtDur(c.durationSec)}</span>` : '',
-      c.prs ? `<span class="fr-chip hot">🏆 ${c.prs} PR${c.prs > 1 ? 's' : ''}</span>` : '',
+      c.prs ? `<span class="fr-chip hot">${icon('trophy')} ${c.prs} PR${c.prs > 1 ? 's' : ''}</span>` : '',
     ].filter(Boolean).join('');
-    return `<div class="post-wk"><b>💪 ${esc(c.name || t('Séance','Workout'))}</b>
+    return `<div class="post-wk"><b>${icon('dumbbell')} ${esc(c.name || t('Séance','Workout'))}</b>
       <div class="fr-chips">${chips}</div>
       ${c.note ? `<p class="post-note">${esc(c.note)}</p>` : ''}</div>`;
   }
   if (p.kind === 'program') {
     return `<div class="post-prog">
-      <div class="post-prog-l"><b>📋 ${esc(c.name || t('Programme','Program'))}</b>
+      <div class="post-prog-l"><b>${icon('clipboard')} ${esc(c.name || t('Programme','Program'))}</b>
       ${c.exos ? `<span class="mut sm">${c.exos} ${t('exercice','exercise')}${c.exos > 1 ? 's' : ''}</span>` : ''}</div>
       ${p.isMine ? '' : `<button class="btn primary sm" data-import="${+c.sharedId}">${icon('download')} ${t('Importer','Import')}</button>`}
     </div>`;
@@ -171,7 +171,7 @@ function postCard(p) {
     const on = p.myReaction === e;
     return `<button class="react-chip ${on ? 'on' : ''}" data-react="${e}" data-post="${p.id}" aria-label="${t('Réagir','React')} ${e}">${e}${n ? ` <b>${n}</b>` : ''}</button>`;
   }).join('');
-  const cChip = `<button class="react-chip cmt ${p.comments ? 'has' : ''}" data-comments="${p.id}" aria-label="${t('Voir les réponses','View replies')}">💬${p.comments ? ` <b>${p.comments}</b>` : ''}</button>`;
+  const cChip = `<button class="react-chip cmt ${p.comments ? 'has' : ''}" data-comments="${p.id}" aria-label="${t('Voir les réponses','View replies')}">${icon('message')}${p.comments ? ` <b>${p.comments}</b>` : ''}</button>`;
   return `<article class="post-card" data-pid="${p.id}">
     <div class="post-head">
       <div class="post-a" data-nav="#/u/${esc(a.username || '')}" role="link" tabindex="0">
@@ -188,7 +188,7 @@ function postCard(p) {
 async function renderFeed() {
   const [d, soc] = await Promise.all([call('posts', 'feed'), call('social', 'list')]);
   const { incoming, friends } = soc;
-  const pending = incoming.length ? `<button class="pending-banner" data-seg-go="amis">👋 ${incoming.length} ${t('demande','friend request')}${incoming.length > 1 ? 's' : ''} ${t('d’ami en attente','pending')} ${icon('right')}</button>` : '';
+  const pending = incoming.length ? `<button class="pending-banner" data-seg-go="amis">${incoming.length} ${t('demande','friend request')}${incoming.length > 1 ? 's' : ''} ${t('d’ami en attente','pending')} ${icon('right')}</button>` : '';
   const acc = account();
   const composer = `<button class="feed-composer" id="feed-compose">
     ${avatarHtml({ emoji: acc?.user?.emoji, displayName: acc?.user?.displayName, username: acc?.user?.username, accent: acc?.user?.accent })}
@@ -293,7 +293,7 @@ function openCommentsSheet(postId) {
       const d = await call('posts', 'comments', { postId });
       list.innerHTML = d.comments.length
         ? d.comments.map(commentRow).join('')
-        : `<p class="mut sm center" style="padding:18px 0">${t('Sois le premier à répondre 💬','Be the first to reply 💬')}</p>`;
+        : `<p class="mut sm center" style="padding:18px 0">${t('Sois le premier à répondre','Be the first to reply')}</p>`;
       list.scrollTop = list.scrollHeight;
       list.querySelectorAll('[data-cdel]').forEach(b => b.onclick = async () => {
         if (!(await confirmDialog({ title: t('Supprimer','Delete'), message: t('Supprimer cette réponse ?','Delete this reply?'), confirmText: t('Supprimer','Delete'), danger: true }))) return;
@@ -392,11 +392,11 @@ function wireAmis(root) {
 function wireActions(root) {
   root.querySelectorAll('[data-request]').forEach(b => b.onclick = async () => {
     b.disabled = true;
-    try { const r = await call('social', 'request', { username: b.dataset.request }); toast(r.accepted ? t('C’est fait, vous êtes amis ! 👊 🤝','Done — you’re friends! 👊 🤝') : t('Demande envoyée ✓','Request sent ✓')); nav.refresh(); }
+    try { const r = await call('social', 'request', { username: b.dataset.request }); toast(r.accepted ? t('C’est fait, vous êtes amis !','Done — you’re friends!') : t('Demande envoyée ✓','Request sent ✓')); nav.refresh(); }
     catch (e) { toast(e.message, { type: 'error' }); b.disabled = false; }
   });
   root.querySelectorAll('[data-accept]').forEach(b => b.onclick = async () => {
-    try { await call('social', 'respond', { userId: +b.dataset.accept, accept: true }); toast('Ami ajouté 🤝'); nav.refresh(); }
+    try { await call('social', 'respond', { userId: +b.dataset.accept, accept: true }); toast('Ami ajouté ✓'); nav.refresh(); }
     catch (e) { toast(e.message, { type: 'error' }); }
   });
   root.querySelectorAll('[data-decline]').forEach(b => b.onclick = async () => {
@@ -414,9 +414,9 @@ async function renderGroupes() {
   try {
     const g = await call('social', 'gym');
     gymCard = g.gym
-      ? `<button class="card gym-card" data-nav="#/gym"><div class="recap-h"><span class="mut">🏋️ ${t('Ma salle','My gym')}</span>${icon('right')}</div>
+      ? `<button class="card gym-card" data-nav="#/gym"><div class="recap-h"><span class="mut">${icon('building')} ${t('Ma salle','My gym')}</span>${icon('right')}</div>
           <b class="gym-name">${esc(g.gym)}</b><span class="mut sm">${g.count} ${t('membre','member')}${g.count > 1 ? 's' : ''} ${t('ici','here')}</span></button>`
-      : `<button class="card gym-card empty" id="gym-set"><div class="recap-h"><span class="mut">🏋️ ${t('Ma salle','My gym')}</span>${icon('right')}</div>
+      : `<button class="card gym-card empty" id="gym-set"><div class="recap-h"><span class="mut">${icon('building')} ${t('Ma salle','My gym')}</span>${icon('right')}</div>
           <b class="gym-name">${t('Indique ta salle','Set your gym')}</b><span class="mut sm">${t('et retrouve qui s’y entraîne, avec un classement','and see who trains there, with a leaderboard')}</span></button>`;
   } catch {}
   let challCard = '';
@@ -424,7 +424,7 @@ async function renderGroupes() {
     const cl = await call('challenges', 'list');
     const pending = cl.challenges.filter(c => c.myStatus === 'pending').length;
     const active = cl.challenges.filter(c => c.active && c.myStatus === 'accepted').length;
-    challCard = `<button class="card gym-card" data-nav="#/challenges"><div class="recap-h"><span class="mut">⚔️ ${t('Défis entre potes','Friend challenges')}</span>${icon('right')}</div>
+    challCard = `<button class="card gym-card" data-nav="#/challenges"><div class="recap-h"><span class="mut">${icon('swords')} ${t('Défis entre potes','Friend challenges')}</span>${icon('right')}</div>
       <b class="gym-name">${pending ? `${pending} ${t('invitation','invite')}${pending > 1 ? 's' : ''} ⏳` : active ? `${active} ${t('défi en cours','active challenge')}${active > 1 ? 's' : ''}` : t('Lance un défi à tes amis','Challenge your friends')}</b>
       <span class="mut sm">${t('Qui fait le plus de séances / volume cette semaine ?','Who does the most workouts / volume this week?')}</span></button>`;
   } catch {}
@@ -480,7 +480,7 @@ export async function renderUserProfile(params) {
     <div class="prof-stats">
       <div><b>${st?.totalWorkouts ?? 0}</b><span>${t('séances','workouts')}</span></div>
       <div><b>${st?.weekCount ?? 0}</b><span>${t('cette sem.','this wk')}</span></div>
-      <div><b>${st?.streak ? '🔥 ' + st.streak : '—'}</b><span>${t('série','streak')}</span></div>
+      <div><b>${st?.streak ? icon('flame') + ' ' + st.streak : '—'}</b><span>${t('série','streak')}</span></div>
       <div><b>${st?.weekVolume ? Number(st.weekVolume).toLocaleString(t('fr-FR','en-US')) : '—'}</b><span>kg / ${t('sem','wk')}</span></div>
     </div>` : '';
   const relBtn = pr.isMe
@@ -491,9 +491,9 @@ export async function renderUserProfile(params) {
         ? `<button class="btn ghost full" disabled>⏳ ${t('Demande envoyée','Request sent')}</button>`
         : pr.relation === 'received'
           ? `<button class="btn primary full" id="pr-accept">${t('Accepter la demande','Accept request')}</button>`
-          : `<button class="btn primary full" id="pr-add">👊 ${t('Ajouter','Add friend')}</button>`;
+          : `<button class="btn primary full" id="pr-add">${icon('plus')} ${t('Ajouter','Add friend')}</button>`;
   const lock = !pr.canView ? `
-    <div class="prof-lock">🔒 <b>${t('Compte privé','Private account')}</b>
+    <div class="prof-lock">${icon('lock')} <b>${t('Compte privé','Private account')}</b>
       <p class="mut sm">${t('Ajoute','Add')} @${esc(pr.username)} ${t('pour voir ses séances, ses posts et ses programmes.','to see their workouts, posts and programs.')}</p>
     </div>` : '';
   const progs = (pr.programs || []).length ? `
@@ -525,14 +525,14 @@ export function mountUserProfile(root, params) {
   const username = decodeURIComponent(params.username || '').toLowerCase();
   root.querySelector('#pr-add')?.addEventListener('click', async e => {
     e.target.disabled = true;
-    try { const r = await call('social', 'request', { username }); toast(r.accepted ? t('Vous êtes amis ! 👊','You’re friends! 👊') : t('Demande envoyée ✓','Request sent ✓')); nav.refresh(); }
+    try { const r = await call('social', 'request', { username }); toast(r.accepted ? t('Vous êtes amis !','You’re friends!') : t('Demande envoyée ✓','Request sent ✓')); nav.refresh(); }
     catch (err) { toast(err.message, { type: 'error' }); e.target.disabled = false; }
   });
   root.querySelector('#pr-accept')?.addEventListener('click', async () => {
     try {
       const sr = await call('social', 'search', { q: username });
       const u = sr.results.find(x => x.username === username);
-      if (u) { await call('social', 'respond', { userId: u.id, accept: true }); toast(t('Ami ajouté 🤝','Friend added 🤝')); nav.refresh(); }
+      if (u) { await call('social', 'respond', { userId: u.id, accept: true }); toast(t('Ami ajouté ✓','Friend added ✓')); nav.refresh(); }
     } catch (err) { toast(err.message, { type: 'error' }); }
   });
   root.querySelector('#pr-friends')?.addEventListener('click', async () => {
@@ -573,8 +573,8 @@ export function openEditProfileSheet(onDone = null) {
     <label class="field-label" for="ep-name">${t('Nom affiché','Display name')}</label>
     <input class="input" id="ep-name" maxlength="40" value="${esc(acc.user.displayName || '')}">
     <label class="field-label" for="ep-bio">Bio · ${t('160 caractères, visible par tous','160 chars, visible to everyone')}</label>
-    <textarea class="input" id="ep-bio" rows="3" maxlength="160" placeholder="${t('Ex. Push/pull/legs · objectif -20 kg 💪','E.g. Push/pull/legs · chasing -20 kg 💪')}"></textarea>
-    <label class="field-label" for="ep-gym">🏋️ ${t('Ma salle','My gym')} · ${t('retrouve les gens de ta salle','find people at your gym')}</label>
+    <textarea class="input" id="ep-bio" rows="3" maxlength="160" placeholder="${t('Ex. Push/pull/legs · objectif -20 kg','E.g. Push/pull/legs · chasing -20 kg')}"></textarea>
+    <label class="field-label" for="ep-gym">${t('Ma salle','My gym')} · ${t('retrouve les gens de ta salle','find people at your gym')}</label>
     <input class="input" id="ep-gym" maxlength="80" placeholder="${t('Ex. Gold’s Gym Serris','E.g. Gold’s Gym')}">
     <div class="setting" style="margin-top:12px"><span>${t('Compte public','Public account')}<br><span class="mut sm">${t('Activé : tout le monde voit tes posts et stats. Désactivé : tes amis uniquement.','On: anyone sees your posts and stats. Off: friends only.')}</span></span>
       <button class="switch" id="ep-pub" role="switch" aria-checked="false"><span></span></button></div>
@@ -621,7 +621,7 @@ export function openEditProfileSheet(onDone = null) {
 // Répertoire des salles (comptes publics)
 export async function renderGyms() {
   return `<header class="topbar"><div class="topbar-l">${backBtn('#/social')}</div>
-      <div class="topbar-c"><h1>🏢 ${t('Salles de sport','Gyms')}</h1></div><div class="topbar-r"></div></header>
+      <div class="topbar-c"><h1>${t('Salles de sport','Gyms')}</h1></div><div class="topbar-r"></div></header>
     <div class="screen-pad">
       <div class="input-ico search-friend">${icon('search')}<input class="input" id="gyms-q" placeholder="${t('Chercher une salle','Search a gym')}" autocomplete="off"></div>
       <p class="mut sm">${t('Les salles avec des membres en compte public. Rends ton compte public pour y apparaître.','Gyms with members on public accounts. Make your account public to appear here.')}</p>
@@ -634,7 +634,7 @@ export function mountGyms(root) {
       const d = await call('social', 'gyms', { q });
       list.innerHTML = d.gyms.length ? d.gyms.map(g => `
         <button class="gym-row" data-nav="#/gym/${encodeURIComponent(g.key)}">
-          <span class="gym-ico2">🏋️</span>
+          <span class="gym-ico2">${icon('building')}</span>
           <div class="fr-info"><b>${esc(g.gym)}</b><span class="mut sm">${g.count} ${t('membre','member')}${g.count > 1 ? 's' : ''} ${t('en public','public')}</span></div>
           ${icon('right')}</button>`).join('')
         : `<p class="mut sm center" style="margin-top:24px">${q ? t('Aucune salle trouvée.','No gym found.') : t('Aucune salle publique pour l’instant — sois le premier !','No public gyms yet — be the first!')}</p>`;
@@ -652,44 +652,44 @@ export async function renderGym(params = {}) {
   const mine = d.isMine;
   const back = mine ? '#/social' : '#/gyms';
   const head = `<header class="topbar"><div class="topbar-l">${backBtn(back)}</div>
-    <div class="topbar-c"><h1>🏋️ ${mine ? t('Ma salle','My gym') : esc(d.gym || t('Salle','Gym'))}</h1>${mine && d.gym ? `<span class="topbar-sub">${esc(d.gym)}</span>` : ''}</div>
+    <div class="topbar-c"><h1>${mine ? t('Ma salle','My gym') : esc(d.gym || t('Salle','Gym'))}</h1>${mine && d.gym ? `<span class="topbar-sub">${esc(d.gym)}</span>` : ''}</div>
     <div class="topbar-r">${mine ? `<button class="icon-btn" id="gym-edit" aria-label="${t('Changer de salle','Change gym')}">${icon('edit')}</button>` : ''}</div></header>`;
   if (!d.gym && mine) {
-    return `${head}<div class="screen-pad">${emptyState('users', t('Ta salle n’est pas renseignée','No gym set yet'), t('Indique ta salle pour voir qui s’y entraîne et te comparer.','Set your gym to see who trains there and compare.'), `<button class="btn primary" id="gym-set2">${t('Indiquer ma salle','Set my gym')}</button><button class="btn ghost full" data-nav="#/gyms">🏢 ${t('Parcourir les salles','Browse gyms')}</button>`)}</div>`;
+    return `${head}<div class="screen-pad">${emptyState('users', t('Ta salle n’est pas renseignée','No gym set yet'), t('Indique ta salle pour voir qui s’y entraîne et te comparer.','Set your gym to see who trains there and compare.'), `<button class="btn primary" id="gym-set2">${t('Indiquer ma salle','Set my gym')}</button><button class="btn ghost full" data-nav="#/gyms">${icon('building')} ${t('Parcourir les salles','Browse gyms')}</button>`)}</div>`;
   }
   if (!d.members.length) {
     return `${head}<div class="screen-pad">${emptyState('users', esc(d.gym || ''), t('Personne de public ici pour l’instant.','No public members here yet.'), '')}</div>`;
   }
   const rows = d.members.map((m, i) => {
     const s = m.stats;
-    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+    const rankCls = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : '';
     return `<button class="gym-row ${m.isMe ? 'me' : ''}" ${m.isMe ? '' : `data-nav="#/u/${esc(m.username)}"`}>
-      <span class="gym-rank">${medal}</span>
+      <span class="gym-rank ${rankCls}">${i + 1}</span>
       ${avatarHtml(m)}
       <div class="fr-info"><b>${esc(m.displayName)}${m.isMe ? ` · ${t('toi','you')}` : ''}</b>
         <span class="mut sm">${s?.weekCount || 0} ${t('séance','workout')}${(s?.weekCount || 0) > 1 ? 's' : ''} · ${s?.weekVolume ? Number(s.weekVolume).toLocaleString(t('fr-FR','en-US')) + ' kg' : '—'}</span></div>
-      ${s?.streak ? `<span class="fr-chip hot">🔥 ${s.streak}</span>` : ''}
+      ${s?.streak ? `<span class="fr-chip hot">${icon('flame')} ${s.streak}</span>` : ''}
     </button>`;
   }).join('');
   return `${head}<div class="screen-pad">
     <p class="mut sm center" style="margin:2px 0 12px">${t('Classement de la semaine · séances puis volume','This week’s ranking · workouts then volume')}</p>
     <div class="friend-list">${rows}</div>
-    ${mine ? `<button class="btn ghost full" style="margin-top:12px" data-nav="#/gyms">🏢 ${t('Parcourir les salles','Browse gyms')}</button>` : ''}</div>`;
+    ${mine ? `<button class="btn ghost full" style="margin-top:12px" data-nav="#/gyms">${icon('building')} ${t('Parcourir les salles','Browse gyms')}</button>` : ''}</div>`;
 }
 export function mountGym(root) {
   root.querySelector('#gym-edit')?.addEventListener('click', () => openEditProfileSheet());
   root.querySelector('#gym-set2')?.addEventListener('click', () => openEditProfileSheet());
 }
 
-// ---------------- défis entre potes ⚔️ ----------------
-const metricLabel = (m) => m === 'volume' ? t('Le plus de volume 🏋️','Most volume 🏋️') : t('Le plus de séances 🔥','Most workouts 🔥');
+// ---------------- défis entre potes ----------------
+const metricLabel = (m) => m === 'volume' ? t('Le plus de volume','Most volume') : t('Le plus de séances','Most workouts');
 const scoreLabel = (m, v) => m === 'volume' ? `${Number(v).toLocaleString(t('fr-FR','en-US'))} kg` : `${v} ${t('séance','workout')}${v > 1 ? 's' : ''}`;
 
 function challengeCard(c) {
   const rows = c.ranking.map((u, i) => {
-    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+    const rankCls = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : '';
     const me = u.username === account()?.user?.username;
-    return `<div class="ch-row ${me ? 'me' : ''}"><span class="gym-rank">${medal}</span>${avatarHtml(u)}
+    return `<div class="ch-row ${me ? 'me' : ''}"><span class="gym-rank ${rankCls}">${i + 1}</span>${avatarHtml(u)}
       <div class="fr-info"><b>${esc(u.displayName)}${me ? ` · ${t('toi','you')}` : ''}</b></div>
       <b class="ch-score">${scoreLabel(c.metric, u.score)}</b></div>`;
   }).join('');
@@ -709,23 +709,23 @@ export async function renderChallenges() {
   const active = d.challenges.filter(c => c.myStatus === 'accepted' && c.active);
   const past = d.challenges.filter(c => c.myStatus === 'accepted' && !c.active);
   const head = `<header class="topbar"><div class="topbar-l">${backBtn('#/social')}</div>
-    <div class="topbar-c"><h1>⚔️ ${t('Défis','Challenges')}</h1></div><div class="topbar-r"></div></header>`;
+    <div class="topbar-c"><h1>${t('Défis','Challenges')}</h1></div><div class="topbar-r"></div></header>`;
   const inviteBlock = invites.map(c => `<section class="card ch-invite">
     <p><b>${metricLabel(c.metric)}</b> · ${t('on te défie cette semaine !','you’re challenged this week!')}</p>
-    <div class="ch-invite-act"><button class="btn primary sm" data-accept="${c.id}">${t('Relever le défi 💪','Accept 💪')}</button>
+    <div class="ch-invite-act"><button class="btn primary sm" data-accept="${c.id}">${t('Relever le défi','Accept')}</button>
       <button class="btn ghost sm" data-decline="${c.id}">${t('Non merci','No thanks')}</button></div></section>`).join('');
   const body = (invites.length || active.length || past.length)
     ? `${inviteBlock}${active.map(challengeCard).join('')}${past.length ? `<h4 class="share-h">${t('Terminés','Ended')}</h4>${past.map(challengeCard).join('')}` : ''}`
     : emptyState('users', t('Aucun défi','No challenges'), t('Lance un défi à tes amis et voyez qui bosse le plus cette semaine.','Challenge your friends and see who trains the most this week.'), '');
   return `${head}<div class="screen-pad">
-    <button class="btn primary full" id="ch-new">⚔️ ${t('Lancer un défi','Start a challenge')}</button>
+    <button class="btn primary full" id="ch-new">${icon('swords')} ${t('Lancer un défi','Start a challenge')}</button>
     ${body}</div>`;
 }
 
 export function mountChallenges(root) {
   root.querySelector('#ch-new')?.addEventListener('click', openCreateChallengeSheet);
   root.querySelectorAll('[data-accept]').forEach(b => b.onclick = async () => {
-    try { await call('challenges', 'respond', { challengeId: +b.dataset.accept, accept: true }); toast(t('Défi relevé 💪','Challenge accepted 💪')); nav.refresh(); }
+    try { await call('challenges', 'respond', { challengeId: +b.dataset.accept, accept: true }); toast(t('Défi relevé ✓','Challenge accepted ✓')); nav.refresh(); }
     catch (e) { toast(e.message, { type: 'error' }); }
   });
   root.querySelectorAll('[data-decline]').forEach(b => b.onclick = async () => {
@@ -747,11 +747,11 @@ async function openCreateChallengeSheet() {
   const s = sheet(`
     <label class="field-label">${t('Sur quoi ?','On what?')}</label>
     <div class="segmented" id="ch-metric">
-      <button class="seg on" data-m="workouts">🔥 ${t('Séances','Workouts')}</button>
-      <button class="seg" data-m="volume">🏋️ ${t('Volume','Volume')}</button></div>
+      <button class="seg on" data-m="workouts">${icon('flame')} ${t('Séances','Workouts')}</button>
+      <button class="seg" data-m="volume">${icon('scale')} ${t('Volume','Volume')}</button></div>
     <label class="field-label">${t('Qui défies-tu ?','Who do you challenge?')}</label>
     <div class="ch-friends">${friends.map(f => `<label class="ch-friend"><input type="checkbox" value="${f.id}"><span>${avatarHtml(f)} ${esc(f.displayName)}</span></label>`).join('')}</div>
-    <button class="btn primary full" id="ch-go">⚔️ ${t('Lancer le défi','Start the challenge')}</button>`,
+    <button class="btn primary full" id="ch-go">${icon('swords')} ${t('Lancer le défi','Start the challenge')}</button>`,
     { title: t('Nouveau défi','New challenge') });
   s.root.querySelectorAll('#ch-metric .seg').forEach(b => b.onclick = () => {
     metric = b.dataset.m; s.root.querySelectorAll('#ch-metric .seg').forEach(x => x.classList.toggle('on', x === b));
@@ -760,7 +760,7 @@ async function openCreateChallengeSheet() {
     const friendIds = [...s.root.querySelectorAll('.ch-friends input:checked')].map(i => +i.value);
     if (!friendIds.length) { toast(t('Choisis au moins un ami','Pick at least one friend')); return; }
     const btn = s.root.querySelector('#ch-go'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-    try { await call('challenges', 'create', { metric, friendIds }); s.close(); toast(t('Défi lancé ! 🔥','Challenge started! 🔥')); nav.go('#/challenges'); }
+    try { await call('challenges', 'create', { metric, friendIds }); s.close(); toast(t('Défi lancé !','Challenge started!')); nav.go('#/challenges'); }
     catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; btn.textContent = t('Lancer le défi','Start'); }
   };
 }
@@ -769,7 +769,7 @@ async function openCreateChallengeSheet() {
 export function renderAddFriend(params) {
   const u = decodeURIComponent(params.username || '').toLowerCase();
   return `<div class="screen-pad"><div class="add-land">
-    <div class="add-land-ico">👊</div>
+    <div class="add-land-ico">${icon('users')}</div>
     <h2>${t('Ajouter','Add')} <b>@${esc(u)}</b> ?</h2>
     <p class="mut">${t('Vous verrez vos séances, vos posts et vos programmes dans le fil.','You’ll see each other’s workouts, posts and programs in the feed.')}</p>
     <button class="btn primary full big" id="add-go">${t('Envoyer la demande','Send request')}</button>
@@ -783,7 +783,7 @@ export function mountAddFriend(root, params) {
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     try {
       const r = await call('social', 'request', { username: u });
-      toast(r.accepted ? t('C’est fait, vous êtes amis ! 👊','Done — you’re friends! 👊') : t('Demande envoyée à','Request sent to') + ' @' + u + ' ✓', { duration: 4000 });
+      toast(r.accepted ? t('C’est fait, vous êtes amis !','Done — you’re friends!') : t('Demande envoyée à','Request sent to') + ' @' + u + ' ✓', { duration: 4000 });
       seg = 'amis'; nav.go('#/social');
     } catch (e) {
       toast(e.message, { type: 'error' });
@@ -813,10 +813,9 @@ export async function renderGroup(params) {
   try {
     const d = await call('groups', 'detail', { groupId: +params.id });
     const progs = await call('programs', 'ofGroup', { groupId: +params.id });
-    const medals = ['🥇', '🥈', '🥉'];
-    const rows = d.members.map((m, i) => `
+        const rows = d.members.map((m, i) => `
       <div class="lb-row ${i < 3 && (m.stats?.weekCount || 0) > 0 ? 'top' : ''}">
-        <span class="lb-rank">${(m.stats?.weekCount || 0) > 0 && i < 3 ? medals[i] : (i + 1)}</span>
+        <span class="lb-rank ${(m.stats?.weekCount || 0) > 0 && i < 3 ? 'r' + (i + 1) : ''}">${i + 1}</span>
         ${avatarHtml(m)}
         <div class="fr-info"><b>${esc(m.displayName)}</b>${statsLine(m.stats)}</div>
         <div class="lb-score"><b>${m.stats?.weekCount || 0}</b><span>séances</span></div>
@@ -832,7 +831,7 @@ export async function renderGroup(params) {
         <div class="topbar-r"><button class="icon-btn" id="grp-menu" aria-label="Options du groupe">${icon('more')}</button></div>
       </header>
       <div class="screen-pad">
-        <section class="card"><h3 class="card-t">🏆 ${t('Classement de la semaine','This week’s leaderboard')}</h3><div class="lb-list">${rows}</div></section>
+        <section class="card"><h3 class="card-t">${icon('trophy')} ${t('Classement de la semaine','This week’s leaderboard')}</h3><div class="lb-list">${rows}</div></section>
         <section class="card"><h3 class="card-t">${icon('dumbbell')} ${t('Programmes du groupe','Group programs')}</h3>${progRows}</section>
         <button class="btn ghost full" id="grp-share-code">${icon('upload')} ${t('Inviter','Invite')} (code : ${esc(d.group.code)})</button>
       </div>`;

@@ -159,7 +159,7 @@ export async function renderDetail(params) {
 
   const video = ex.videoUrl ? `
     <video class="ex-video" controls playsinline preload="none" src="${esc(ex.videoUrl)}"></video>
-    <p class="mut sm center">🎬 ${t('Vidéo du mouvement','Movement video')} (wger, CC-BY-SA) — <a href="${esc(ex.videoUrl)}" target="_blank" rel="noopener">${t('ouvrir','open')}</a> ${t('si la lecture échoue','if playback fails')}</p>` : '';
+    <p class="mut sm center">${icon('play')} ${t('Vidéo du mouvement','Movement video')} (wger, CC-BY-SA) — <a href="${esc(ex.videoUrl)}" target="_blank" rel="noopener">${t('ouvrir','open')}</a> ${t('si la lecture échoue','if playback fails')}</p>` : '';
 
   // carte musculaire (silhouettes wger + muscles ciblés)
   let bodymap = '';

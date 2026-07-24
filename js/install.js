@@ -2,7 +2,7 @@
 // iPhone : Apple n'offre aucun prompt natif → guide pas-à-pas maison ; et le push iOS
 // n'existe QUE dans l'app installée (iOS 16.4+) → l'ordre est : installer, puis notifier.
 // Android : vrai prompt natif via beforeinstallprompt (déjà capturé dans app.js).
-import { sheet, toast } from './ui.js';
+import { sheet, toast, icon } from './ui.js';
 import { t } from './i18n.js';
 import { isLoggedIn } from './api.js';
 import { pushSupported, iosNeedsInstall, pushState, enablePush } from './push.js';
@@ -28,12 +28,12 @@ export function openIosInstallSheet() {
       <ol class="a2hs-steps">
         <li><span class="a2hs-ico">${shareIco}</span><span>${t('Appuie sur','Tap')} <b>${t('Partager','Share')}</b> ${t('dans la barre de Safari','in the Safari bar')}</span></li>
         <li><span class="a2hs-ico">${plusSq}</span><span>${t('Choisis','Choose')} <b>« ${t('Sur l’écran d’accueil','Add to Home Screen')} »</b></span></li>
-        <li><span class="a2hs-ico a2hs-fist">👊</span><span>${t('Ouvre l’app depuis ton écran d’accueil','Open the app from your home screen')}</span></li>
+        <li><span class="a2hs-ico">${icon('smartphone')}</span><span>${t('Ouvre l’app depuis ton écran d’accueil','Open the app from your home screen')}</span></li>
       </ol>
-      <button class="btn primary full" data-a="go">${t('C’est parti 👊','Let’s go 👊')}</button>
+      <button class="btn primary full" data-a="go">${t('C’est parti','Let’s go')}</button>
       <button class="btn ghost full" data-a="never">${t('Ne plus me le proposer','Don’t ask again')}</button>
     </div>
-  `, { title: t('📲 Installe l’application','📲 Install the app'), onClose: () => { if (!acted) snooze('ss-a2hs-snooze', 3); } });
+  `, { title: t('Installe l’application','Install the app'), onClose: () => { if (!acted) snooze('ss-a2hs-snooze', 3); } });
   s.root.querySelector('[data-a="go"]').onclick = () => { acted = true; snooze('ss-a2hs-snooze', 3); s.close(); };
   s.root.querySelector('[data-a="never"]').onclick = () => { acted = true; localStorage.setItem('ss-a2hs-never', '1'); s.close(); };
 }
@@ -47,7 +47,7 @@ export function openAndroidInstallSheet() {
       <button class="btn primary full" data-a="install">${t('Installer','Install')}</button>
       <button class="btn ghost full" data-a="later">${t('Plus tard','Later')}</button>
     </div>
-  `, { title: t('📲 Installe l’application','📲 Install the app'), onClose: () => { if (!acted) snooze('ss-a2hs-snooze', 3); } });
+  `, { title: t('Installe l’application','Install the app'), onClose: () => { if (!acted) snooze('ss-a2hs-snooze', 3); } });
   s.root.querySelector('[data-a="install"]').onclick = async () => {
     acted = true;
     const dp = window.__deferredInstall; window.__deferredInstall = null; // usage unique
@@ -56,7 +56,7 @@ export function openAndroidInstallSheet() {
     dp.prompt();
     try {
       const { outcome } = await dp.userChoice;
-      if (outcome === 'accepted') toast(t('Installation lancée 🎉','Installing 🎉'));
+      if (outcome === 'accepted') toast(t('Installation lancée ✓','Installing ✓'));
       else snooze('ss-a2hs-snooze', 7);
     } catch {}
   };
@@ -72,13 +72,13 @@ export function openPushSheet() {
       <button class="btn primary full" data-a="on">${t('Activer les notifications','Enable notifications')}</button>
       <button class="btn ghost full" data-a="later">${t('Plus tard','Later')}</button>
     </div>
-  `, { title: t('🔔 Ne rate rien','🔔 Never miss a thing'), onClose: () => { if (!acted) snooze('ss-push-snooze', 7); } });
+  `, { title: t('Ne rate rien','Never miss a thing'), onClose: () => { if (!acted) snooze('ss-push-snooze', 7); } });
   s.root.querySelector('[data-a="on"]').onclick = async (e) => {
     acted = true;
     const b = e.currentTarget; b.disabled = true; b.textContent = t('Activation…','Enabling…');
     const r = await enablePush(); // geste utilisateur → permission OK
     s.close();
-    if (r.ok) toast(t('Notifications activées 🔔','Notifications enabled 🔔'));
+    if (r.ok) toast(t('Notifications activées ✓','Notifications enabled ✓'));
     else {
       if (typeof Notification !== 'undefined' && Notification.permission === 'denied') localStorage.setItem('ss-push-never', '1');
       toast(r.error || t('Impossible d’activer','Couldn’t enable'), { type: 'error' });

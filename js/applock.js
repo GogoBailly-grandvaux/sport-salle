@@ -51,7 +51,7 @@ export async function enableLock() {
       },
     });
     await saveGlobal({ appLock: { credId: bufToB64(cred.rawId) } });
-    toast(t('Verrouillage par empreinte activé 🔒','Fingerprint lock enabled 🔒'));
+    toast(t('Verrouillage par empreinte activé ✓','Fingerprint lock enabled ✓'));
     return true;
   } catch (e) {
     if (e?.name !== 'NotAllowedError') { console.error('applock:', e); toast(t('Activation impossible sur cet appareil — réessaie','Couldn’t enable it on this device — try again'), { type: 'error' }); }

@@ -130,7 +130,7 @@ async function fabAction() {
   if (active) { nav.go(`#/workout/${active.id}`); return; }
   const rs = await listRoutines();
   const body = `<button class="menu-row big" id="fab-empty">${icon('play')} ${t('Séance libre','Free workout')}</button>
-    ${rs.length ? `<div class="fab-sep">${t('ou un programme','or a program')}</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} ${t('exercice','exercise')}${(r.items||[]).length>1?'s':''}</span></button>`).join('') : `<p class="mut sm center">${t('Aucun programme.','No programs yet.')} <a data-nav="#/routines">${t('En créer un','Create one')}</a> · <a data-nav="#/coach">${t('le coach s’en charge 🧙','let the coach do it 🧙')}</a></p>`}`;
+    ${rs.length ? `<div class="fab-sep">${t('ou un programme','or a program')}</div>` + rs.map(r => `<button class="menu-row" data-r="${r.id}">${icon('dumbbell')} ${esc(r.name)} <span class="mut sm">${(r.items||[]).length} ${t('exercice','exercise')}${(r.items||[]).length>1?'s':''}</span></button>`).join('') : `<p class="mut sm center">${t('Aucun programme.','No programs yet.')} <a data-nav="#/routines">${t('En créer un','Create one')}</a> · <a data-nav="#/coach">${t('le coach s’en charge','let the coach do it')}</a></p>`}`;
   const s = sheet(body, { title: t('Démarrer','Start') });
   s.root.querySelector('#fab-empty').onclick = async () => { s.close(); const w = await startWorkout({}); nav.go(`#/workout/${w.id}`); };
   s.root.querySelectorAll('[data-r]').forEach(b => b.onclick = async () => {
@@ -159,7 +159,7 @@ function welcome() {
         </div>
         <div class="wel-actions">
           ${online && !navigator.onLine ? `
-          <p class="wel-offline">📡 ${t('Tu es hors-ligne — impossible de se connecter pour l’instant.','You’re offline — signing in isn’t possible right now.')}</p>
+          <p class="wel-offline">${icon('wifioff')} ${t('Tu es hors-ligne — impossible de se connecter pour l’instant.','You’re offline — signing in isn’t possible right now.')}</p>
           ${state.profiles.length ? `<button class="btn primary full big" id="wel-offgo">${t('Continuer hors-ligne','Continue offline')}</button>` : ''}
           <button class="btn ghost full" id="wel-retry">${t('Réessayer','Retry')}</button>`
           : online ? `
@@ -192,7 +192,7 @@ function welcome() {
         ${line('GET', d.get)}${line('POST', d.post)}
         <p class="mut sm">${d.get?.statut && d.post?.erreur ? t('Le serveur répond en GET mais pas en POST : un bloqueur de contenu Safari, un VPN/DNS filtrant ou le réseau mobile bloque les envois. Essaie en WiFi, ou désactive les bloqueurs pour ce site.','The server answers GET but not POST: a Safari content blocker, filtering VPN/DNS or your carrier is blocking uploads. Try WiFi, or disable blockers for this site.') : d.get?.erreur && d.post?.erreur ? t('Le serveur est injoignable depuis cet appareil : vérifie ta connexion, ou essaie WiFi ↔ 4G.','The server can’t be reached from this device: check your connection, or switch WiFi ↔ cellular.') : t('Le serveur répond — appuie sur Réessayer.','The server responds — tap Retry.')}</p>
         <button class="btn primary full" id="diag-retry">${t('Réessayer','Retry')}</button>
-        <button class="btn ghost full" id="diag-copy">${t('Copier le rapport','Copy report')}</button>`, { title: t('🔎 Diagnostic serveur','🔎 Server diagnostics') });
+        <button class="btn ghost full" id="diag-copy">${t('Copier le rapport','Copy report')}</button>`, { title: t('Diagnostic serveur','Server diagnostics') });
       sh.root.querySelector('#diag-retry').onclick = () => { try { localStorage.removeItem('sync-api-ok'); } catch {} location.reload(); };
       sh.root.querySelector('#diag-copy').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(d)); toast(t('Rapport copié ✓','Report copied ✓')); } catch { toast(t('Copie impossible','Copy failed'), { type: 'error' }); } };
     });

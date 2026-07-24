@@ -48,7 +48,7 @@ function exBlockHtml(ex) {
   const target = ex._targetReps ? `<span class="ex-target">${t('cible','target')} ${ex._targetReps} reps</span>` : '';
   const hint = overloadHint(prevMap.get(ex.exerciseId), ex._targetRepsMax);
   const coachChip = hint
-    ? `<button class="coach-chip" data-act="applysuggest" data-kg="${hint.suggestKg}" title="${esc(hint.reason)}">🎯 ${t('Coach : tente','Coach: try')} ${trimNum(hint.suggestKg)} kg</button>`
+    ? `<button class="coach-chip" data-act="applysuggest" data-kg="${hint.suggestKg}" title="${esc(hint.reason)}">${icon('target')} ${t('Coach : tente','Coach: try')} ${trimNum(hint.suggestKg)} kg</button>`
     : '';
   return `<section class="wk-ex" data-ex="${ex.id}">
     <div class="wk-ex-head">
@@ -311,7 +311,7 @@ function plateCalcSheet(targetKg) {
     <div class="calc-head"><button class="stepbtn" data-d="-2.5">−2,5</button>
       <div class="calc-val"><b id="pc-val">${trimNum(targetKg)}</b><span>${t('kg total','total kg')}</span></div>
       <button class="stepbtn" data-d="2.5">+2,5</button></div>
-    <div id="pc-out">${render(targetKg)}</div>`, { title: t('🧮 Chargement de la barre','🧮 Barbell loading') });
+    <div id="pc-out">${render(targetKg)}</div>`, { title: t('Chargement de la barre','Barbell loading') });
   let cur = targetKg;
   s.root.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
     cur = Math.max(bar, cur + parseFloat(b.dataset.d));
@@ -357,7 +357,7 @@ function exMenu(exEl, ex) {
   const restLabel = (ex._restSec ?? ps('defaultRestSec'));
   const s = sheet(`
     <button class="menu-row" data-a="rest">${icon('timer')} ${t('Temps de repos','Rest time')} · ${restLabel}s</button>
-    <button class="menu-row" data-a="warmup">🔥 ${t('Générer l’échauffement','Generate warm-up')}</button>
+    <button class="menu-row" data-a="warmup">${icon('flame')} ${t('Générer l’échauffement','Generate warm-up')}</button>
     <button class="menu-row" data-a="plates">${icon('calc')} ${t('Chargement de la barre','Barbell loading')}</button>
     <button class="menu-row" data-a="note">${icon('edit')} ${t('Note d’exercice','Exercise note')}</button>
     <button class="menu-row danger" data-a="remove">${icon('trash')} ${t('Retirer l’exercice','Remove exercise')}</button>`, { title: t('Exercice','Exercise') });
@@ -536,7 +536,7 @@ function restDone() {
     rest.hideTimeout = setTimeout(() => { bar.classList.remove('show','done','ending'); rest.hideTimeout = null; }, 900);
   }
   if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-    try { new Notification(t('Repos terminé 💪','Rest over 💪'), { body: t('Série suivante !','Next set!'), silent: false }); } catch {}
+    try { new Notification(t('Repos terminé','Rest over'), { body: t('Série suivante !','Next set!'), silent: false }); } catch {}
   }
 }
 // Reprend l'affichage du repos s'il court encore (retour sur l'écran de séance,
@@ -601,7 +601,7 @@ export async function renderSummary(params) {
       </div>
       ${prs ? `<section class="card pr-card"><h3 class="card-t">${icon('trophy')} ${(w.prs||[]).length} ${t('nouveau','new')}${(w.prs||[]).length>1 ? t('x','') :''} record${(w.prs||[]).length>1?'s':''} !</h3>${prs}</section>` : ''}
       <div class="summary-actions">
-        ${isLoggedIn() ? `<button class="btn ghost full" id="sum-share">👊 ${t('Partager à mes amis','Share with my friends')}</button>` : ''}
+        ${isLoggedIn() ? `<button class="btn ghost full" id="sum-share">${icon('share')} ${t('Partager à mes amis','Share with my friends')}</button>` : ''}
         <button class="btn ghost full" data-nav="#/history/${w.id}">${t('Voir le détail','View details')}</button>
         <button class="btn primary full" data-nav="#/home" id="sum-done">${t('Terminé','Done')}</button>
       </div>
@@ -623,8 +623,8 @@ async function celebrateAchievements(root) {
     const host = root.querySelector('.summary');
     if (host) {
       const html = `<section class="card ach-unlock">
-        <h3 class="card-t">🎉 ${t(fresh.length > 1 ? 'Nouveaux trophées !' : 'Nouveau trophée !', fresh.length > 1 ? 'New achievements!' : 'New achievement!')}</h3>
-        ${fresh.map(a => `<div class="ach-unlock-row"><span class="ach-emoji">${a.emoji}</span><div><b>${esc(a.title)}</b><span class="mut sm">${esc(a.desc)}</span></div></div>`).join('')}
+        <h3 class="card-t">${icon('party')} ${t(fresh.length > 1 ? 'Nouveaux trophées !' : 'Nouveau trophée !', fresh.length > 1 ? 'New achievements!' : 'New achievement!')}</h3>
+        ${fresh.map(a => `<div class="ach-unlock-row"><span class="ach-emoji">${icon(a.icon)}</span><div><b>${esc(a.title)}</b><span class="mut sm">${esc(a.desc)}</span></div></div>`).join('')}
         <button class="btn ghost full sm" data-nav="#/achievements">${t('Voir tous mes trophées','See all my achievements')}</button></section>`;
       host.querySelector('.summary-hero')?.insertAdjacentHTML('afterend', html);
       setTimeout(() => confetti(host.querySelector('.ach-unlock .ach-emoji')), 500);

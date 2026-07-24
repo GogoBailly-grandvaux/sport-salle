@@ -5,10 +5,10 @@
 // et se créent donc via templates.addTemplate().
 
 export const GOALS = {
-  fatloss:  { label: 'Perte de poids',  labelEn: 'Fat loss',     emoji: '🔥', sets: 3, reps: [12, 15], rest: 45,  tagline: 'Densité et dépense : repos courts, reps hautes.', taglineEn: 'Density and burn: short rests, high reps.' },
-  muscle:   { label: 'Prise de muscle', labelEn: 'Muscle gain',  emoji: '💪', sets: 4, reps: [8, 12],  rest: 90,  tagline: 'Hypertrophie : volume maîtrisé, 8–12 reps.', taglineEn: 'Hypertrophy: controlled volume, 8–12 reps.' },
-  strength: { label: 'Force',           labelEn: 'Strength',     emoji: '🏆', sets: 4, reps: [4, 6],   rest: 150, tagline: 'Charges lourdes, reps basses, repos longs.', taglineEn: 'Heavy loads, low reps, long rests.' },
-  fitness:  { label: 'Être en forme',   labelEn: 'General fitness', emoji: '❤️', sets: 3, reps: [10, 12], rest: 60,  tagline: 'Équilibre général : tout le corps, sans excès.', taglineEn: 'Balanced full-body training, nothing extreme.' },
+  fatloss:  { label: 'Perte de poids',  labelEn: 'Fat loss',     icon: 'flame', sets: 3, reps: [12, 15], rest: 45,  tagline: 'Densité et dépense : repos courts, reps hautes.', taglineEn: 'Density and burn: short rests, high reps.' },
+  muscle:   { label: 'Prise de muscle', labelEn: 'Muscle gain',  icon: 'dumbbell', sets: 4, reps: [8, 12],  rest: 90,  tagline: 'Hypertrophie : volume maîtrisé, 8–12 reps.', taglineEn: 'Hypertrophy: controlled volume, 8–12 reps.' },
+  strength: { label: 'Force',           labelEn: 'Strength',     icon: 'trophy', sets: 4, reps: [4, 6],   rest: 150, tagline: 'Charges lourdes, reps basses, repos longs.', taglineEn: 'Heavy loads, low reps, long rests.' },
+  fitness:  { label: 'Être en forme',   labelEn: 'General fitness', icon: 'heart', sets: 3, reps: [10, 12], rest: 60,  tagline: 'Équilibre général : tout le corps, sans excès.', taglineEn: 'Balanced full-body training, nothing extreme.' },
 };
 
 export const LEVELS = {
@@ -18,9 +18,9 @@ export const LEVELS = {
 };
 
 export const EQUIPMENTS = {
-  gym:       { label: 'Salle complète',    labelEn: 'Full gym',        emoji: '🏟️', allow: null }, // null = tout
-  dumbbells: { label: 'Haltères + banc',   labelEn: 'Dumbbells + bench', emoji: '🏋️', allow: ['dumbbell', 'body only', 'bands'] },
-  home:      { label: 'Maison sans matos', labelEn: 'Home, no gear',   emoji: '🏠', allow: ['body only', 'bands'] },
+  gym:       { label: 'Salle complète',    labelEn: 'Full gym',        icon: 'building', allow: null }, // null = tout
+  dumbbells: { label: 'Haltères + banc',   labelEn: 'Dumbbells + bench', icon: 'dumbbell', allow: ['dumbbell', 'body only', 'bands'] },
+  home:      { label: 'Maison sans matos', labelEn: 'Home, no gear',   icon: 'home', allow: ['body only', 'bands'] },
 };
 
 export const DURATIONS = [30, 45, 60, 75];
@@ -151,7 +151,7 @@ export function generatePlans(input, library, seed = 1, lang = 'fr') {
       name: `Coach ${letters[di]} · ${label}`,
       level: en ? LEVELS[level].labelEn : LEVELS[level].label,
       goal: en ? goal.labelEn : goal.label,
-      tagline: `${goal.emoji} ${en ? goal.labelEn : goal.label} · ${en ? LEVELS[level].labelEn : LEVELS[level].label} · ~${input.durationMin || 45} min. ${en ? goal.taglineEn : goal.tagline}`,
+      tagline: `${en ? goal.labelEn : goal.label} · ${en ? LEVELS[level].labelEn : LEVELS[level].label} · ~${input.durationMin || 45} min. ${en ? goal.taglineEn : goal.tagline}`,
       items,
     };
   });

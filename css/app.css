@@ -1,4 +1,12 @@
 /* ===== Sport Salle v2 — design system « Charbon & Volt » ===== */
+/* Manrope (variable 200-800, latin, self-hostée — offline & CSP-safe) */
+@font-face{
+  font-family:'Manrope';
+  src:url('../fonts/manrope-var.woff2') format('woff2');
+  font-weight:200 800;
+  font-style:normal;
+  font-display:swap;
+}
 :root{
   --bg:#f2f0ea; --bg2:#faf9f5; --surface:#ffffff; --surface2:#f3f1e9;
   --line:#e6e3d8; --line2:#d3cfc0; --text:#171a21; --text2:#4c5361; --muted:#6d7280;
@@ -8,7 +16,7 @@
   --shadow:0 1px 2px rgba(24,20,10,.04),0 10px 30px rgba(24,20,10,.07);
   --glow:0 8px 28px;
   --safe-b:env(safe-area-inset-bottom,0px);
-  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;
+  --font:"Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root{
@@ -32,10 +40,10 @@
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.5;
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-weight:450;line-height:1.5;
   overscroll-behavior-y:none;-webkit-text-size-adjust:100%;}
 body.no-scroll{overflow:hidden}
-h1,h2,h3{margin:0;font-weight:750;letter-spacing:-.02em;line-height:1.15}
+h1,h2,h3{margin:0;font-weight:800;letter-spacing:-.025em;line-height:1.15}
 button{font-family:inherit;color:inherit;cursor:pointer}
 input,select{font-family:inherit}
 a{color:var(--accent);text-decoration:none}
@@ -842,6 +850,30 @@ body.welcome-mode .tabbar{display:none}
   background:var(--card);border:1px solid var(--line);border-radius:14px;cursor:pointer}
 .gym-row.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--card))}
 .gym-rank{width:26px;text-align:center;font-weight:800;font-size:15px;flex:none;font-variant-numeric:tabular-nums}
+/* Podiums : chips de rang or / argent / bronze (remplacent les emojis médailles) */
+.gym-rank.r1,.gym-rank.r2,.gym-rank.r3,.lb-rank.r1,.lb-rank.r2,.lb-rank.r3{
+  width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:.78rem;color:#171a21;flex:none}
+.gym-rank.r1,.lb-rank.r1{background:#e9b53f}
+.gym-rank.r2,.lb-rank.r2{background:#bcc3ce}
+.gym-rank.r3,.lb-rank.r3{background:#cd8f60}
+/* Icônes dans les contextes qui portaient des emojis */
+.fr-chip .ico,.react-chip .ico{width:12px;height:12px;display:inline-block;vertical-align:-2px}
+.fr-chip.hot .ico{color:var(--accent)}
+.seg .ico{width:15px;height:15px;display:inline-block;vertical-align:-3px}
+.prof-lock .ico{width:18px;height:18px;display:inline-block;vertical-align:-4px}
+.prof-stats b .ico{width:14px;height:14px;display:inline-block;vertical-align:-2px;color:var(--accent)}
+.stat-tile span .ico{width:13px;height:13px;display:inline-block;vertical-align:-2px;color:var(--accent)}
+.post-wk b .ico,.post-prog-l b .ico{width:16px;height:16px;display:inline-block;vertical-align:-3px;color:var(--accent)}
+.coach-emoji .ico{width:24px;height:24px;color:var(--accent)}
+.trophy-mini .ico{width:26px;height:26px;color:var(--accent)}
+.ach-emoji .ico{width:34px;height:34px;color:var(--accent);margin:0 auto}
+.ach-unlock-row .ach-emoji .ico{width:38px;height:38px}
+.add-land-ico .ico{width:54px;height:54px;color:var(--accent);margin:0 auto}
+.gym-ico2 .ico{width:20px;height:20px}
+.recap-h .mut .ico{width:15px;height:15px;display:inline-block;vertical-align:-3px}
+.wel-offline .ico{width:16px;height:16px;display:inline-block;vertical-align:-3px}
+.field-label .ico{width:14px;height:14px;display:inline-block;vertical-align:-2px}
 
 /* ---- photos de progression (v3.10) ---- */
 #ph-gallery{margin-top:14px}

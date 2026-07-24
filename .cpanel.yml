@@ -6,7 +6,7 @@ deployment:
   tasks:
     - export DEPLOYPATH=${HOME}/sportsalle.hbaillyg.fr
     - /bin/mkdir -p $DEPLOYPATH/api
-    - /bin/cp -R index.html 404.html offline.html legal.html app.webmanifest sw.js .htaccess css js data icons $DEPLOYPATH/
+    - /bin/cp -R index.html 404.html offline.html legal.html app.webmanifest sw.js .htaccess css js data icons fonts $DEPLOYPATH/
     # tous les fichiers d'API du dépôt (config.php n'y est jamais : gitignoré,
     # donc jamais copié — il vit uniquement sur le serveur)
     - /bin/bash -c '/bin/cp api/*.php api/*.sql api/.htaccess "$DEPLOYPATH/api/"'

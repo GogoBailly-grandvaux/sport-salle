@@ -23,8 +23,8 @@ export function hello() {
                     ['Evening', 'Day’s done — workout time?', 'Hey you', 'The gym is waiting']);
   const night = P(['Encore debout ?', 'Bonne nuit… ou pas', 'Insomnie productive ?'],
                   ['Still up?', 'Good night… or not', 'Productive insomnia?']);
-  const monday = P(['Nouveau lundi, nouvelle semaine', 'Lundi : tout le monde fait les pecs 😄', 'C’est reparti'],
-                   ['New Monday, new week', 'Monday: everyone benches 😄', 'Here we go again']);
+  const monday = P(['Nouveau lundi, nouvelle semaine', 'Lundi : tout le monde fait les pecs', 'C’est reparti'],
+                   ['New Monday, new week', 'Monday: everyone benches', 'Here we go again']);
   const friday = P(['Vendredi, on finit fort', 'Dernière ligne droite'],
                    ['Friday — finish strong', 'Home stretch']);
   if (day === 1 && h >= 6 && h < 12) return pick(monday, daySeed(1));
@@ -87,22 +87,22 @@ export function praise({ prs = 0, volume = 0, sets = 0, durationSec = 0 } = {}) 
   const s = daySeed(20) + sets + Math.round(volume);
   const n = (x) => Math.round(x).toLocaleString(locale() === 'en' ? 'en-US' : 'fr-FR');
   if (prs > 1) return pick(P([
-    `${prs} records dans la même séance. Sérieusement ?! 🔥`,
+    `${prs} records dans la même séance. Sérieusement ?!`,
     `${prs} records. La machine, c’est toi.`,
     `${prs} records d’un coup — encadre cette séance.`,
   ], [
-    `${prs} records in one session. Seriously?! 🔥`,
+    `${prs} records in one session. Seriously?!`,
     `${prs} records. You’re the machine.`,
     `${prs} records at once — frame this workout.`,
   ]), s);
   if (prs === 1) return pick(P([
     'Un record de plus. Ça, c’est de la progression.',
     'Nouveau record — la version d’hier vient de se faire battre.',
-    'Record battu. Discrètement, mais sûrement. 😤',
+    'Record battu. Discrètement, mais sûrement.',
   ], [
     'One more record. That’s progress.',
     'New record — yesterday’s you just got beaten.',
-    'Record broken. Quietly, but surely. 😤',
+    'Record broken. Quietly, but surely.',
   ]), s);
   if (volume >= 5000) return pick(P([
     `${n(volume)} kg déplacés. Les machines s’en souviennent.`,

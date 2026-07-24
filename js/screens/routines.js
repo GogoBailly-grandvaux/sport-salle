@@ -60,7 +60,7 @@ export async function renderList() {
     </header>
     <div class="screen-pad">
       <button class="tpl-banner coach" id="rt-coach">
-        <div class="tpl-banner-t"><b>🧙 ${t('Le coach génère TON programme','The coach builds YOUR program')}</b><span>${t('Objectif, niveau, jours, matériel → ta semaine prête en 30 s','Goal, level, days, equipment → your week ready in 30 s')}</span></div>
+        <div class="tpl-banner-t"><b>${t('Le coach génère TON programme','The coach builds YOUR program')}</b><span>${t('Objectif, niveau, jours, matériel → ta semaine prête en 30 s','Goal, level, days, equipment → your week ready in 30 s')}</span></div>
         ${icon('right')}
       </button>
       <button class="tpl-banner" id="rt-templates">

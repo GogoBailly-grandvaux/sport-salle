@@ -79,7 +79,7 @@ export async function mountGoogleButton(container, onDone, closeSheet, { sep = '
               title: 'Choisis ton pseudo', welcome: true,
             });
           } else {
-            toast(t('Content de te revoir','Good to see you again') + ` @${res.user.username} 💪`);
+            toast(t('Content de te revoir','Good to see you again') + ` @${res.user.username}`);
             if (onDone) onDone(res);
           }
         } catch (e) { toast(e.message, { type: 'error', duration: 4500 }); }
@@ -116,7 +116,7 @@ function openUsernameSheet(current, after, { title = t('Changer de pseudo','Chan
   const finish = () => { if (!finished) { finished = true; if (after) after(); } };
   const s = sheet(`
     <p class="mut sm">${welcome
-      ? t('Bienvenue ! 🎉 Ton pseudo est ton identité publique — tes amis te retrouvent avec. Choisis-le maintenant, ou garde celui-ci.','Welcome! 🎉 Your username is your public identity — friends find you with it. Pick it now, or keep this one.')
+      ? t('Bienvenue ! Ton pseudo est ton identité publique — tes amis te retrouvent avec. Choisis-le maintenant, ou garde celui-ci.','Welcome! Your username is your public identity — friends find you with it. Pick it now, or keep this one.')
       : t('Ton pseudo est ton identité publique. Tes amis et groupes te suivent automatiquement.','Your username is your public identity. Friends and groups follow automatically.')}</p>
     <label class="field-label" for="un-user">${t('Pseudo (unique, sans espace)','Username (unique, no spaces)')}</label>
     <div class="input-ico"><span class="at">@</span><input class="input at-input" id="un-user" value="${esc(current)}" autocapitalize="none" spellcheck="false" maxlength="20"></div>
@@ -141,7 +141,7 @@ function openUsernameSheet(current, after, { title = t('Changer de pseudo','Chan
       if (acc) { acc.user = res.user; await savePSettings({ account: acc }); }
       try { localStorage.setItem(LAST_USER_KEY, res.user.username); } catch {}
       emit('account-changed');
-      toast(welcome ? t('Bienvenue','Welcome') + ` @${res.user.username} ! 🎉` : t('À toi','You are now') + ` @${res.user.username} ✓`);
+      toast(welcome ? t('Bienvenue','Welcome') + ` @${res.user.username} !` : t('À toi','You are now') + ` @${res.user.username} ✓`);
       s.close();
     } catch (err) {
       btn.disabled = false; btn.innerHTML = label;
@@ -246,7 +246,7 @@ export function openAuthSheet(mode = 'register', onDone = null) {
         }
         await applySession(res);
         s.close();
-        toast(isReg ? t('Bienvenue','Welcome') + ` @${res.user.username} ! 🎉` : t('Content de te revoir','Good to see you again') + ` @${res.user.username} 💪`);
+        toast(isReg ? t('Bienvenue','Welcome') + ` @${res.user.username} !` : t('Content de te revoir','Good to see you again') + ` @${res.user.username}`);
         if (onDone) onDone(res);
       } catch (err) {
         btn.disabled = false; btn.innerHTML = label;

@@ -52,7 +52,7 @@ export function coachAdvice({ workouts, routines, libraryById, weeklyGoal = 3 })
   if (!done.length) {
     const r = routines[0];
     return {
-      emoji: '👋', title: 'On démarre ?',
+      icon: 'hand', title: 'On démarre ?',
       text: r ? `Ta première séance t'attend : « ${r.name} ». Commence léger, soigne le geste — la charge viendra vite.`
         : 'Choisis un modèle dans Programmes (Comeback Machines A est parfait pour reprendre) et lance ta première séance.',
       routineId: r?.id, routineName: r?.name,
@@ -71,14 +71,14 @@ export function coachAdvice({ workouts, routines, libraryById, weeklyGoal = 3 })
   if (trainedToday) {
     const w = done[0]; const st = workoutStats(w);
     return {
-      emoji: '✅', title: 'Séance du jour : faite !',
+      icon: 'check', title: 'Séance du jour : faite !',
       text: `« ${w.name} » — ${st.sets} séries, ${Math.round(st.volume).toLocaleString('fr-FR')} kg. Hydrate-toi, mange des protéines, et dors bien : c'est là que le muscle se construit.`,
     };
   }
 
   if (trainedYesterday && trainedDayBefore) {
     return {
-      emoji: '🛌', title: 'Jour de récupération conseillé',
+      icon: 'heart', title: 'Jour de récupération conseillé',
       text: `2 jours d'affilée, bien joué ! Aujourd'hui : repos actif — 20-30 min de marche ou de vélo tranquille, et des étirements. Tes muscles progressent pendant la récup.`,
     };
   }
@@ -107,14 +107,14 @@ export function coachAdvice({ workouts, routines, libraryById, weeklyGoal = 3 })
       ? ` — ${freshest[0].toLowerCase()} pas travaillé${freshest[0] === 'Jambes' || freshest[0] === 'Épaules' ? 's' : ''} depuis ${freshest[1]} j`
       : '';
     return {
-      emoji: urgency ? '🔥' : '💪',
+      icon: urgency ? 'flame' : 'dumbbell',
       title: urgency ? `Objectif : ${remaining} séance${remaining > 1 ? 's' : ''} avant dimanche !` : 'Conseil du coach',
       text: `Aujourd'hui je te conseille « ${best.name} »${dTxt}. ${weekN}/${weeklyGoal} séances cette semaine.`,
       routineId: best.id, routineName: best.name,
     };
   }
   return {
-    emoji: '💪', title: 'Prêt pour une séance ?',
+    icon: 'dumbbell', title: 'Prêt pour une séance ?',
     text: `${weekN}/${weeklyGoal} séances cette semaine. Lance une séance libre ou crée un programme pour des conseils personnalisés.`,
   };
 }
@@ -156,7 +156,7 @@ export function coachWeekly(workouts, libraryById, weeklyGoal = 3) {
   if (missing.length && thisW.length) {
     const list = missing.map(m => m.toLowerCase());
     const joined = list.length > 1 ? list.slice(0, -1).join(', ') + ' et ' + list[list.length - 1] : list[0];
-    text += ` Pense ${missing.length === 1 && missing[0] === 'Dos' ? 'au' : 'aux'} ${joined} 😉`;
+    text += ` Pense ${missing.length === 1 && missing[0] === 'Dos' ? 'au' : 'aux'} ${joined}.`;
   }
-  return { emoji: thisW.length >= weeklyGoal ? '🏆' : '📊', title: 'Bilan de la semaine', text };
+  return { icon: thisW.length >= weeklyGoal ? 'trophy' : 'chart', title: 'Bilan de la semaine', text };
 }

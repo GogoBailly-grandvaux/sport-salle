@@ -23,7 +23,7 @@ export async function render() {
   const weekVol = sum(workouts.filter(w => weekStart(w.completedAt||w.startedAt) === wk).map(w => workoutStats(w).volume));
   const last = workouts[0];
   const unit = ps('weightUnit');
-  const helloRaw = voiceHello(); // la voix de l'app : varie selon l'heure, le jour… et le lundi 😄
+  const helloRaw = voiceHello(); // la voix de l'app : varie selon l'heure, le jour… et le lundi
   const hello = /[?!…)]$/.test(helloRaw) ? helloRaw : helloRaw + ','; // virgule seulement si la phrase n'a pas déjà sa ponctuation
 
   const avatar = `<button class="avatar" data-nav="#/profile" style="--a:${accentHex(p)}">${p?.emoji || esc((p?.name||'?').slice(0,1).toUpperCase())}</button>`;
@@ -47,7 +47,7 @@ export async function render() {
 
   const momentum = `
     <div class="momentum">
-      ${statTile(`${streak}`, streak > 1 ? t('semaines de série','week streak') : t('semaine de série','week streak'), streak ? '🔥' : t('objectif ','goal ') + goal + t('/sem','/wk'))}
+      ${statTile(`${streak}`, streak > 1 ? t('semaines de série','week streak') : t('semaine de série','week streak'), streak ? icon('flame') : t('objectif ','goal ') + goal + t('/sem','/wk'))}
       ${statTile(`${weekN}<em class="of">/${goal}</em>`, t('cette semaine','this week'), t('séances','workouts'))}
       ${statTile(fmtWeight(weekVol, unit).replace(' '+unit,''), 'volume ('+unit+')', 'cette semaine')}
     </div>`;
@@ -81,7 +81,7 @@ export async function render() {
   const advice = active ? null : coachAdvice({ workouts, routines, libraryById: state.libraryById, weeklyGoal: goal });
   const coachCard = advice ? `
     <section class="card coach-card">
-      <div class="coach-head"><span class="coach-emoji">${advice.emoji}</span><b>${esc(advice.title)}</b></div>
+      <div class="coach-head"><span class="coach-emoji">${icon(advice.icon)}</span><b>${esc(advice.title)}</b></div>
       <p>${esc(advice.text)}</p>
       ${advice.routineId ? `<button class="btn primary full" id="coach-go" data-rid="${advice.routineId}">${icon('play')} Démarrer « ${esc(advice.routineName)} »</button>` : ''}
     </section>` : '';

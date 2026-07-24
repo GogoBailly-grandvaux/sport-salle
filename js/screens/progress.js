@@ -64,14 +64,14 @@ export async function renderHub() {
   const unlocked = ach.list.filter(a => a.done);
   const nextUp = ach.list.filter(a => !a.done).sort((a, b) => b.pct - a.pct)[0];
   const achCard = `<button class="card trophy-card" data-nav="#/achievements">
-      <div class="recap-h"><span class="mut">🏅 ${t('Trophées','Achievements')} · ${unlocked.length}/${ach.list.length}</span>${icon('right')}</div>
-      <div class="trophy-row">${(unlocked.length ? unlocked : ach.list).slice(0, 8).map(a => `<span class="trophy-mini ${a.done ? '' : 'locked'}" title="${esc(a.title)}">${a.emoji}</span>`).join('')}</div>
-      ${nextUp ? `<p class="mut sm">${t('Prochain','Next')} : ${nextUp.emoji} ${esc(nextUp.title)} — ${nextUp.cur}/${nextUp.target}</p>` : `<p class="mut sm">${t('Tout débloqué, machine ! 🏆','All unlocked, machine! 🏆')}</p>`}
+      <div class="recap-h"><span class="mut">${icon('medal')} ${t('Trophées','Achievements')} · ${unlocked.length}/${ach.list.length}</span>${icon('right')}</div>
+      <div class="trophy-row">${(unlocked.length ? unlocked : ach.list).slice(0, 8).map(a => `<span class="trophy-mini ${a.done ? '' : 'locked'}" title="${esc(a.title)}">${icon(a.icon)}</span>`).join('')}</div>
+      ${nextUp ? `<p class="mut sm">${t('Prochain','Next')} : ${icon(nextUp.icon)} ${esc(nextUp.title)} — ${nextUp.cur}/${nextUp.target}</p>` : `<p class="mut sm">${t('Tout débloqué, machine !','All unlocked, machine!')}</p>`}
     </button>`;
 
   return `${hubHeader()}
     <div class="screen-pad">
-      ${weekly ? `<section class="card coach-card"><div class="coach-head"><span class="coach-emoji">${weekly.emoji}</span><b>${esc(weekly.title)}</b></div><p>${esc(weekly.text)}</p></section>` : ''}
+      ${weekly ? `<section class="card coach-card"><div class="coach-head"><span class="coach-emoji">${icon(weekly.icon)}</span><b>${esc(weekly.title)}</b></div><p>${esc(weekly.text)}</p></section>` : ''}
       ${achCard}
       <button class="btn primary full" id="pg-pick">${icon('search')} ${t('Progression d’un exercice','Exercise progression')}</button>
 
@@ -94,7 +94,7 @@ export async function renderHub() {
         ${bw.length ? `<div class="bw-row"><b>${fmtWeight(bw[bw.length-1].value, unit)}</b>${sparkline(bw.map(m=>m.value))}</div>` : `<p class="mut sm">${t('Ajoute ton poids pour suivre ta transformation.','Add your weight to track your transformation.')}</p>`}
       </section>
       <button class="card recap-h" data-nav="#/progress/photos" style="width:100%">
-        <span class="mut">📸 ${t('Photos de progression','Progress photos')}</span>${icon('right')}</button>
+        <span class="mut">${icon('camera')} ${t('Photos de progression','Progress photos')}</span>${icon('right')}</button>
     </div>`;
 }
 function hubHeader() {
@@ -111,7 +111,7 @@ export async function renderAchievements() {
   const n = ach.list.filter(a => a.done).length;
   const cards = ach.list.map(a => `
     <div class="ach-card ${a.done ? 'done' : ''}">
-      <div class="ach-emoji">${a.emoji}</div>
+      <div class="ach-emoji">${icon(a.icon)}</div>
       <div class="ach-body">
         <b>${esc(a.title)}</b>
         <span class="mut sm">${esc(a.desc)}</span>
@@ -121,7 +121,7 @@ export async function renderAchievements() {
     </div>`).join('');
   return `
     <header class="topbar"><div class="topbar-l">${backBtn('#/progress')}</div>
-      <div class="topbar-c"><h1>🏅 ${t('Trophées','Achievements')}</h1><span class="topbar-sub">${n}/${ach.list.length} ${t('débloqués','unlocked')}</span></div>
+      <div class="topbar-c"><h1>${t('Trophées','Achievements')}</h1><span class="topbar-sub">${n}/${ach.list.length} ${t('débloqués','unlocked')}</span></div>
       <div class="topbar-r"></div></header>
     <div class="screen-pad"><div class="ach-grid">${cards}</div></div>`;
 }
@@ -147,11 +147,11 @@ let _photoUrls = [];
 export async function renderPhotos() {
   return `
     <header class="topbar"><div class="topbar-l">${backBtn('#/progress/body')}</div>
-      <div class="topbar-c"><h1>📸 ${t('Photos de progression','Progress photos')}</h1></div>
+      <div class="topbar-c"><h1>${t('Photos de progression','Progress photos')}</h1></div>
       <div class="topbar-r"></div></header>
     <div class="screen-pad">
       <p class="mut sm">${t('Tes photos restent sur ton téléphone — jamais envoyées, jamais partagées. Prends-les dans les mêmes conditions pour bien voir l’évolution.','Your photos stay on your phone — never uploaded, never shared. Take them in the same conditions to really see your progress.')}</p>
-      <button class="btn primary full" id="ph-add">📸 ${t('Ajouter une photo','Add a photo')}</button>
+      <button class="btn primary full" id="ph-add">${icon('camera')} ${t('Ajouter une photo','Add a photo')}</button>
       <input type="file" id="ph-file" accept="image/*" capture="environment" hidden>
       <div id="ph-gallery"></div>
     </div>`;
@@ -163,7 +163,7 @@ export async function mountPhotos(root) {
   const draw = async () => {
     const photos = await listPhotos();
     _photoUrls.forEach(u => URL.revokeObjectURL(u)); _photoUrls = [];
-    if (!photos.length) { gallery.innerHTML = `<div class="ph-empty">${t('Aucune photo pour l’instant. La première, c’est ton point de départ 💪','No photos yet. The first one is your baseline 💪')}</div>`; return; }
+    if (!photos.length) { gallery.innerHTML = `<div class="ph-empty">${t('Aucune photo pour l’instant. La première, c’est ton point de départ.','No photos yet. The first one is your baseline.')}</div>`; return; }
     const url = p => { const u = URL.createObjectURL(p.blob); _photoUrls.push(u); return u; };
     const cmp = photos.length >= 2 ? `<div class="ph-compare">
       <figure><img src="${url(photos[0])}" alt=""><figcaption>${t('Avant','Before')} · ${esc(photos[0].date || '')}</figcaption></figure>
@@ -191,9 +191,9 @@ export async function mountPhotos(root) {
     try {
       const blob = await compressImage(file);
       await addPhoto({ blob, date: todayISO(), note: '' });
-      toast(t('Photo ajoutée 📸','Photo added 📸'));
+      toast(t('Photo ajoutée ✓','Photo added ✓'));
     } catch { toast(t('Image illisible','Unreadable image'), { type: 'error' }); }
-    e.target.value = ''; btn.disabled = false; btn.innerHTML = `📸 ${t('Ajouter une photo','Add a photo')}`;
+    e.target.value = ''; btn.disabled = false; btn.innerHTML = `${icon('camera')} ${t('Ajouter une photo','Add a photo')}`;
     draw();
   };
   draw();

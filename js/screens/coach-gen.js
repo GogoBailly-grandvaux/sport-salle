@@ -41,20 +41,20 @@ const head = (title) => `
 function stepHtml() {
   const card = (key, emoji, label, hint, sel) => `
     <button class="cg-card ${sel ? 'sel' : ''}" data-v="${key}">
-      <span class="cg-emoji">${emoji}</span><b>${label}</b>${hint ? `<span class="cg-hint">${hint}</span>` : ''}
+      <span class="cg-emoji">${icon(emoji)}</span><b>${label}</b>${hint ? `<span class="cg-hint">${hint}</span>` : ''}
     </button>`;
 
   if (S.step === 0) return head(t('Quel est ton objectif ?','What’s your goal?')) + `<div class="cg-opts">
-    ${Object.entries(GOALS).map(([k, g]) => card(k, g.emoji, en() ? g.labelEn : g.label, '', S.goal === k)).join('')}</div>`;
+    ${Object.entries(GOALS).map(([k, g]) => card(k, g.icon, en() ? g.labelEn : g.label, '', S.goal === k)).join('')}</div>`;
 
   if (S.step === 1) return head(t('Ton niveau en musculation ?','Your training level?')) + `<div class="cg-opts col">
-    ${Object.entries(LEVELS).map(([k, l]) => card(k, k === 'beginner' ? '🌱' : k === 'intermediate' ? '⚡' : '🔥', en() ? l.labelEn : l.label, en() ? l.hintEn : l.hint, S.level === k)).join('')}</div>`;
+    ${Object.entries(LEVELS).map(([k, l]) => card(k, k === 'beginner' ? 'sparkles' : k === 'intermediate' ? 'bolt' : 'flame', en() ? l.labelEn : l.label, en() ? l.hintEn : l.hint, S.level === k)).join('')}</div>`;
 
   if (S.step === 2) return head(t('Combien de jours par semaine ?','How many days per week?')) + `<div class="cg-opts days">
     ${[1, 2, 3, 4, 5, 6].map(d => card(d, '', `${d} ${t('jour','day')}${d > 1 ? 's' : ''}`, '', S.days === d)).join('')}</div>`;
 
   if (S.step === 3) return head(t('Ton matériel ?','Your equipment?')) + `<div class="cg-opts col">
-    ${Object.entries(EQUIPMENTS).map(([k, e]) => card(k, e.emoji, en() ? e.labelEn : e.label, k === 'gym' ? t('Machines, barres, haltères, poulies','Machines, barbells, dumbbells, cables') : k === 'dumbbells' ? t('Un banc et des haltères suffisent','A bench and dumbbells are enough') : t('Poids du corps et élastiques','Bodyweight and bands'), S.equipment === k)).join('')}</div>`;
+    ${Object.entries(EQUIPMENTS).map(([k, e]) => card(k, e.icon, en() ? e.labelEn : e.label, k === 'gym' ? t('Machines, barres, haltères, poulies','Machines, barbells, dumbbells, cables') : k === 'dumbbells' ? t('Un banc et des haltères suffisent','A bench and dumbbells are enough') : t('Poids du corps et élastiques','Bodyweight and bands'), S.equipment === k)).join('')}</div>`;
 
   return head(t('Durée d’une séance ?','Workout duration?')) + `<div class="cg-opts days">
     ${DURATIONS.map(d => card(d, '', `${d} min`, '', S.durationMin === d)).join('')}</div>`;
@@ -72,8 +72,8 @@ function previewHtml() {
           <span>${it.sets} × ${it.reps[0]}–${it.reps[1]} reps · ${t('repos','rest')} ${it.rest}s</span></div></div>`;
       }).join('')}
     </section>`).join('');
-  return head(t('Ta semaine est prête 💪','Your week is ready 💪')) + `
-    <p class="cg-sub">${g.emoji} ${en() ? g.labelEn : g.label} · ${en() ? LEVELS[S.level].labelEn : LEVELS[S.level].label} · ${S.days}×/${t('semaine','week')} · ~${S.durationMin} min. ${esc(en() ? g.taglineEn : g.tagline)}</p>
+  return head(t('Ta semaine est prête','Your week is ready')) + `
+    <p class="cg-sub">${icon(g.icon)} ${en() ? g.labelEn : g.label} · ${en() ? LEVELS[S.level].labelEn : LEVELS[S.level].label} · ${S.days}×/${t('semaine','week')} · ~${S.durationMin} min. ${esc(en() ? g.taglineEn : g.tagline)}</p>
     <div class="cg-days-list">${days}</div>
     <div class="cg-foot">
       <button class="btn ghost" id="cg-regen">↻ ${t('Régénérer','Regenerate')}</button>
@@ -107,7 +107,7 @@ function wire(el) {
     const btn = el.querySelector('#cg-save');
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     for (const p of S.plans) await addTemplate(p);
-    toast(`${S.plans.length} ${t('programme','program')}${S.plans.length > 1 ? 's' : ''} ${t('ajouté','added')}${S.plans.length > 1 ? 's' : ''} — ${t('bonne semaine !','have a great week!')} 💪`, { duration: 4500 });
+    toast(`${S.plans.length} ${t('programme','program')}${S.plans.length > 1 ? 's' : ''} ${t('ajouté','added')}${S.plans.length > 1 ? 's' : ''} — ${t('bonne semaine !','have a great week!')}`, { duration: 4500 });
     nav.go('#/routines');
   });
 }
