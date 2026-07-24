@@ -24,7 +24,7 @@ switch ($action) {
     if (strlen($password) < 8) { fail(400, 'mot de passe trop court (8 caractères minimum)'); }
     if ($displayName === '' || mb_strlen($displayName) > 40) { fail(400, 'prénom invalide'); }
 
-    $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+    $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 11]);
     try {
       $st = db()->prepare('INSERT INTO users (username, display_name, pass_hash, avatar_emoji, accent) VALUES (?,?,?,?,?)');
       $st->execute([$username, $displayName, $hash, $emoji, $accent]);
@@ -45,7 +45,7 @@ switch ($action) {
     $row = $st->fetch(PDO::FETCH_ASSOC);
     // toujours un password_verify (même si l'utilisateur n'existe pas) : temps
     // de réponse constant → pas d'oracle temporel d'énumération de comptes.
-    $hash = $row['pass_hash'] ?? '$2y$12$6MBx5X0CGpE4mZU4cZqoy.8Z3GjzrOW3yUOuvVdnZZJXP85m6EVCi';
+    $hash = $row['pass_hash'] ?? '$2y$11$CNZ5BGFTtOxSFQpqF6nAXu25iEAv5E2O9rc4Q6OmLFgXIBW0lJd4G';
     $okpw = password_verify($password, $hash);
     if (!$row || !$okpw) {
       fail(401, 'pseudo ou mot de passe incorrect');
@@ -118,7 +118,7 @@ switch ($action) {
       $username = substr($base, 0, 14) . random_int(10, 99);
     }
     db()->prepare('INSERT INTO users (username, display_name, pass_hash, google_sub, email) VALUES (?,?,?,?,?)')
-      ->execute([$username, mb_substr($name ?: $username, 0, 40), password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT, ['cost' => 12]), $sub, $email]);
+      ->execute([$username, mb_substr($name ?: $username, 0, 40), password_hash(bin2hex(random_bytes(24)), PASSWORD_BCRYPT, ['cost' => 11]), $sub, $email]);
     $s = issue_session((int)db()->lastInsertId());
     $s['isNew'] = true;
     ok($s);
