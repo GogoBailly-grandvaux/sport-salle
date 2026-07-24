@@ -23,6 +23,7 @@ import * as profile from './screens/profile.js';
 import * as social from './screens/social.js';
 import * as coachGen from './screens/coach-gen.js';
 import { wireAuthEvents, openAuthSheet, mountGoogleButton } from './screens/account.js';
+import { maybeOnboard } from './install.js';
 import { gate as appLockGate } from './applock.js';
 
 // ---------- routes ----------
@@ -335,7 +336,7 @@ async function boot() {
       // rafraîchir en place les écrans sociaux — sans casser une saisie en cours
       const soc = nav.current === 'social' || nav.current === 'social-group';
       if (!soc) return;
-      if (document.querySelector('.sheet-backdrop')) return;        // une sheet est ouverte
+      if (document.querySelector('.sheet-back')) return;            // une sheet est ouverte
       const ae = document.activeElement;
       if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return; // l'utilisateur tape
       nav.refresh();
@@ -343,6 +344,9 @@ async function boot() {
 
     registerSW();
     hideSplash();
+    // Installation + notifications : proposées d'elles-mêmes, au bon moment (max 1/lancement)
+    setTimeout(maybeOnboard, 1800);
+    window.addEventListener('hashchange', () => setTimeout(maybeOnboard, 1200));
   } catch (e) {
     console.error(e);
     $('#view').innerHTML = `<div class="screen-pad"><div class="empty"><h3>${t('Erreur au démarrage','Startup error')}</h3><p>${esc(e.message||e)}</p></div></div>`;

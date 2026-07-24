@@ -413,6 +413,12 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 
 .prof-active .ico{width:15px;height:15px}
 .install-card{border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+/* Guide d'installation + proposition de notifications (install.js) */
+.a2hs-steps{list-style:none;margin:14px 0 18px;padding:0;display:flex;flex-direction:column;gap:12px}
+.a2hs-steps li{display:flex;align-items:center;gap:12px}
+.a2hs-ico{width:42px;height:42px;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--accent);flex:none}
+.a2hs-fist{font-size:21px}
+.a2hs .btn.full+.btn.full{margin-top:8px}
 .sync-card .btn.sm{white-space:normal;line-height:1.25;height:auto;min-height:40px;padding:8px 12px}
 .sync-code{font-size:1.15rem;font-weight:800;letter-spacing:.06em;text-align:center;background:var(--surface2);border:1px dashed var(--line2);border-radius:12px;padding:16px 10px;margin:10px 0;user-select:all;word-break:break-all}
 .accent-pick{display:flex;gap:10px;flex-wrap:wrap}
