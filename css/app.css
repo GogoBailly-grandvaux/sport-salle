@@ -756,3 +756,17 @@ body.welcome-mode .tabbar{display:none}
 .mention { color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer; }
 .post-a { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; border-radius: 10px; }
 .post-a:active { opacity: .75; }
+
+/* ---- réponses sous les posts (v3.3) ---- */
+.react-chip.cmt { margin-left: auto; }
+.react-chip.cmt.has { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.avatar.sm { width: 30px; height: 30px; font-size: .85rem; }
+.cmt-list { max-height: 46vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 2px 0 10px; }
+.cmt-row { display: flex; gap: 9px; align-items: flex-start; }
+.cmt-body { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: 4px 14px 14px 14px; padding: 8px 11px; }
+.cmt-head { display: flex; align-items: center; gap: 6px; }
+.cmt-head b { font-size: 13.5px; cursor: pointer; }
+.cmt-del { margin-left: auto; opacity: .5; }
+.cmt-text { margin: 3px 0 0; font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.cmt-composer { display: flex; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.cmt-composer .input { flex: 1; }

@@ -32,6 +32,37 @@ function ensure_posts_tables(): void {
     CONSTRAINT fk_pr_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
     CONSTRAINT fk_pr_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+  db()->exec("CREATE TABLE IF NOT EXISTS post_comments (
+    id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    post_id    INT UNSIGNED NOT NULL,
+    user_id    INT UNSIGNED NOT NULL,
+    text       VARCHAR(500) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_pc_post (post_id, id),
+    CONSTRAINT fk_pc_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+    CONSTRAINT fk_pc_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+}
+
+/** L'auteur du post $postId + contrôle de visibilité pour $viewer (403 sinon). */
+function post_author_visible(int $postId, int $viewer): int {
+  $author = with_posts(function () use ($postId) {
+    $st = db()->prepare('SELECT user_id FROM posts WHERE id = ?');
+    $st->execute([$postId]);
+    return $st->fetchColumn();
+  });
+  if ($author === false) { fail(404, 'post introuvable'); }
+  $author = (int)$author;
+  if ($author !== $viewer && !are_friends($viewer, $author)) {
+    $pub = with_profile_cols(function () use ($author) {
+      $st = db()->prepare('SELECT privacy FROM users WHERE id = ?');
+      $st->execute([$author]);
+      return $st->fetchColumn();
+    });
+    if (($pub ?: 'friends') !== 'public') { fail(403, 'réservé aux amis'); }
+  }
+  return $author;
 }
 
 /** Exécute $fn ; si les tables du fil n'existent pas encore, les crée et réessaie. */
@@ -71,7 +102,7 @@ switch ($action) {
     });
     $posts = [];
     $postIds = array_map(fn($r) => (int)$r['id'], $rows);
-    $reactions = []; $mine = [];
+    $reactions = []; $mine = []; $commentCounts = [];
     if ($postIds) {
       $ph2 = implode(',', array_fill(0, count($postIds), '?'));
       $st = db()->prepare("SELECT post_id, emoji, COUNT(*) AS n FROM post_reactions WHERE post_id IN ($ph2) GROUP BY post_id, emoji");
@@ -80,6 +111,11 @@ switch ($action) {
       $st = db()->prepare("SELECT post_id, emoji FROM post_reactions WHERE user_id = ? AND post_id IN ($ph2)");
       $st->execute(array_merge([$me['id']], $postIds));
       foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $mine[(int)$r['post_id']] = $r['emoji']; }
+      try {
+        $st = db()->prepare("SELECT post_id, COUNT(*) AS n FROM post_comments WHERE post_id IN ($ph2) GROUP BY post_id");
+        $st->execute($postIds);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $commentCounts[(int)$r['post_id']] = (int)$r['n']; }
+      } catch (PDOException $e) { if ($e->getCode() !== '42S02') { throw $e; } } // table pas encore créée : 0 partout
     }
     foreach ($rows as $r) {
       $pid = (int)$r['id'];
@@ -92,6 +128,7 @@ switch ($action) {
         'isMine' => (int)$r['user_id'] === $me['id'],
         'reactions' => $reactions[$pid] ?? new stdClass(),
         'myReaction' => $mine[$pid] ?? null,
+        'comments' => $commentCounts[$pid] ?? 0,
       ];
     }
     ok(['posts' => $posts, 'hasMore' => count($rows) === 30]);
@@ -121,7 +158,7 @@ switch ($action) {
       return $st->fetchAll(PDO::FETCH_ASSOC);
     });
     $posts = []; $postIds = array_map(fn($r) => (int)$r['id'], $rows);
-    $reactions = []; $mine = [];
+    $reactions = []; $mine = []; $commentCounts = [];
     if ($postIds) {
       $ph2 = implode(',', array_fill(0, count($postIds), '?'));
       $st = db()->prepare("SELECT post_id, emoji, COUNT(*) AS n FROM post_reactions WHERE post_id IN ($ph2) GROUP BY post_id, emoji");
@@ -130,6 +167,11 @@ switch ($action) {
       $st = db()->prepare("SELECT post_id, emoji FROM post_reactions WHERE user_id = ? AND post_id IN ($ph2)");
       $st->execute(array_merge([$me['id']], $postIds));
       foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $mine[(int)$r['post_id']] = $r['emoji']; }
+      try {
+        $st = db()->prepare("SELECT post_id, COUNT(*) AS n FROM post_comments WHERE post_id IN ($ph2) GROUP BY post_id");
+        $st->execute($postIds);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) { $commentCounts[(int)$r['post_id']] = (int)$r['n']; }
+      } catch (PDOException $e) { if ($e->getCode() !== '42S02') { throw $e; } } // table pas encore créée : 0 partout
     }
     foreach ($rows as $r) {
       $pid = (int)$r['id'];
@@ -141,6 +183,7 @@ switch ($action) {
         'isMine' => (int)$r['user_id'] === $me['id'],
         'reactions' => $reactions[$pid] ?? new stdClass(),
         'myReaction' => $mine[$pid] ?? null,
+        'comments' => $commentCounts[$pid] ?? 0,
       ];
     }
     ok(['posts' => $posts, 'hasMore' => count($rows) === 30]);
@@ -192,25 +235,70 @@ switch ($action) {
     ok(['ok' => true, 'id' => (int)db()->lastInsertId()]);
   }
 
+  case 'comment': {
+    rate_limit('comment', 30, 900); // max 30 commentaires/15 min
+    $postId = (int)($b['postId'] ?? 0);
+    $text = clean_str($b['text'] ?? '', 300);
+    if ($text === '') { fail(400, 'le commentaire est vide'); }
+    $author = post_author_visible($postId, $me['id']);
+    // plafond doux anti-flood par post
+    $st = db()->prepare('SELECT COUNT(*) FROM post_comments WHERE post_id = ?');
+    $st->execute([$postId]);
+    if ((int)$st->fetchColumn() >= 500) { fail(429, 'trop de commentaires sur ce post'); }
+    db()->prepare('INSERT INTO post_comments (post_id, user_id, text) VALUES (?,?,?)')
+      ->execute([$postId, $me['id'], $text]);
+    // réveiller l'auteur du post + les autres participants de la conversation
+    $st = db()->prepare('SELECT DISTINCT user_id FROM post_comments WHERE post_id = ? AND user_id <> ?');
+    $st->execute([$postId, $me['id']]);
+    $watchers = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
+    if ($author !== $me['id']) { $watchers[] = $author; }
+    bump_live($watchers);
+    ok(['ok' => true, 'id' => (int)db()->lastInsertId()]);
+  }
+
+  case 'comments': {
+    $postId = (int)($b['postId'] ?? 0);
+    post_author_visible($postId, $me['id']);
+    $rows = with_posts(function () use ($postId) {
+      $st = db()->prepare(
+        'SELECT c.id, c.text, UNIX_TIMESTAMP(c.created_at) AS ts, c.user_id,
+                u.username, u.display_name, u.avatar_emoji, u.accent
+         FROM post_comments c JOIN users u ON u.id = c.user_id
+         WHERE c.post_id = ? ORDER BY c.id ASC LIMIT 100');
+      $st->execute([$postId]);
+      return $st->fetchAll(PDO::FETCH_ASSOC);
+    });
+    $out = [];
+    foreach ($rows as $r) {
+      $out[] = [
+        'id' => (int)$r['id'], 'text' => $r['text'], 'ts' => (int)$r['ts'],
+        'author' => public_user(['id' => $r['user_id'], 'username' => $r['username'], 'display_name' => $r['display_name'], 'avatar_emoji' => $r['avatar_emoji'], 'accent' => $r['accent']]),
+        'isMine' => (int)$r['user_id'] === $me['id'],
+      ];
+    }
+    ok(['comments' => $out]);
+  }
+
+  case 'uncomment': {
+    // suppression par l'auteur du commentaire OU par l'auteur du post (modération de son fil)
+    $commentId = (int)($b['commentId'] ?? 0);
+    $row = with_posts(function () use ($commentId) {
+      $st = db()->prepare('SELECT c.user_id AS cu, p.user_id AS pu, c.post_id FROM post_comments c JOIN posts p ON p.id = c.post_id WHERE c.id = ?');
+      $st->execute([$commentId]);
+      return $st->fetch(PDO::FETCH_ASSOC);
+    });
+    if (!$row) { fail(404, 'commentaire introuvable'); }
+    if ((int)$row['cu'] !== $me['id'] && (int)$row['pu'] !== $me['id']) { fail(403, 'pas ton commentaire'); }
+    db()->prepare('DELETE FROM post_comments WHERE id = ?')->execute([$commentId]);
+    bump_live([(int)$row['cu'], (int)$row['pu']]);
+    ok(['ok' => true]);
+  }
+
   case 'react': {
     rate_limit('react', 60, 900); // max 60 réactions/15 min
     $postId = (int)($b['postId'] ?? 0);
     $emoji = (string)($b['emoji'] ?? '');
-    $author = with_posts(function () use ($postId) {
-      $st = db()->prepare('SELECT user_id FROM posts WHERE id = ?');
-      $st->execute([$postId]);
-      return $st->fetchColumn();
-    });
-    if ($author === false) { fail(404, 'post introuvable'); }
-    $author = (int)$author;
-    if ($author !== $me['id'] && !are_friends($me['id'], $author)) {
-      $pub = with_profile_cols(function () use ($author) {
-        $st = db()->prepare('SELECT privacy FROM users WHERE id = ?');
-        $st->execute([$author]);
-        return $st->fetchColumn();
-      });
-      if (($pub ?: 'friends') !== 'public') { fail(403, 'réservé aux amis'); }
-    }
+    $author = post_author_visible($postId, $me['id']);
     if ($emoji === '') {
       db()->prepare('DELETE FROM post_reactions WHERE post_id = ? AND user_id = ?')->execute([$postId, $me['id']]);
     } else {

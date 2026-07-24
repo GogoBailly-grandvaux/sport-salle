@@ -142,3 +142,16 @@ CREATE TABLE IF NOT EXISTS post_reactions (
 -- Appliqué en lazy par lib.php ensure_profile_cols() ; ici pour les installations neuves.
 -- ALTER TABLE users ADD COLUMN bio VARCHAR(200) DEFAULT NULL;
 -- ALTER TABLE users ADD COLUMN privacy ENUM('friends','public') NOT NULL DEFAULT 'friends';
+
+-- v3.3 : commentaires sous les posts (créée en lazy par posts.php).
+CREATE TABLE IF NOT EXISTS post_comments (
+  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  post_id    INT UNSIGNED NOT NULL,
+  user_id    INT UNSIGNED NOT NULL,
+  text       VARCHAR(500) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_pc_post (post_id, id),
+  CONSTRAINT fk_pc_post FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+  CONSTRAINT fk_pc_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

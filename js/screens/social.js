@@ -129,6 +129,7 @@ function postCard(p) {
     const on = p.myReaction === e;
     return `<button class="react-chip ${on ? 'on' : ''}" data-react="${e}" data-post="${p.id}" aria-label="${t('Réagir','React')} ${e}">${e}${n ? ` <b>${n}</b>` : ''}</button>`;
   }).join('');
+  const cChip = `<button class="react-chip cmt ${p.comments ? 'has' : ''}" data-comments="${p.id}" aria-label="${t('Voir les réponses','View replies')}">💬${p.comments ? ` <b>${p.comments}</b>` : ''}</button>`;
   return `<article class="post-card" data-pid="${p.id}">
     <div class="post-head">
       <div class="post-a" data-nav="#/u/${esc(a.username || '')}" role="link" tabindex="0">
@@ -138,7 +139,7 @@ function postCard(p) {
       ${p.isMine ? `<button class="icon-btn sm post-del" data-del="${p.id}" aria-label="${t('Supprimer le post','Delete post')}">${icon('trash')}</button>` : ''}
     </div>
     ${postBody(p)}
-    <div class="react-bar">${reacts}</div>
+    <div class="react-bar">${reacts}${cChip}</div>
   </article>`;
 }
 
