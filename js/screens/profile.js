@@ -1,8 +1,7 @@
 // screens/profile.js — profiles, settings, data, install
 import { esc } from '../util.js';
 import {
-  state, ACCENTS, ps, activeProfile, accentHex, nav,
-  createProfile, updateProfile, setActiveProfile, deleteProfile,
+  state, ps, nav,
   savePSettings, saveGlobal, applyTheme,
 } from '../store.js';
 import * as db from '../db.js';
@@ -18,15 +17,6 @@ import { t } from '../i18n.js';
 
 
 export async function render() {
-  const p = activeProfile();
-  const profs = state.profiles.map(pr => `
-    <button class="prof-row ${pr.id===state.activeProfileId?'active':''}" data-switch="${pr.id}">
-      <span class="avatar" style="--a:${accentHex(pr)}">${pr.emoji || esc(pr.name.slice(0,1).toUpperCase())}</span>
-      <span class="prof-name">${esc(pr.name)}</span>
-      ${pr.id===state.activeProfileId?`<span class="prof-active">${icon('check')} ${t('actif','active')}</span>`:''}
-      <button class="icon-btn sm" data-edit="${pr.id}" aria-label="${t('Modifier','Edit')}">${icon('edit')}</button>
-    </button>`).join('');
-
   const theme = state.global?.theme || 'system';
   const seg = (name, val, opts) => `<div class="segmented sm" data-seg="${name}">${opts.map(([v,l])=>`<button class="seg ${v===val?'on':''}" data-v="${v}">${l}</button>`).join('')}</div>`;
   const sw = (id, on) => `<button class="switch ${on?'on':''}" data-toggle="${id}" role="switch" aria-checked="${on}"><span></span></button>`;
@@ -37,12 +27,6 @@ export async function render() {
   return `
     <header class="topbar"><div class="topbar-l">${backBtn('#/home')}</div><div class="topbar-c"><h1>${t('Profil & réglages','Profile & settings')}</h1></div><div class="topbar-r"></div></header>
     <div class="screen-pad">
-      <section class="card">
-        <h3 class="card-t">${t('Profils','Profiles')}</h3>
-        <div class="prof-list">${profs}</div>
-        <button class="btn ghost full" id="add-prof">${icon('plus')} ${t('Ajouter un profil','Add a profile')}</button>
-      </section>
-
       ${canInstall || isIOS ? `<section class="card install-card">
         <h3 class="card-t">${icon('download')} ${t('Installer l’application','Install the app')}</h3>
         ${canInstall ? `<p class="mut sm">${t('Ajoute l’app à ton écran d’accueil pour un accès instantané, hors-ligne.','Add the app to your home screen for instant, offline access.')}</p><button class="btn primary full" id="install-btn">${t('Installer','Install')}</button>`
@@ -110,18 +94,6 @@ export function mount(root) {
     try { await navigator.clipboard.writeText(url); toast(t('Lien copié ✓','Link copied ✓')); }
     catch { toast(url, { duration: 6000 }); }
   });
-  // profiles
-  root.querySelectorAll('[data-switch]').forEach(b => b.addEventListener('click', async (e) => {
-    if (e.target.closest('[data-edit]')) return;
-    const id = b.dataset.switch;
-    if (id === state.activeProfileId) return;
-    await setActiveProfile(id);
-    if (sync.isConfigured() && !ps('account')) { location.hash = ''; location.reload(); return; } // ce profil n'a pas de compte → écran de connexion
-    toast(`${t('Profil','Profile')} : ${activeProfile().name}`); nav.go('#/home');
-  }));
-  root.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); editProfile(b.dataset.edit); }));
-  root.querySelector('#add-prof').onclick = addProfile;
-
   // install
   root.querySelector('#install-btn')?.addEventListener('click', async () => {
     const dp = window.__deferredInstall; if (!dp) return;
@@ -165,76 +137,6 @@ export function mount(root) {
   const fileInput = root.querySelector('#import-file');
   root.querySelector('#import-btn').onclick = () => fileInput.click();
   fileInput.onchange = () => importData(fileInput.files[0]);
-}
-
-const AVATAR_EMOJIS = ['💪','🏋️','🔥','⚡','🚀','🦁','🐺','😤','🌸','👑','🎯','🥇'];
-const emojiRow = (idPrefix, current) =>
-  `<div class="emoji-pick" id="${idPrefix}-emoji">${AVATAR_EMOJIS.map(e=>`<button class="emoji-dot ${e===current?'sel':''}" data-e="${e}">${e}</button>`).join('')}</div>`;
-function wireEmoji(rootEl, initial) {
-  let emoji = initial ?? null;
-  rootEl.querySelectorAll('[data-e]').forEach(b => b.onclick = () => {
-    const was = b.classList.contains('sel');
-    rootEl.querySelectorAll('[data-e]').forEach(x=>x.classList.remove('sel'));
-    emoji = was ? null : b.dataset.e;
-    if (!was) b.classList.add('sel');
-  });
-  return () => emoji;
-}
-
-async function addProfile() {
-  const used = new Set(state.profiles.map(p => p.accent));
-  const free = Object.keys(ACCENTS).find(a => !used.has(a)) || 'volt';
-  const s = sheet(`
-    <label class="field-label">${t('Prénom','First name')}</label>
-    <input class="input" id="np-name" placeholder="${t('Prénom','First name')}">
-    <label class="field-label">${t('Couleur','Color')}</label>
-    <div class="accent-pick" id="np-accent">${Object.entries(ACCENTS).map(([k,v])=>`<button class="accent-dot ${k===free?'sel':''}" data-a="${k}" style="--a:${v.hex}" aria-label="${v.name}"></button>`).join('')}</div>
-    <label class="field-label">${t('Avatar (optionnel)','Avatar (optional)')}</label>
-    ${emojiRow('np', null)}
-    <button class="btn primary full" id="np-save">${t('Créer le profil','Create profile')}</button>`, { title: t('Nouveau profil','New profile') });
-  let accent = free;
-  const getEmoji = wireEmoji(s.root, null);
-  s.root.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { accent = b.dataset.a; s.root.querySelectorAll('[data-a]').forEach(x=>x.classList.toggle('sel', x===b)); });
-  s.root.querySelector('#np-save').onclick = async () => {
-    const name = s.root.querySelector('#np-name').value.trim() || t('Athlète','Athlete');
-    const p = await createProfile({ name, accent, emoji: getEmoji() });
-    s.close(); await setActiveProfile(p.id);
-    if (sync.isConfigured()) { location.hash = ''; location.reload(); return; } // nouveau profil → son compte (connexion/inscription)
-    toast(`${t('Bienvenue','Welcome')} ${name}!`); nav.go('#/home');
-  };
-}
-
-function editProfile(id) {
-  const p = state.profiles.find(x => x.id === id);
-  const s = sheet(`
-    <label class="field-label">${t('Prénom','First name')}</label>
-    <input class="input" id="ep-name" value="${esc(p.name)}">
-    <label class="field-label">${t('Couleur','Color')}</label>
-    <div class="accent-pick" id="ep-accent">${Object.entries(ACCENTS).map(([k,v])=>`<button class="accent-dot ${k===p.accent?'sel':''}" data-a="${k}" style="--a:${v.hex}"></button>`).join('')}</div>
-    <label class="field-label">Avatar</label>
-    ${emojiRow('ep', p.emoji)}
-    <button class="btn primary full" id="ep-save">${t('Enregistrer','Save')}</button>
-    ${state.profiles.length>1?`<button class="btn danger-ghost full" id="ep-del">${icon('trash')} ${t('Supprimer ce profil','Delete this profile')}</button>`:''}`,
-    { title: t('Modifier le profil','Edit profile') });
-  let accent = p.accent;
-  const getEmoji = wireEmoji(s.root, p.emoji);
-  s.root.querySelectorAll('[data-a]').forEach(b => b.onclick = () => { accent = b.dataset.a; s.root.querySelectorAll('[data-a]').forEach(x=>x.classList.toggle('sel', x===b)); });
-  s.root.querySelector('#ep-save').onclick = async () => {
-    await updateProfile(id, { name: s.root.querySelector('#ep-name').value.trim() || 'Athlète', accent, emoji: getEmoji() });
-    if (id === state.activeProfileId) applyTheme();
-    s.close(); nav.refresh();
-  };
-  s.root.querySelector('#ep-del')?.addEventListener('click', async () => {
-    s.close();
-    if (await confirmDialog({ title:t('Supprimer le profil','Delete profile'), message:`${t('Supprimer','Delete')} « ${p.name} » ${t('et toutes ses données ? Irréversible.','and all its data? Irreversible.')}`, confirmText:t('Supprimer','Delete'), danger:true })) {
-      await deleteProfile(id);
-      if (state.activeProfileId === id) {
-        await setActiveProfile(state.profiles[0].id);
-        if (sync.isConfigured() && !ps('account')) { location.hash = ''; location.reload(); return; }
-      }
-      toast(t('Profil supprimé','Profile deleted')); nav.go('#/profile');
-    }
-  });
 }
 
 // ---------------- data io ----------------
