@@ -47,6 +47,7 @@ const R = [
   { p:'#/u/:username', name:'user-profile', render:social.renderUserProfile, mount:social.mountUserProfile },
   { p:'#/social/group/:id', name:'social-group', render:social.renderGroup, mount:social.mountGroup },
   { p:'#/gym', name:'gym', render:social.renderGym, mount:social.mountGym },
+  { p:'#/challenges', name:'challenges', render:social.renderChallenges, mount:social.mountChallenges },
   { p:'#/profile', name:'profile', render:profile.render, mount:profile.mount },
 ].map(r => {
   const keys = []; const rx = new RegExp('^' + r.p.replace(/:[^/]+/g, m => { keys.push(m.slice(1)); return '([^/]+)'; }) + '$');

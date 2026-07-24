@@ -87,6 +87,7 @@ function notifLine(n) {
     react: t(`${who} a réagi ${esc(n.meta || '👊')} à ton post`, `${who} reacted ${esc(n.meta || '👊')} to your post`),
     comment: t(`${who} a répondu : « ${esc(n.meta || '')} »`, `${who} replied: “${esc(n.meta || '')}”`),
     mention: t(`${who} t’a mentionné : « ${esc(n.meta || '')} »`, `${who} mentioned you: “${esc(n.meta || '')}”`),
+    challenge: n.meta === 'a rejoint' ? t(`${who} a rejoint ton défi 💪`, `${who} joined your challenge 💪`) : t(`${who} te défie cette semaine ⚔️`, `${who} challenges you this week ⚔️`),
   };
   return x[n.kind] || who;
 }
@@ -108,6 +109,7 @@ function wireActivite(root) {
   root.querySelectorAll('.notif-row').forEach(b => b.onclick = () => {
     const { nkind, nref, nuser } = b.dataset;
     if ((nkind === 'react' || nkind === 'comment' || nkind === 'mention') && nref) { openCommentsSheet(+nref); return; }
+    if (nkind === 'challenge') { nav.go('#/challenges'); return; }
     nav.go('#/u/' + nuser);
   });
   // badge éteint localement (le serveur vient de marquer lu)
@@ -417,6 +419,15 @@ async function renderGroupes() {
       : `<button class="card gym-card empty" id="gym-set"><div class="recap-h"><span class="mut">🏋️ ${t('Ma salle','My gym')}</span>${icon('right')}</div>
           <b class="gym-name">${t('Indique ta salle','Set your gym')}</b><span class="mut sm">${t('et retrouve qui s’y entraîne, avec un classement','and see who trains there, with a leaderboard')}</span></button>`;
   } catch {}
+  let challCard = '';
+  try {
+    const cl = await call('challenges', 'list');
+    const pending = cl.challenges.filter(c => c.myStatus === 'pending').length;
+    const active = cl.challenges.filter(c => c.active && c.myStatus === 'accepted').length;
+    challCard = `<button class="card gym-card" data-nav="#/challenges"><div class="recap-h"><span class="mut">⚔️ ${t('Défis entre potes','Friend challenges')}</span>${icon('right')}</div>
+      <b class="gym-name">${pending ? `${pending} ${t('invitation','invite')}${pending > 1 ? 's' : ''} ⏳` : active ? `${active} ${t('défi en cours','active challenge')}${active > 1 ? 's' : ''}` : t('Lance un défi à tes amis','Challenge your friends')}</b>
+      <span class="mut sm">${t('Qui fait le plus de séances / volume cette semaine ?','Who does the most workouts / volume this week?')}</span></button>`;
+  } catch {}
   const d = await call('groups', 'mine');
   const cards = d.groups.map(g => `
     <button class="group-card" data-nav="#/social/group/${g.id}">
@@ -426,6 +437,7 @@ async function renderGroupes() {
     </button>`).join('');
   return `
     ${gymCard}
+    ${challCard}
     ${d.groups.length ? `<div class="friend-list">${cards}</div>` :
       emptyState('users', t('Aucun groupe','No groups'), t('Crée un groupe pour ta salle, ta team ou tes potes : classement hebdo et programmes partagés.','Create a group for your gym, your team or your crew: weekly leaderboard and shared programs.'), '')}
     <button class="btn primary full" id="grp-create">${icon('plus')} ${t('Créer un groupe','Create a group')}</button>
@@ -634,6 +646,90 @@ export async function renderGym() {
 export function mountGym(root) {
   root.querySelector('#gym-edit')?.addEventListener('click', () => openEditProfileSheet());
   root.querySelector('#gym-set2')?.addEventListener('click', () => openEditProfileSheet());
+}
+
+// ---------------- défis entre potes ⚔️ ----------------
+const metricLabel = (m) => m === 'volume' ? t('Le plus de volume 🏋️','Most volume 🏋️') : t('Le plus de séances 🔥','Most workouts 🔥');
+const scoreLabel = (m, v) => m === 'volume' ? `${Number(v).toLocaleString(t('fr-FR','en-US'))} kg` : `${v} ${t('séance','workout')}${v > 1 ? 's' : ''}`;
+
+function challengeCard(c) {
+  const rows = c.ranking.map((u, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+    const me = u.username === account()?.user?.username;
+    return `<div class="ch-row ${me ? 'me' : ''}"><span class="gym-rank">${medal}</span>${avatarHtml(u)}
+      <div class="fr-info"><b>${esc(u.displayName)}${me ? ` · ${t('toi','you')}` : ''}</b></div>
+      <b class="ch-score">${scoreLabel(c.metric, u.score)}</b></div>`;
+  }).join('');
+  const state = c.active ? `<span class="ch-tag live">● ${t('en cours','live')}</span>` : `<span class="ch-tag">${t('terminé','ended')}</span>`;
+  return `<section class="card ch-card">
+    <div class="ch-head"><div><b>${metricLabel(c.metric)}</b><span class="mut sm"> · ${t('cette semaine','this week')}</span></div>${state}</div>
+    <div class="ch-board">${rows || `<p class="mut sm">${t('En attente des participants…','Waiting for participants…')}</p>`}</div>
+    <button class="btn ghost full sm ch-leave" data-leave="${c.id}">${c.isCreator ? t('Annuler le défi','Cancel challenge') : t('Quitter','Leave')}</button>
+  </section>`;
+}
+
+export async function renderChallenges() {
+  let d;
+  try { d = await call('challenges', 'list'); }
+  catch (e) { return `<div class="screen-pad">${emptyState('users', t('Oups','Oops'), e.message || '', `<button class="btn ghost" data-nav="#/social">Social</button>`)}</div>`; }
+  const invites = d.challenges.filter(c => c.myStatus === 'pending');
+  const active = d.challenges.filter(c => c.myStatus === 'accepted' && c.active);
+  const past = d.challenges.filter(c => c.myStatus === 'accepted' && !c.active);
+  const head = `<header class="topbar"><div class="topbar-l">${backBtn('#/social')}</div>
+    <div class="topbar-c"><h1>⚔️ ${t('Défis','Challenges')}</h1></div><div class="topbar-r"></div></header>`;
+  const inviteBlock = invites.map(c => `<section class="card ch-invite">
+    <p><b>${metricLabel(c.metric)}</b> · ${t('on te défie cette semaine !','you’re challenged this week!')}</p>
+    <div class="ch-invite-act"><button class="btn primary sm" data-accept="${c.id}">${t('Relever le défi 💪','Accept 💪')}</button>
+      <button class="btn ghost sm" data-decline="${c.id}">${t('Non merci','No thanks')}</button></div></section>`).join('');
+  const body = (invites.length || active.length || past.length)
+    ? `${inviteBlock}${active.map(challengeCard).join('')}${past.length ? `<h4 class="share-h">${t('Terminés','Ended')}</h4>${past.map(challengeCard).join('')}` : ''}`
+    : emptyState('users', t('Aucun défi','No challenges'), t('Lance un défi à tes amis et voyez qui bosse le plus cette semaine.','Challenge your friends and see who trains the most this week.'), '');
+  return `${head}<div class="screen-pad">
+    <button class="btn primary full" id="ch-new">⚔️ ${t('Lancer un défi','Start a challenge')}</button>
+    ${body}</div>`;
+}
+
+export function mountChallenges(root) {
+  root.querySelector('#ch-new')?.addEventListener('click', openCreateChallengeSheet);
+  root.querySelectorAll('[data-accept]').forEach(b => b.onclick = async () => {
+    try { await call('challenges', 'respond', { challengeId: +b.dataset.accept, accept: true }); toast(t('Défi relevé 💪','Challenge accepted 💪')); nav.refresh(); }
+    catch (e) { toast(e.message, { type: 'error' }); }
+  });
+  root.querySelectorAll('[data-decline]').forEach(b => b.onclick = async () => {
+    try { await call('challenges', 'respond', { challengeId: +b.dataset.decline, accept: false }); nav.refresh(); }
+    catch (e) { toast(e.message, { type: 'error' }); }
+  });
+  root.querySelectorAll('[data-leave]').forEach(b => b.onclick = async () => {
+    if (!(await confirmDialog({ title: t('Quitter','Leave'), message: t('Quitter ce défi ?','Leave this challenge?'), confirmText: t('Quitter','Leave'), danger: true }))) return;
+    try { await call('challenges', 'leave', { challengeId: +b.dataset.leave }); toast(t('Fait','Done')); nav.refresh(); }
+    catch (e) { toast(e.message, { type: 'error' }); }
+  });
+}
+
+async function openCreateChallengeSheet() {
+  let friends = [];
+  try { friends = (await call('social', 'list')).friends || []; } catch {}
+  if (!friends.length) { toast(t('Ajoute d’abord des amis pour les défier','Add friends first to challenge them')); return; }
+  let metric = 'workouts';
+  const s = sheet(`
+    <label class="field-label">${t('Sur quoi ?','On what?')}</label>
+    <div class="segmented" id="ch-metric">
+      <button class="seg on" data-m="workouts">🔥 ${t('Séances','Workouts')}</button>
+      <button class="seg" data-m="volume">🏋️ ${t('Volume','Volume')}</button></div>
+    <label class="field-label">${t('Qui défies-tu ?','Who do you challenge?')}</label>
+    <div class="ch-friends">${friends.map(f => `<label class="ch-friend"><input type="checkbox" value="${f.id}"><span>${avatarHtml(f)} ${esc(f.displayName)}</span></label>`).join('')}</div>
+    <button class="btn primary full" id="ch-go">⚔️ ${t('Lancer le défi','Start the challenge')}</button>`,
+    { title: t('Nouveau défi','New challenge') });
+  s.root.querySelectorAll('#ch-metric .seg').forEach(b => b.onclick = () => {
+    metric = b.dataset.m; s.root.querySelectorAll('#ch-metric .seg').forEach(x => x.classList.toggle('on', x === b));
+  });
+  s.root.querySelector('#ch-go').onclick = async () => {
+    const friendIds = [...s.root.querySelectorAll('.ch-friends input:checked')].map(i => +i.value);
+    if (!friendIds.length) { toast(t('Choisis au moins un ami','Pick at least one friend')); return; }
+    const btn = s.root.querySelector('#ch-go'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+    try { await call('challenges', 'create', { metric, friendIds }); s.close(); toast(t('Défi lancé ! 🔥','Challenge started! 🔥')); nav.go('#/challenges'); }
+    catch (e) { toast(e.message, { type: 'error' }); btn.disabled = false; btn.textContent = t('Lancer le défi','Start'); }
+  };
 }
 
 // ---------------- deep link : #/add/<pseudo> (depuis un QR scanné) ----------------

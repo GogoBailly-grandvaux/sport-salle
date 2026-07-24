@@ -191,3 +191,20 @@ CREATE TABLE IF NOT EXISTS push_subs (
   KEY idx_ps_user (user_id),
   CONSTRAINT fk_ps_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- v3.11 : défis entre amis (compétition hebdo). notifs.kind gagne 'challenge'.
+CREATE TABLE IF NOT EXISTS challenges (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT, creator_id INT UNSIGNED NOT NULL,
+  metric ENUM('workouts','volume') NOT NULL, week_start BIGINT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id),
+  KEY idx_ch_creator (creator_id),
+  CONSTRAINT fk_ch_creator FOREIGN KEY (creator_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+CREATE TABLE IF NOT EXISTS challenge_members (
+  challenge_id INT UNSIGNED NOT NULL, user_id INT UNSIGNED NOT NULL,
+  status ENUM('pending','accepted','declined') NOT NULL DEFAULT 'pending',
+  joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (challenge_id, user_id),
+  KEY idx_cm_user (user_id),
+  CONSTRAINT fk_cm_ch FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE,
+  CONSTRAINT fk_cm_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
