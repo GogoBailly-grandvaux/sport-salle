@@ -201,6 +201,7 @@ switch ($action) {
     ok(['user' => public_user([
       'id' => $u['id'], 'username' => $u['username'], 'display_name' => $u['display_name'],
       'avatar_emoji' => $u['avatar_emoji'], 'accent' => $u['accent'],
+      'avatar_photo' => $u['avatar_photo'] ?? null,
     ])]);
   }
 
