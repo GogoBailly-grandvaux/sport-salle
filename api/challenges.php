@@ -31,8 +31,10 @@ function ensure_challenge_tables(): void {
     CONSTRAINT fk_cm_ch   FOREIGN KEY (challenge_id) REFERENCES challenges (id) ON DELETE CASCADE,
     CONSTRAINT fk_cm_user FOREIGN KEY (user_id)      REFERENCES users (id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-  // étendre l'enum des notifs pour accepter le type 'challenge' (installs existantes)
-  try { db()->exec("ALTER TABLE notifs MODIFY COLUMN kind ENUM('friend_req','friend_acc','react','comment','mention','challenge') NOT NULL"); }
+  // étendre l'enum des notifs pour accepter 'challenge' (installs existantes).
+  // ⚠ Doit rester IDENTIQUE à l'ENUM de lib.php (ensure_notifs_table) : y omettre
+  // 'livesession'/'cheer' rétrécissait l'ENUM et cassait silencieusement ces notifs.
+  try { db()->exec("ALTER TABLE notifs MODIFY COLUMN kind ENUM('friend_req','friend_acc','react','comment','mention','challenge','livesession','cheer') NOT NULL"); }
   catch (PDOException $e) { /* table absente ou déjà à jour — sans gravité */ }
 }
 function with_challenges(callable $fn) {

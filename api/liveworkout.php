@@ -172,7 +172,15 @@ switch ($b['action'] ?? '') {
   case 'session': {
     $u = require_user();
     $sid = (int)($b['sessionId'] ?? 0);
-    $rows = with_live_sessions(function () use ($sid) {
+    $rows = with_live_sessions(function () use ($sid, $u) {
+      // Autorisation : réservé au créateur et à ses amis (comme join_session).
+      // Sans ce contrôle, les ids de séance étant auto-incrémentés donc énumérables,
+      // n'importe qui pourrait lire l'activité en direct d'inconnus (fuite de vie privée).
+      $cs = db()->prepare('SELECT creator_id FROM live_sessions WHERE id = ?');
+      $cs->execute([$sid]);
+      $creatorId = $cs->fetchColumn();
+      if ($creatorId === false) { fail(404, 'séance introuvable'); }
+      if ((int)$creatorId !== $u['id'] && !are_friends($u['id'], (int)$creatorId)) { fail(403, 'réservé aux amis'); }
       $st = db()->prepare(
         "SELECT lw.user_id, lw.name, lw.current_ex, lw.sets_done, lw.volume_kg, lw.started_at,
                 TIMESTAMPDIFF(SECOND, lw.updated_at, NOW()) AS age_s,

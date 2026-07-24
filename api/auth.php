@@ -290,14 +290,20 @@ switch ($action) {
   }
 
   case 'delete': {
-    // suppression définitive du compte (mot de passe exigé) — cascade sur toutes les données
+    // suppression définitive du compte — cascade sur toutes les données.
+    // Ré-auth par mot de passe pour les comptes classiques. Les comptes Google ont un
+    // mot de passe ALÉATOIRE que l'utilisateur ne connaît pas (aucun endpoint pour le
+    // définir) : les bloquer violerait le droit à l'effacement (RGPD). Pour eux, la
+    // session déjà authentifiée (require_user) fait foi.
     $u = require_user();
     rate_limit('delete', 5, 900);
     $password = (string)($b['password'] ?? '');
-    $st = db()->prepare('SELECT pass_hash FROM users WHERE id = ?');
+    $st = db()->prepare('SELECT pass_hash, google_sub FROM users WHERE id = ?');
     $st->execute([$u['id']]);
-    $hash = $st->fetchColumn();
-    if (!$hash || !password_verify($password, $hash)) {
+    $acc = $st->fetch(PDO::FETCH_ASSOC);
+    $okPw = $acc && $acc['pass_hash'] && password_verify($password, $acc['pass_hash']);
+    $isGoogle = $acc && !empty($acc['google_sub']);
+    if (!$okPw && !$isGoogle) {
       usleep(350000);
       fail(401, 'mot de passe incorrect');
     }

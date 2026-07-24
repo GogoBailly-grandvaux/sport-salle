@@ -316,10 +316,18 @@ async function deleteAccount() {
     message: t('Toutes tes données en ligne (séances, amis, groupes, partages) seront définitivement effacées. Les données locales de ce téléphone sont conservées.','All your online data (workouts, friends, groups, shares) will be permanently erased. Local data on this phone is kept.'),
     confirmText: t('Continuer','Continue'), danger: true,
   })) return;
-  const password = await promptDialog({ title: t('Confirme avec ton mot de passe','Confirm with your password'), label: t('Mot de passe','Password'), type: 'password', confirmText: t('Supprimer','Delete') });
-  if (password == null) return;
+  // Les comptes Google n'ont pas de mot de passe utilisateur : on ne le demande pas
+  // (sinon la suppression serait impossible — blocage du droit à l'effacement RGPD).
+  let hasGoogle = false;
+  try { hasGoogle = !!(await call('auth', 'me', {})).hasGoogle; } catch {}
+  let payload = {};
+  if (!hasGoogle) {
+    const password = await promptDialog({ title: t('Confirme avec ton mot de passe','Confirm with your password'), label: t('Mot de passe','Password'), type: 'password', confirmText: t('Supprimer','Delete') });
+    if (password == null) return;
+    payload = { password };
+  }
   try {
-    await call('auth', 'delete', { password });
+    await call('auth', 'delete', payload);
     await savePSettings({ account: null });
     emit('account-changed');
     toast(t('Compte supprimé. Tes données locales restent sur ce téléphone.','Account deleted. Your local data stays on this phone.'));
