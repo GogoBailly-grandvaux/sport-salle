@@ -73,6 +73,27 @@ export function allTimeBests(workouts, exerciseId, formula = 'epley') {
   return { maxWeight, maxReps, bestE1rm, bestSetVol, sessions };
 }
 
+// Records détaillés d'un exercice, AVEC dates (affichage fiche progression)
+export function exerciseRecords(workouts, exerciseId, formula = 'epley') {
+  const rec = { maxWeight: null, maxReps: null, bestE1rm: null, bestSetVol: null, bestSessionVol: null };
+  const upd = (k, v, ts) => { if (v > 0 && (!rec[k] || v > rec[k].value)) rec[k] = { value: v, ts }; };
+  for (const w of workouts) {
+    if (w.status !== 'completed') continue;
+    const ts = w.completedAt || w.startedAt;
+    let sess = 0;
+    for (const s of setsForExercise(w, exerciseId)) {
+      if (!isWorkingSet(s)) continue;
+      upd('maxWeight', s.weightKg || 0, ts);
+      upd('maxReps', s.reps || 0, ts);
+      upd('bestE1rm', e1rm(s.weightKg, s.reps, formula), ts);
+      upd('bestSetVol', setVolume(s), ts);
+      sess += setVolume(s);
+    }
+    upd('bestSessionVol', sess, ts);
+  }
+  return rec;
+}
+
 // Compare a (just-finished) workout to prior history -> new PRs
 export function detectPRs(current, priorWorkouts, formula = 'epley') {
   const prs = [];

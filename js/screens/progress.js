@@ -1,6 +1,6 @@
 // screens/progress.js — progress hub, per-exercise charts, body metrics
 import { t } from '../i18n.js';
-import { esc, fmtDate, relDate, todayISO, fmtWeight, round , isoToTs } from '../util.js';
+import { esc, fmtDate, relDate, todayISO, fmtWeight, round, isoToTs, trimNum } from '../util.js';
 import { ps, state, nav } from '../store.js';
 import { icon, sheet, promptDialog, confirmDialog, toast } from '../ui.js';
 import { getExercise, muscleFR, MUSCLE_GROUP, musclesMap } from '../data.js';
@@ -10,7 +10,7 @@ import { openExercisePicker } from './picker.js';
 import { listWorkouts, listMetrics, addMetric, deleteMetric, latestMetric } from '../model.js';
 import {
   exerciseHistory, allTimeBests, weeklyVolumeSeries, muscleVolumeThisWeek, emaTrend,
-  e1rm, isWorkingSet, thisWeekCount, goalStreak,
+  e1rm, isWorkingSet, thisWeekCount, goalStreak, exerciseRecords,
 } from '../analytics.js';
 import { lineChart, barChart, sparkline } from '../charts.js';
 import { computeAchievements } from '../achievements.js';
@@ -231,6 +231,40 @@ export async function renderExercise(params) {
       repMax[s.reps] = Math.max(repMax[s.reps]||0, s.weightKg||0);
   const rmRows = Object.keys(repMax).map(Number).sort((a,b)=>a-b).map(r => `<div class="rm-cell"><b>${repMax[r]} ${unit}</b><span>${r} rep${r>1?'s':''}</span></div>`).join('');
 
+  // records personnels datés (façon Lyfta — 5 types)
+  const rec = exerciseRecords(workouts, id, ps('e1rmFormula'));
+  const recRow = (label, r, fmt) => r ? `<div class="pr-row">${icon('medal')}<div><b>${esc(label)}</b><span>${fmt(r.value)} · ${relDate(r.ts).toLowerCase()}</span></div></div>` : '';
+  const recordsCard = `<section class="card"><h3 class="card-t">${icon('medal')} ${t('Records personnels','Personal records')}</h3>
+    ${recRow(t('1RM estimé','Estimated 1RM'), rec.bestE1rm, v => Math.round(v) + ' ' + unit)}
+    ${recRow(t('Charge max','Max weight'), rec.maxWeight, v => v + ' ' + unit)}
+    ${recRow(t('Max répétitions','Max reps'), rec.maxReps, v => v + ' reps')}
+    ${recRow(t('Volume en une série','Single-set volume'), rec.bestSetVol, v => Math.round(v) + ' ' + unit)}
+    ${recRow(t('Volume en une séance','Session volume'), rec.bestSessionVol, v => Math.round(v) + ' ' + unit)}
+  </section>`;
+
+  // table % du 1RM (Epley inversé : reps ≈ 30 × (1RM/charge − 1))
+  let pctTable = '';
+  if (rec.bestE1rm) {
+    const rm = rec.bestE1rm.value;
+    const rows = [100, 95, 90, 85, 80, 75, 70, 65, 60, 50].map(p => {
+      const wKg = Math.round(rm * p / 100 / 2.5) * 2.5;
+      const reps = p >= 100 ? 1 : Math.max(1, Math.round(30 * (100 / p - 1)));
+      return `<div class="pct-row"><span class="pct-p">${p}%</span><b>${trimNum(wKg)} ${unit}</b><span class="mut sm">~${reps} rep${reps > 1 ? 's' : ''}</span></div>`;
+    }).join('');
+    pctTable = `<section class="card"><h3 class="card-t">${icon('calc')} ${t('Charges par % du 1RM','Loads by % of 1RM')}</h3>
+      <div class="pct-grid">${rows}</div>
+      <p class="mut sm">${t('Estimation Epley basée sur ton meilleur 1RM.','Epley estimate based on your best 1RM.')}</p></section>`;
+  }
+
+  // historique des records (les PR enregistrés en fin de séance)
+  const myPrs = [];
+  for (const w of workouts) for (const pr of (w.prs || [])) if (pr.exerciseId === id) myPrs.push({ ...pr, ts: w.completedAt });
+  myPrs.sort((a, b) => b.ts - a.ts);
+  const prLabel = (ty) => ty === 'estimated1rm' ? t('1RM estimé','Est. 1RM') : ty === 'maxWeight' ? t('Charge max','Max weight') : ty === 'first' ? t('Première fois','First time') : t('Volume/série','Set volume');
+  const prHistory = myPrs.length ? `<section class="card"><h3 class="card-t">${icon('history')} ${t('Historique des records','Record history')}</h3>
+    ${myPrs.slice(0, 8).map(pr => `<div class="pr-row">${icon('trophy')}<div><b>${prLabel(pr.type)}</b><span>${pr.type === 'first' ? t('bienvenue','welcome') : Math.round(pr.value) + ' ' + unit} · ${relDate(pr.ts).toLowerCase()}</span></div></div>`).join('')}
+  </section>` : '';
+
   const body = hist.length ? `
     <div class="ex-kpis">
       <div><b>${best.maxWeight||'—'}${best.maxWeight?' '+unit:''}</b><span>Charge max</span></div>
@@ -240,6 +274,9 @@ export async function renderExercise(params) {
     <section class="card"><h3 class="card-t">${t('1RM estimé','Estimated 1RM')}</h3>${hist.length>1?lineChart(hist,{valueKey:'bestE1rm',fmt:v=>Math.round(v),height:150}):`<p class="mut sm">${t('Encore','Just')} ${2-hist.length} ${t('séance pour tracer la courbe.','more session to draw the curve.')}</p>`}</section>
     <section class="card"><h3 class="card-t">${t('Volume par séance','Volume per session')}</h3>${barChart(hist,{valueKey:'volume',height:130})}</section>
     ${rmRows?`<section class="card"><h3 class="card-t">${t('Records par répétitions','Rep records')}</h3><div class="rm-grid">${rmRows}</div></section>`:''}
+    ${recordsCard}
+    ${pctTable}
+    ${prHistory}
     ` : emptyState('chart',t('Aucune donnée','No data'),t('Tu n’as pas encore fait cet exercice en séance.','You haven’t done this exercise in a workout yet.'),'');
 
   return `

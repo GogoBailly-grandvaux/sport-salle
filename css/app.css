@@ -446,6 +446,12 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 .accent-dot.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
 .emoji-pick{display:flex;gap:8px;flex-wrap:wrap}
 [hidden]{display:none!important} /* l'attribut hidden doit TOUJOURS gagner (sinon .btn{display:flex} l'écrase) */
+/* Records enrichis + table %1RM */
+.pct-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px}
+.pct-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-variant-numeric:tabular-nums;border-bottom:1px solid var(--line)}
+.pct-row:nth-last-child(-n+2){border-bottom:none}
+.pct-p{font-size:.72rem;font-weight:800;color:var(--accent);width:34px}
+.pct-row b{font-size:.88rem}
 /* Filtre par muscle façon Lyfta (mini-silhouettes) */
 .mf-row{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;margin:2px 0 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .mf-row::-webkit-scrollbar{display:none}
