@@ -175,7 +175,7 @@ export function openAuthSheet(mode = 'register', onDone = null) {
     </div>
     <form id="auth-form" autocomplete="on" novalidate>
       <label class="field-label" for="au-user">${t('Pseudo','Username')}${isReg ? t(' (unique, sans espace)',' (unique, no spaces)') : ''}</label>
-      <div class="input-ico"><span class="at">@</span><input class="input at-input" id="au-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="hugo_b" maxlength="20" required></div>
+      <div class="input-ico"><span class="at">@</span><input class="input at-input" id="au-user" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ton_pseudo" maxlength="20" required></div>
       ${isReg ? `<label class="field-label" for="au-name">${t('Prénom affiché','Display name')}</label>
       <input class="input" id="au-name" value="${esc(p?.name || '')}" maxlength="40">` : ''}
       <label class="field-label" for="au-pass">${t('Mot de passe','Password')}${isReg ? t(' (8 caractères minimum)',' (8 characters minimum)') : ''}</label>
