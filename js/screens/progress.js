@@ -12,7 +12,7 @@ import {
   exerciseHistory, allTimeBests, weeklyVolumeSeries, muscleVolumeThisWeek, emaTrend,
   e1rm, isWorkingSet, thisWeekCount, goalStreak, exerciseRecords,
 } from '../analytics.js';
-import { lineChart, barChart, sparkline } from '../charts.js';
+import { lineChart, barChart, sparkline, radarChart } from '../charts.js';
 import { computeAchievements } from '../achievements.js';
 import { monthlyChallenges, monthLabel, monthKey, wonThisMonth } from '../monthly.js';
 import { call, isLoggedIn } from '../api.js';
@@ -71,6 +71,29 @@ export async function renderHub() {
       <span class="mv-n">${round(n,1)}</span></div>`).join('')
     : `<p class="mut sm">Pas encore de séries cette semaine.</p>`;
 
+  // équilibre musculaire (radar 30 jours, séries par groupe)
+  const since30 = Date.now() - 30 * 864e5;
+  const gSets = new Map();
+  for (const w of workouts) {
+    if (w.status !== 'completed') continue;
+    const ts = w.completedAt || w.startedAt;
+    if (!ts || ts < since30) continue;
+    for (const e of (w.exercises || [])) {
+      const done = (e.sets || []).filter(s => s.done).length;
+      if (!done) continue;
+      const lib = state.libraryById.get(e.exerciseId);
+      const g = MUSCLE_GROUP[lib?.primaryMuscles?.[0]];
+      if (g) gSets.set(g, (gSets.get(g) || 0) + done);
+    }
+  }
+  const RADAR_ORDER = ['Pectoraux', 'Épaules', 'Bras', 'Abdos', 'Jambes', 'Dos'];
+  const radarData = RADAR_ORDER.map(g => ({ label: g, value: gSets.get(g) || 0 }));
+  const radarCard = [...gSets.values()].some(v => v > 0) ? `<section class="card">
+      <h3 class="card-t">${icon('target')} ${t('Équilibre musculaire','Muscle balance')} · 30 ${t('jours','days')}</h3>
+      <div class="radar-wrap">${radarChart(radarData)}</div>
+      <p class="mut sm">${t('Séries par groupe — un radar régulier = un physique équilibré.','Sets per group — an even radar means a balanced physique.')}</p>
+    </section>` : '';
+
   // top exercises by frequency
   const freq = new Map();
   for (const w of workouts) for (const ex of (w.exercises||[])) if ((ex.sets||[]).some(isWorkingSet)) freq.set(ex.exerciseId, (freq.get(ex.exerciseId)||0)+1);
@@ -120,6 +143,7 @@ export async function renderHub() {
         <h3 class="card-t">${t('Volume par semaine','Weekly volume')}</h3>
         ${hasVol ? barChart(wv, { valueKey:'value', height:140 }) : `<p class="mut sm">Pas assez de données.</p>`}
       </section>
+      ${radarCard}
 
       <section class="card">
         <h3 class="card-t">Séries par muscle · cette semaine</h3>
@@ -155,10 +179,10 @@ export async function renderAchievements() {
     <div class="ach-card ${a.done ? 'done' : ''}">
       <div class="ach-emoji">${icon(a.icon)}</div>
       <div class="ach-body">
-        <b>${esc(a.title)}</b>
+        <b>${esc(a.title)}${a.tierMax > 1 ? ` <span class="ach-pips">${Array.from({ length: a.tierMax }, (_, i) => `<i class="${i < a.tier ? 'on' : ''}"></i>`).join('')}</span>` : ''}</b>
         <span class="mut sm">${esc(a.desc)}</span>
-        ${a.done ? `<span class="ach-tag">${t('Débloqué','Unlocked')} ✓</span>`
-          : `<div class="ach-prog"><div class="ach-prog-bar"><i style="width:${a.pct}%"></i></div><span>${a.cur}/${a.target}</span></div>`}
+        ${a.tier >= a.tierMax ? `<span class="ach-tag">${a.tierMax > 1 ? t('Palier max','Max tier') : t('Débloqué','Unlocked')} ✓</span>`
+          : `<div class="ach-prog"><div class="ach-prog-bar"><i style="width:${a.pct}%"></i></div><span>${a.cur}/${a.target}${a.tierMax > 1 ? ` · ${t('palier','tier')} ${a.tier + 1}` : ''}</span></div>`}
       </div>
     </div>`).join('');
   return `

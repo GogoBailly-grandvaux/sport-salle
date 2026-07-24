@@ -85,3 +85,26 @@ export function sparkline(values, opts = {}) {
   const pts = values.map((v, i) => `${(i/(values.length-1)*width).toFixed(1)},${y(v).toFixed(1)}`);
   return `<svg class="spark" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none"><path class="spark-line" d="M${pts.join(' L')}"/></svg>`;
 }
+
+// Radar « équilibre musculaire » : SVG pur, 3 anneaux, polygone accent.
+export function radarChart(data, opts = {}) {
+  const { size = 260 } = opts;
+  const n = data.length;
+  if (!n) return '';
+  const cx = size / 2, cy = size / 2, R = size / 2 - 34;
+  const max = Math.max(1, ...data.map(d => d.value));
+  const angle = (i) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
+  const pt = (i, r) => `${(cx + Math.cos(angle(i)) * r).toFixed(1)},${(cy + Math.sin(angle(i)) * r).toFixed(1)}`;
+  const ring = (f) => `<polygon class="radar-ring" points="${data.map((_, i) => pt(i, R * f)).join(' ')}"/>`;
+  const axes = data.map((_, i) => `<line class="radar-axis" x1="${cx}" y1="${cy}" x2="${pt(i, R).split(',')[0]}" y2="${pt(i, R).split(',')[1]}"/>`).join('');
+  const shape = data.map((d, i) => pt(i, R * (d.value / max))).join(' ');
+  const dots = data.map((d, i) => { const [x, y] = pt(i, R * (d.value / max)).split(','); return `<circle class="radar-dot" cx="${x}" cy="${y}" r="3.5"/>`; }).join('');
+  const labels = data.map((d, i) => {
+    const [x, y] = pt(i, R + 20).split(',').map(Number);
+    const anchor = Math.abs(x - cx) < 8 ? 'middle' : x > cx ? 'start' : 'end';
+    return `<text class="radar-lab" x="${x}" y="${y + 3}" text-anchor="${anchor}">${d.label}</text>`;
+  }).join('');
+  return `<svg class="radar" viewBox="0 0 ${size} ${size}" role="img" aria-label="Équilibre musculaire">
+    ${ring(1)}${ring(2 / 3)}${ring(1 / 3)}${axes}
+    <polygon class="radar-shape" points="${shape}"/>${dots}${labels}</svg>`;
+}
