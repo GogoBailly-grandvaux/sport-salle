@@ -14,6 +14,9 @@
   --danger:#d1493a; --good:#2f9e6b;
   --radius:14px; --radius-sm:11px; --radius-lg:20px; --tap:54px;
   --edge:0 2px 0 var(--line);
+  --btn-primary-bg:linear-gradient(140deg,color-mix(in srgb,var(--accent) 82%,#fff 14%),var(--accent));
+  --btn-primary-fg:var(--on-accent);
+  --btn-primary-glow:color-mix(in srgb,var(--accent) 38%,transparent);
   --shadow:0 1px 2px rgba(20,24,32,.05),0 10px 30px rgba(20,24,32,.07);
   --glow:0 8px 28px;
   --safe-b:env(safe-area-inset-bottom,0px);
@@ -21,10 +24,12 @@
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0a0c11; --bg2:#0e1118; --surface:#151924; --surface2:#1c2130;
-  --line:#262d3f; --line2:#3a4158; --text:#f2f4f9; --text2:#b6bdcc; --muted:#7d8698;
-  --on-accent:#12140a; --danger:#f06a5c; --good:#3ddc97;
-  --shadow:0 1px 2px rgba(0,0,0,.45),0 14px 38px rgba(0,0,0,.5);
+  --bg:#050506; --bg2:#0b0b0d; --surface:#17181c; --surface2:#232428;
+  --line:#232428; --line2:#3a3c42; --text:#ffffff; --text2:#c7c9ce; --muted:#8a8d94;
+  --on-accent:#0b0b0d; --danger:#f06a5c; --good:#3ddc97;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 38px rgba(0,0,0,.55);
+  --edge:none;
+  --btn-primary-bg:#ffffff; --btn-primary-fg:#0b0b0d; --btn-primary-glow:rgba(255,255,255,.14);
 }}
 :root[data-theme="light"]{
   --bg:#eceef0; --bg2:#f6f7f9; --surface:#ffffff; --surface2:#eaecef;
@@ -33,10 +38,12 @@
   --shadow:0 1px 2px rgba(20,24,32,.05),0 10px 30px rgba(20,24,32,.07);
 }
 :root[data-theme="dark"]{
-  --bg:#0a0c11; --bg2:#0e1118; --surface:#151924; --surface2:#1c2130;
-  --line:#262d3f; --line2:#3a4158; --text:#f2f4f9; --text2:#b6bdcc; --muted:#7d8698;
-  --on-accent:#12140a; --danger:#f06a5c; --good:#3ddc97;
-  --shadow:0 1px 2px rgba(0,0,0,.45),0 14px 38px rgba(0,0,0,.5);
+  --bg:#050506; --bg2:#0b0b0d; --surface:#17181c; --surface2:#232428;
+  --line:#232428; --line2:#3a3c42; --text:#ffffff; --text2:#c7c9ce; --muted:#8a8d94;
+  --on-accent:#0b0b0d; --danger:#f06a5c; --good:#3ddc97;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 38px rgba(0,0,0,.55);
+  --edge:none;
+  --btn-primary-bg:#ffffff; --btn-primary-fg:#0b0b0d; --btn-primary-glow:rgba(255,255,255,.14);
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -98,11 +105,11 @@ body.immersive #view{padding-bottom:calc(70px + var(--safe-b))}
 .avatar{width:38px;height:38px;border-radius:50%;border:2px solid var(--a,var(--accent));background:color-mix(in srgb,var(--a,var(--accent)) 22%,var(--surface));color:var(--text);font-weight:800;font-size:1rem;display:flex;align-items:center;justify-content:center}
 
 /* buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:13px;
-  padding:0 16px;height:var(--tap);font-weight:700;font-size:.98rem;background:var(--surface2);color:var(--text);transition:transform .08s}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid transparent;border-radius:999px;
+  padding:0 18px;height:var(--tap);font-weight:700;font-size:.98rem;background:var(--surface2);color:var(--text);transition:transform .08s}
 .btn:active{transform:scale(.975)}
 .btn .ico{width:20px;height:20px}
-.btn.primary{background:linear-gradient(140deg,color-mix(in srgb,var(--accent) 82%,#fff 14%),var(--accent));color:var(--on-accent);box-shadow:var(--glow) color-mix(in srgb,var(--accent) 38%,transparent)}
+.btn.primary{background:var(--btn-primary-bg);color:var(--btn-primary-fg);box-shadow:var(--glow) var(--btn-primary-glow)}
 .btn.ghost{background:var(--surface);border-color:var(--line)}
 .btn.danger{background:var(--danger);color:#fff}
 .btn.danger-ghost{background:transparent;border-color:transparent;color:var(--danger)}
@@ -439,6 +446,10 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 .accent-dot.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
 .emoji-pick{display:flex;gap:8px;flex-wrap:wrap}
 [hidden]{display:none!important} /* l'attribut hidden doit TOUJOURS gagner (sinon .btn{display:flex} l'écrase) */
+/* Supersets */
+.wk-ex.ss{border-left:3px solid var(--ssc,var(--accent))}
+.ss-chip{display:inline-flex;align-items:center;gap:5px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--ssc,var(--accent));margin-bottom:8px}
+.ss-chip .ico{width:13px;height:13px}
 /* Récupération musculaire */
 .rec-card{width:100%;text-align:left}
 .rec-hub{display:flex;align-items:center;gap:14px}

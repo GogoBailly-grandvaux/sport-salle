@@ -41,6 +41,48 @@ function setRowHtml(ex, s, numLabel) {
   </div>`;
 }
 
+// ---- supersets : enchaîner 2+ exercices, repos seulement après le dernier ----
+const SS_COLORS = ['#54c5f2', '#f2679b', '#b989f2', '#3ee0a8', '#f2a63c'];
+function ssColor(group) {
+  const groups = [...new Set(W.exercises.filter(e => e.supersetGroup).sort((a, b) => a.order - b.order).map(e => e.supersetGroup))];
+  return SS_COLORS[Math.max(0, groups.indexOf(group)) % SS_COLORS.length];
+}
+function ssPartners(ex) {
+  return W.exercises.filter(e => e.supersetGroup && e.supersetGroup === ex.supersetGroup);
+}
+function isLastOfSuperset(ex) {
+  const p = ssPartners(ex).sort((a, b) => a.order - b.order);
+  return !p.length || p[p.length - 1].id === ex.id;
+}
+function applySsDom(exId) {
+  const el = document.querySelector(`.wk-ex[data-ex="${exId}"]`);
+  const ex = W.exercises.find(e => e.id === exId);
+  if (!el || !ex) return;
+  el.classList.toggle('ss', !!ex.supersetGroup);
+  if (ex.supersetGroup) el.style.setProperty('--ssc', ssColor(ex.supersetGroup));
+  el.querySelector('.ss-chip')?.remove();
+  if (ex.supersetGroup) el.insertAdjacentHTML('afterbegin', `<div class="ss-chip">${icon('swords')} Superset</div>`);
+}
+function supersetSheet(ex) {
+  const others = W.exercises.filter(e => e.id !== ex.id);
+  if (!others.length) { toast(t('Ajoute d’abord un autre exercice.','Add another exercise first.')); return; }
+  const name = (id) => { const m = getExercise(id); return m ? m.name : 'Exercice'; };
+  const s = sheet(`
+    <p class="mut sm">${t('Choisis l’exercice à enchaîner avec','Pick the exercise to chain with')} <b>${esc(name(ex.exerciseId))}</b> — ${t('le repos ne démarre qu’après le dernier du groupe.','rest only starts after the last one of the group.')}</p>
+    ${others.map(o => `<button class="menu-row" data-p="${o.id}">${o.supersetGroup ? `${icon('swords')} ` : ''}${esc(name(o.exerciseId))}</button>`).join('')}
+  `, { title: t('Superset','Superset') });
+  s.root.querySelectorAll('[data-p]').forEach(b => b.onclick = () => {
+    const partner = W.exercises.find(e => e.id === b.dataset.p);
+    if (!partner) return;
+    const group = partner.supersetGroup || uid();
+    partner.supersetGroup = group; ex.supersetGroup = group;
+    persist(); s.close();
+    ssPartners(ex).forEach(e => applySsDom(e.id));
+    toast(t('Superset créé — enchaîne-les !','Superset created — chain them!'));
+    vibrate(15);
+  });
+}
+
 function exBlockHtml(ex) {
   const meta = getExercise(ex.exerciseId);
   const nmap = setNumberMap(ex);
@@ -50,7 +92,9 @@ function exBlockHtml(ex) {
   const coachChip = hint
     ? `<button class="coach-chip" data-act="applysuggest" data-kg="${hint.suggestKg}" title="${esc(hint.reason)}">${icon('target')} ${t('Coach : tente','Coach: try')} ${trimNum(hint.suggestKg)} kg</button>`
     : '';
-  return `<section class="wk-ex" data-ex="${ex.id}">
+  const ssAttr = ex.supersetGroup ? ` style="--ssc:${ssColor(ex.supersetGroup)}"` : '';
+  return `<section class="wk-ex ${ex.supersetGroup ? 'ss' : ''}"${ssAttr} data-ex="${ex.id}">
+    ${ex.supersetGroup ? `<div class="ss-chip">${icon('swords')} Superset</div>` : ''}
     <div class="wk-ex-head">
       ${exImage(meta)}
       <div class="wk-ex-t"><b data-nav="#/library/${encodeURIComponent(ex.exerciseId)}">${esc(meta ? meta.name : 'Exercice')}</b><span>${esc((meta?.primaryMuscles||[]).map(muscleFR).slice(0,2).join(', '))} ${target}</span></div>
@@ -183,7 +227,11 @@ function toggleDone(btn, ex) {
     s.completedAt = Date.now();
     row.classList.add('done');
     vibrate(15);
-    startRest(ex._restSec ?? ps('defaultRestSec')); // ?? : un repos réglé à 0 = pas de minuteur
+    if (ex.supersetGroup && !isLastOfSuperset(ex)) {
+      toast(t('Superset : enchaîne direct sur le suivant !','Superset: go straight to the next one!'), { duration: 2000 });
+    } else {
+      startRest(ex._restSec ?? ps('defaultRestSec')); // ?? : un repos réglé à 0 = pas de minuteur
+    }
   } else {
     s.completedAt = null; row.classList.remove('done');
   }
@@ -360,9 +408,23 @@ function exMenu(exEl, ex) {
     <button class="menu-row" data-a="warmup">${icon('flame')} ${t('Générer l’échauffement','Generate warm-up')}</button>
     <button class="menu-row" data-a="plates">${icon('calc')} ${t('Chargement de la barre','Barbell loading')}</button>
     <button class="menu-row" data-a="note">${icon('edit')} ${t('Note d’exercice','Exercise note')}</button>
+    <button class="menu-row" data-a="superset">${icon('swords')} ${ex.supersetGroup ? t('Retirer du superset','Remove from superset') : t('Ajouter à un superset','Add to superset')}</button>
     <button class="menu-row danger" data-a="remove">${icon('trash')} ${t('Retirer l’exercice','Remove exercise')}</button>`, { title: t('Exercice','Exercise') });
   s.root.querySelector('[data-a="rest"]').onclick = () => { s.close(); restSheet(ex); };
   s.root.querySelector('[data-a="warmup"]').onclick = () => { s.close(); addWarmupSets(exEl, ex); };
+  s.root.querySelector('[data-a="superset"]').onclick = () => {
+    s.close();
+    if (ex.supersetGroup) {
+      const rest = ssPartners(ex).filter(e => e.id !== ex.id);
+      ex.supersetGroup = null;
+      if (rest.length === 1) rest[0].supersetGroup = null; // un superset à 1 n'existe pas
+      persist();
+      applySsDom(ex.id); rest.forEach(e => applySsDom(e.id));
+      toast(t('Retiré du superset.','Removed from superset.'));
+    } else {
+      supersetSheet(ex);
+    }
+  };
   s.root.querySelector('[data-a="plates"]').onclick = () => {
     s.close();
     const w = ex.sets.find(x => !x.done && x.weightKg)?.weightKg || ex.sets.find(x => x.weightKg)?.weightKg || (ps('barWeightKg') || 20);

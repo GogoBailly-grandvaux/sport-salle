@@ -52,7 +52,7 @@ export function ps(key) {
 // ---- settings persistence ----
 export async function loadGlobal() {
   let g = await db.get('settings', 'global');
-  if (!g) { g = { id: 'global', activeProfileId: null, theme: 'system', seededExercises: false }; await db.put('settings', g); }
+  if (!g) { g = { id: 'global', activeProfileId: null, theme: 'dark', seededExercises: false }; await db.put('settings', g); }
   state.global = g;
   return g;
 }
