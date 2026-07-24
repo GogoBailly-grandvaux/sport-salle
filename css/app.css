@@ -446,6 +446,16 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 .accent-dot.sel{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
 .emoji-pick{display:flex;gap:8px;flex-wrap:wrap}
 [hidden]{display:none!important} /* l'attribut hidden doit TOUJOURS gagner (sinon .btn{display:flex} l'écrase) */
+/* Filtre par muscle façon Lyfta (mini-silhouettes) */
+.mf-row{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 10px;margin:2px 0 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.mf-row::-webkit-scrollbar{display:none}
+.mf-tile{flex:none;width:58px;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;padding:0;cursor:pointer}
+.mf-fig{width:54px;height:74px;border-radius:12px;background:var(--surface2);border:2px solid transparent;position:relative;overflow:hidden;display:block;transition:border-color .12s}
+.mf-fig img{position:absolute;left:50%;top:3px;transform:translateX(-50%);height:68px;width:auto}
+.mf-tile.sel .mf-fig{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface2))}
+.mf-lab{font-size:.62rem;color:var(--muted);max-width:58px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mf-tile.sel .mf-lab{color:var(--accent);font-weight:700}
+#pk-mf .mf-row{padding-top:8px}
 /* Supersets */
 .wk-ex.ss{border-left:3px solid var(--ssc,var(--accent))}
 .ss-chip{display:inline-flex;align-items:center;gap:5px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--ssc,var(--accent));margin-bottom:8px}

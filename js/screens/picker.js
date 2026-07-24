@@ -3,6 +3,7 @@ import { t } from '../i18n.js';
 import { esc, debounce } from '../util.js';
 import { sheet, icon, toast } from '../ui.js';
 import { searchExercises, muscleFR, MUSCLE_FR, EQUIP_FR, addCustomExercise } from '../data.js';
+import { muscleFilterRow, wireMuscleFilterRow } from './common.js';
 import { exImage } from './common.js';
 
 export function openExercisePicker({ multi = true, onPick } = {}) {
@@ -49,6 +50,7 @@ export function openExercisePicker({ multi = true, onPick } = {}) {
     <div class="pick-search">
       <div class="input-ico">${icon('search')}<input class="input" id="pk-q" placeholder="${t('Rechercher un exercice','Search exercises')}" aria-label="${t('Rechercher un exercice','Search exercises')}" autocomplete="off"></div>
       <select class="input select" id="pk-muscle" aria-label="${t('Filtrer par muscle','Filter by muscle')}">${muscleOpts}</select>
+      <div id="pk-mf"></div>
     </div>
     <div class="pick-list" id="pk-list">${listHtml()}</div>
     ${multi ? `<div class="pick-foot"><button class="btn primary" id="pk-add" disabled>${t('Ajouter','Add')}</button></div>` : ''}`;
@@ -70,7 +72,23 @@ export function openExercisePicker({ multi = true, onPick } = {}) {
     updateFoot();
   });
   s.root.querySelector('#pk-q').addEventListener('input', debounce(e => { q = e.target.value; refresh(); }, 160));
-  s.root.querySelector('#pk-muscle').addEventListener('change', e => { muscle = e.target.value; refresh(); });
+  s.root.querySelector('#pk-muscle').addEventListener('change', e => {
+    muscle = e.target.value; refresh();
+    // synchronise la rangée visuelle
+    s.root.querySelectorAll('.mf-tile').forEach(x => { x.classList.toggle('sel', x.dataset.mf === muscle); x.setAttribute('aria-pressed', String(x.dataset.mf === muscle)); });
+  });
+  // rangée de muscles façon Lyfta (chargée en async — silhouettes wger)
+  muscleFilterRow(muscle).then(html => {
+    const host = s.root.querySelector('#pk-mf');
+    if (!host || !html) return;
+    host.innerHTML = html;
+    wireMuscleFilterRow(host.querySelector('.mf-row'), (m) => {
+      muscle = m;
+      const sel = s.root.querySelector('#pk-muscle');
+      if (sel) sel.value = m;
+      refresh();
+    });
+  });
   if (addBtn) addBtn.onclick = () => { if (!selected.size) return; s.close(); onPick && onPick([...selected]); };
   wireNew();
   observeMore();

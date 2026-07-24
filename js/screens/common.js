@@ -2,7 +2,7 @@
 import { esc } from '../util.js';
 import { icon } from '../ui.js';
 import { t } from '../i18n.js';
-import { imageUrls, muscleFR, MUSCLE_GROUP } from '../data.js';
+import { imageUrls, muscleFR, MUSCLE_GROUP, musclesMap } from '../data.js';
 
 // Démo animée du mouvement : les images free-exercise-db sont 2 frames
 // (départ / fin) ; on les fait boucler en fondu = une vraie « vidéo » du geste,
@@ -79,4 +79,39 @@ export function appHeader(title, { left = '', right = '', sub = '' } = {}) {
 
 export function backBtn(hash) {
   return `<button class="icon-btn" data-nav="${esc(hash)}" aria-label="Retour">${icon('back')}</button>`;
+}
+
+
+// ---- filtre par muscle façon Lyfta : mini-silhouettes cliquables ----
+const MF_ORDER = ['chest','shoulders','biceps','triceps','forearms','abdominals','lats','middle back','lower back','traps','quadriceps','hamstrings','glutes','calves','abductors','adductors','neck'];
+export async function muscleFilterRow(selected = '') {
+  const mm = await musclesMap();
+  if (!mm || !mm.byOurName || !mm.bodyImages) return '';
+  const thumb = (m) => {
+    const ids = mm.byOurName[m] || [];
+    if (!ids.length) return '';
+    const frontN = ids.filter(id => mm.byWgerId[id]?.isFront).length;
+    const useFront = frontN >= ids.length - frontN;
+    let ovs = '';
+    for (const id of ids) {
+      const mu = mm.byWgerId[id];
+      if (mu && mu.isFront === useFront && mu.main) ovs += `<img src="${esc(mu.main)}" alt="" loading="lazy">`;
+    }
+    const base = useFront ? mm.bodyImages.front : mm.bodyImages.back;
+    return `<button class="mf-tile ${selected === m ? 'sel' : ''}" type="button" data-mf="${esc(m)}" aria-label="${esc(muscleFR(m))}" aria-pressed="${selected === m}">
+      <span class="mf-fig"><img src="${esc(base)}" alt="" loading="lazy">${ovs}</span>
+      <span class="mf-lab">${esc(muscleFR(m))}</span>
+    </button>`;
+  };
+  return `<div class="mf-row">${MF_ORDER.map(thumb).join('')}</div>`;
+}
+
+// câblage : clic = filtre (re-clic = désélection). onPick(muscle|'')
+export function wireMuscleFilterRow(host, onPick) {
+  host.querySelectorAll('[data-mf]').forEach(b => b.onclick = () => {
+    const cur = host.querySelector('.mf-tile.sel');
+    const m = (cur === b) ? '' : b.dataset.mf;
+    host.querySelectorAll('.mf-tile').forEach(x => { x.classList.toggle('sel', x === b && m !== ''); x.setAttribute('aria-pressed', String(x === b && m !== '')); });
+    onPick(m);
+  });
 }

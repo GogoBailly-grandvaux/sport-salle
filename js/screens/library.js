@@ -8,7 +8,7 @@ import {
   MUSCLE_FR, EQUIP_FR, CATEGORY_FR, LEVEL_FR, FORCE_FR,
   loadFavorites, toggleFavorite, musclesMap,
 } from '../data.js';
-import { exImage, exDemo, muscleChips, emptyState, backBtn, groupColor } from './common.js';
+import { exImage, exDemo, muscleChips, emptyState, backBtn, groupColor, muscleFilterRow, wireMuscleFilterRow } from './common.js';
 import { listWorkouts, listRoutines, saveRoutine, getRoutine, mkRoutineItem } from '../model.js';
 import { allTimeBests } from '../analytics.js';
 
@@ -81,6 +81,7 @@ export async function renderList() {
         <div class="input-ico">${icon('search')}<input class="input" id="lib-q" placeholder="${t('Rechercher parmi','Search')} ${state.library.length} ${t('exercices','exercises')}" value="${esc(F.q)}" autocomplete="off"></div>
         <button class="icon-btn ${activeFilters.length?'active':''}" id="lib-filter" aria-label="${t('Filtres','Filters')}">${icon('filter')}</button>
       </div>
+      ${await muscleFilterRow(F.muscle)}
       ${activeFilters.length ? `<div class="filter-tags">${activeFilters.map(f=>`<span class="tag">${esc(f)}</span>`).join('')}<button class="tag clear" id="lib-clear2">${t('Effacer','Clear')} ${icon('x')}</button></div>` : ''}
       <p class="mut sm count">${res.length} ${t('exercice','exercise')}${res.length>1?'s':''}</p>
       <div class="lib-list">${rows}</div>
@@ -92,6 +93,8 @@ export function mountList(root) {
   q.addEventListener('input', debounce(e => { F.q = e.target.value; softRefresh(root); }, 160));
   root.querySelector('#lib-fav').onclick = () => { F.favOnly = !F.favOnly; nav.refresh(); };
   root.querySelector('#lib-filter').onclick = openFilters;
+  const mfRow = root.querySelector('.mf-row');
+  if (mfRow) wireMuscleFilterRow(mfRow, (m) => { F.muscle = m; nav.refresh(); });
   root.querySelector('#lib-clear')?.addEventListener('click', clearF);
   root.querySelector('#lib-clear2')?.addEventListener('click', clearF);
   wireFavs(root);
