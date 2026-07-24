@@ -169,7 +169,7 @@ function postBody(p) {
         }
         return `<span class="post-heat-side"><img src="${esc(front ? _mm.bodyImages.front : _mm.bodyImages.back)}" alt="" loading="lazy">${ov}</span>`;
       };
-      heat = `<span class="post-heat">${side(true)}${side(false)}</span>`;
+      heat = `<span class="post-heat" aria-hidden="true">${side(true)}${side(false)}</span>`;
     }
     return `<div class="post-wk ${heat ? 'has-heat' : ''}">${heat}<div class="post-wk-txt"><b>${icon('dumbbell')} ${esc(c.name || t('Séance','Workout'))}</b>
       <div class="fr-chips">${chips}</div>
@@ -197,7 +197,7 @@ function postCard(p) {
     <div class="post-head">
       <div class="post-a" data-nav="#/u/${esc(a.username || '')}" role="link" tabindex="0">
         ${avatarHtml(a)}
-        <div class="post-who"><b>${esc(a.displayName || '')}${a.verified ? ` <span class="verif">${icon('check')}</span>` : ''}</b><span class="mut sm">@${esc(a.username || '')} · ${ago(p.ts)}</span></div>
+        <div class="post-who"><b>${esc(a.displayName || '')}${a.verified ? ` <span class="verif" role="img" aria-label="${t('Compte vérifié','Verified account')}">${icon('check')}</span>` : ''}</b><span class="mut sm">@${esc(a.username || '')} · ${ago(p.ts)}</span></div>
       </div>
       ${p.isMine ? `<button class="icon-btn sm post-del" data-del="${p.id}" aria-label="${t('Supprimer le post','Delete post')}">${icon('trash')}</button>` : ''}
     </div>
@@ -553,7 +553,7 @@ export async function renderUserProfile(params) {
     <div class="trip">
       <div><b>${pr.canView ? (st?.totalWorkouts ?? 0) : '—'}</b><span>${t('Séances','Workouts')}</span></div>
       <div><b>${pr.friendsCount ?? 0}</b><span>${t('Amis','Friends')}</span></div>
-      <div><b>${pr.canView && st?.streak ? st.streak : '—'}</b><span>${t('Série (sem)','Streak (wk)')}</span></div>
+      <div><b>${pr.canView && st?.streak ? st.streak : '—'}</b><span>${t('Série','Streak')}</span></div>
     </div>
     ${pr.canView && (st?.weekCount || st?.weekVolume) ? `<p class="trip-sub mut sm">${st?.weekCount || 0} ${t('séances cette semaine','workouts this week')}${st?.weekVolume ? ` · ${Number(st.weekVolume).toLocaleString(t('fr-FR','en-US'))} kg` : ''}</p>` : ''}`;
   const relBtn = pr.isMe
@@ -582,7 +582,7 @@ export async function renderUserProfile(params) {
     <div class="screen-pad">
       <div class="prof-head">
         ${avatarHtml(pr, 'big')}
-        <h2 class="prof-name">${esc(pr.displayName || '')}${pr.verified ? ` <span class="verif big">${icon('check')}</span>` : ''}</h2>
+        <h2 class="prof-name">${esc(pr.displayName || '')}${pr.verified ? ` <span class="verif big" role="img" aria-label="${t('Compte vérifié','Verified account')}">${icon('check')}</span>` : ''}</h2>
         <p class="mut sm">@${esc(pr.username)} · ${pr.isPublic ? t('compte public','public account') : t('compte privé','private account')} · ${t('membre depuis','member since')} ${esc(pr.memberSince || '')}</p>
         ${pr.bio ? `<p class="prof-bio">${linkify(esc(pr.bio))}</p>` : ''}
         ${pr.instagram ? `<a class="insta-link" href="https://instagram.com/${esc(pr.instagram)}" target="_blank" rel="noopener">${icon('camera')} @${esc(pr.instagram)}</a>` : ''}

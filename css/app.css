@@ -505,7 +505,7 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 .story-name{font-size:.68rem;font-weight:700;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 .story-live{font-size:.58rem;color:var(--danger);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
 @keyframes storypulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
-@media (prefers-reduced-motion:reduce){.story-ring{animation:none}}
+@media (prefers-reduced-motion:reduce){.story-ring{animation:none}.ig-pop{animation:none;opacity:0}}
 .live-sheet-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
 .live-sheet-head .live-dot{margin-left:auto}
 /* Séance de groupe */

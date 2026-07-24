@@ -62,12 +62,12 @@ async function renderExplore() {
   if (isLoggedIn()) {
     try {
       const d = await call('programs', 'explore');
-      if ((d.programs || []).length) {
-        friends = `<h2 class="exp-h">${t('Programmes de tes amis','Programs from your friends')}</h2>
-          ${d.programs.map(p => `<div class="share-row"><div><b>${esc(p.name)}</b>
-            <span class="mut sm">${t('par','by')} ${esc(p.by?.displayName || '?')} · ${p.downloads} import${p.downloads > 1 ? 's' : ''}</span></div>
-            <button class="btn primary sm" data-pimport="${p.id}">${icon('download')} ${t('Importer','Import')}</button></div>`).join('')}`;
-      }
+      friends = `<h2 class="exp-h">${t('Programmes de tes amis','Programs from your friends')}</h2>` +
+        ((d.programs || []).length
+          ? d.programs.map(p => `<div class="share-row"><div><b>${esc(p.name)}</b>
+              <span class="mut sm">${t('par','by')} ${esc(p.by?.displayName || '?')} · ${p.downloads} import${p.downloads > 1 ? 's' : ''}</span></div>
+              <button class="btn primary sm" data-pimport="${p.id}">${icon('download')} ${t('Importer','Import')}</button></div>`).join('')
+          : `<p class="mut sm">${t('Aucun programme partagé pour l’instant. Publie un des tiens : ouvre un programme → menu → « Publier ».','Nothing shared yet. Publish one of yours: open a program → menu → “Publish”.')}</p>`);
     } catch {}
   }
 
@@ -76,7 +76,7 @@ async function renderExplore() {
     <h2 class="exp-h">${t('Modèles prêts à l’emploi','Ready-made templates')}</h2>
     ${grid}
     ${friends}
-    <h2 class="exp-h">${t('Explorer aussi','Also explore')}</h2>
+    <h2 class="exp-h">${t('À découvrir aussi','Also worth a look')}</h2>
     <div class="exp-tiles">
       <button class="exp-tile" data-nav="#/library">${icon('search')}<b>${t('Exercices','Exercises')}</b><span class="mut sm">${t('1 214 mouvements illustrés','1,214 illustrated moves')}</span></button>
       <button class="exp-tile" data-nav="#/gyms">${icon('building')}<b>${t('Salles','Gyms')}</b><span class="mut sm">${t('Qui s’entraîne où','Who trains where')}</span></button>
@@ -129,8 +129,8 @@ export async function renderList() {
     </header>
     <div class="screen-pad">
       <div class="segmented rtseg" id="rt-seg">
-        <button class="seg ${rtSeg === 'mine' ? 'on' : ''}" data-rtseg="mine">${t('Mes programmes','My programs')}</button>
-        <button class="seg ${rtSeg === 'explore' ? 'on' : ''}" data-rtseg="explore">${t('Explorer','Explore')}</button>
+        <button class="seg ${rtSeg === 'mine' ? 'on' : ''}" data-rtseg="mine" aria-pressed="${rtSeg === 'mine'}">${t('Mes programmes','My programs')}</button>
+        <button class="seg ${rtSeg === 'explore' ? 'on' : ''}" data-rtseg="explore" aria-pressed="${rtSeg === 'explore'}">${t('Explorer','Explore')}</button>
       </div>
       ${rtSeg === 'explore' ? await renderExplore() : `
       <button class="tpl-banner coach" id="rt-coach">
