@@ -690,6 +690,14 @@ async function celebrateAchievements(root) {
   try {
     const [{ computeAchievements, newlyUnlocked }, { listWorkouts }] = await Promise.all([import('../achievements.js'), import('../model.js')]);
     const workouts = await listWorkouts();
+    // classement entre amis : pousse mes meilleures perfs des exos de CETTE séance
+    if (isLoggedIn() && W?.exercises?.length) {
+      import('../analytics.js').then(({ allTimeBests }) => {
+        const ids = [...new Set(W.exercises.map(e => e.exerciseId))].slice(0, 30);
+        const bests = ids.map(id => { const b = allTimeBests(workouts, id, ps('e1rmFormula')); return { exerciseId: id, e1rm: Math.round(b.bestE1rm || 0), weight: Math.round(b.maxWeight || 0) }; }).filter(x => x.e1rm > 0);
+        if (bests.length) call('exobests', 'push', { bests }).catch(() => {});
+      }).catch(() => {});
+    }
     const ach = computeAchievements(workouts);
     const prev = ps('achievements') || [];
     const fresh = newlyUnlocked(prev, ach.list);

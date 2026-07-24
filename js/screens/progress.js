@@ -15,6 +15,8 @@ import {
 import { lineChart, barChart, sparkline } from '../charts.js';
 import { computeAchievements } from '../achievements.js';
 import { monthlyChallenges, monthLabel, monthKey, wonThisMonth } from '../monthly.js';
+import { call, isLoggedIn } from '../api.js';
+import { ACCENTS } from '../store.js';
 
 // ---- défis mensuels (locaux, offline) ----
 function monthlyCardHtml(workouts) {
@@ -290,6 +292,24 @@ export async function renderExercise(params) {
     ${myPrs.slice(0, 8).map(pr => `<div class="pr-row">${icon('trophy')}<div><b>${prLabel(pr.type)}</b><span>${pr.type === 'first' ? t('bienvenue','welcome') : Math.round(pr.value) + ' ' + unit} · ${relDate(pr.ts).toLowerCase()}</span></div></div>`).join('')}
   </section>` : '';
 
+  // podium entre amis sur cet exercice (si connecté)
+  let friendRank = '';
+  if (isLoggedIn()) {
+    try {
+      const d = await call('exobests', 'list', { exerciseId: id });
+      if ((d.ranking || []).length) {
+        friendRank = `<section class="card"><h3 class="card-t">${icon('users')} ${t('Classement entre amis','Friends ranking')}</h3>
+          ${d.ranking.map((r, i) => `<div class="gym-row ${r.isMe ? 'me' : ''}" ${r.isMe ? '' : `data-nav="#/u/${esc(r.user.username)}"`}>
+            <span class="gym-rank ${i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : ''}">${i + 1}</span>
+            <span class="avatar" style="--a:${ACCENTS[r.user.accent]?.hex || ACCENTS.ember.hex}">${r.user.avatar ? `<img class="avatar-photo" src="${esc(r.user.avatar)}" alt="">` : r.user.emoji ? esc(r.user.emoji) : esc((r.user.displayName || '?').slice(0, 1).toUpperCase())}</span>
+            <div class="fr-info"><b>${esc(r.user.displayName)}${r.isMe ? ` · ${t('toi','you')}` : ''}</b>
+              <span class="mut sm">${r.e1rm} kg ${t('1RM est.','est. 1RM')} · ${r.weight} kg max</span></div>
+          </div>`).join('')}
+        </section>`;
+      }
+    } catch {}
+  }
+
   const body = hist.length ? `
     <div class="ex-kpis">
       <div><b>${best.maxWeight||'—'}${best.maxWeight?' '+unit:''}</b><span>Charge max</span></div>
@@ -302,6 +322,7 @@ export async function renderExercise(params) {
     ${recordsCard}
     ${pctTable}
     ${prHistory}
+    ${friendRank}
     ` : emptyState('chart',t('Aucune donnée','No data'),t('Tu n’as pas encore fait cet exercice en séance.','You haven’t done this exercise in a workout yet.'),'');
 
   return `
