@@ -1,5 +1,5 @@
 // sw.js — offline-first service worker (GitHub Pages subpath safe: all relative)
-const VERSION = 'v3.10.1';
+const VERSION = 'v3.10.2';
 const SHELL = 'shell-' + VERSION;
 const IMG = 'exercise-images';
 
@@ -16,7 +16,7 @@ const ASSETS = [
   './js/screens/history.js', './js/screens/progress.js', './js/screens/profile.js',
   './data/exercises.json?v=3', './data/muscles-map.json?v=3',
   './icons/icon-192.png', './icons/icon-512.png', './icons/favicon-32.png',
-  './icons/apple-touch-icon.png', './icons/maskable-192.png', './icons/maskable-512.png',
+  './icons/apple-touch-icon.png', './icons/maskable-192.png', './icons/maskable-512.png', './icons/badge-96.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -101,7 +101,7 @@ self.addEventListener('push', e => {
   e.waitUntil(self.registration.showNotification(title, {
     body: d.body || '',
     icon: './icons/icon-192.png',
-    badge: './icons/icon-192.png',
+    badge: './icons/badge-96.png',
     tag: d.tag || 'sport-salle',
     data: { url: d.url || '/#/social' },
     vibrate: [80, 40, 80],
