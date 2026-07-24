@@ -73,7 +73,7 @@ export async function musclesMap() {
 
 let _loaded = false;
 let _baseLib = []; // bibliothèque intégrée (partagée entre profils)
-export const DATA_VERSION = '3'; // à incrémenter à chaque mise à jour de data/exercises.json (voir aussi sw.js)
+export const DATA_VERSION = '4'; // à incrémenter à chaque mise à jour de data/exercises.json (voir aussi sw.js)
 
 // Recharge les exercices perso du profil actif (les anciens sans profileId restent visibles par tous).
 export async function refreshCustoms() {
