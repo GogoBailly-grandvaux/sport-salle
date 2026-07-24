@@ -457,7 +457,9 @@ body:not(.immersive) .rest-bar{left:10px;right:10px;bottom:calc(74px + var(--saf
 .together{border-color:color-mix(in srgb,var(--accent) 30%,var(--line))}
 .tg-head{display:flex;align-items:center;gap:7px;font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-bottom:8px}
 .tg-head .ico{width:15px;height:15px;color:var(--accent)}
-.tg-row{padding:5px 0;display:flex;flex-direction:column}
+.tg-row{padding:5px 0;display:flex;align-items:center;gap:10px}
+.tg-txt{flex:1;display:flex;flex-direction:column}
+.tg-cheer{height:36px;padding:0 12px;font-size:.8rem}
 .gs-friends{display:flex;flex-direction:column;gap:8px;margin:12px 0;max-height:220px;overflow-y:auto}
 .gs-friend{display:flex;align-items:center;gap:10px;font-weight:600}
 .gs-friend input{width:20px;height:20px;accent-color:var(--accent)}

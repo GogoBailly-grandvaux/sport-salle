@@ -90,6 +90,7 @@ function notifLine(n) {
     comment: t(`${who} a répondu : « ${esc(n.meta || '')} »`, `${who} replied: “${esc(n.meta || '')}”`),
     mention: t(`${who} t’a mentionné : « ${esc(n.meta || '')} »`, `${who} mentioned you: “${esc(n.meta || '')}”`),
     livesession: t(`${who} s'entraîne maintenant — rejoins la séance !`, `${who} is working out now — join in!`),
+    cheer: t(`${who} t'encourage — continue !`, `${who} is cheering you on — keep going!`),
     challenge: n.meta === 'a rejoint' ? t(`${who} a rejoint ton défi`, `${who} joined your challenge`) : t(`${who} te défie cette semaine`, `${who} challenges you this week`),
   };
   return x[n.kind] || who;

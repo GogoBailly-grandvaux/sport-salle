@@ -269,7 +269,7 @@ function ensure_notifs_table(): void {
     id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
     user_id    INT UNSIGNED NOT NULL,
     actor_id   INT UNSIGNED NOT NULL,
-    kind       ENUM('friend_req','friend_acc','react','comment','mention','challenge','livesession') NOT NULL,
+    kind       ENUM('friend_req','friend_acc','react','comment','mention','challenge','livesession','cheer') NOT NULL,
     ref_id     INT UNSIGNED DEFAULT NULL,
     meta       VARCHAR(120) DEFAULT NULL,
     seen       TINYINT(1) NOT NULL DEFAULT 0,

@@ -29,7 +29,7 @@ function ensure_live_sessions(): void {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
   foreach ([
     "ALTER TABLE live_workouts ADD COLUMN session_id INT UNSIGNED DEFAULT NULL",
-    "ALTER TABLE notifs MODIFY kind ENUM('friend_req','friend_acc','react','comment','mention','challenge','livesession') NOT NULL",
+    "ALTER TABLE notifs MODIFY kind ENUM('friend_req','friend_acc','react','comment','mention','challenge','livesession','cheer') NOT NULL",
   ] as $sql) {
     try { db()->exec($sql); }
     catch (PDOException $e) {
@@ -187,6 +187,18 @@ switch ($b['action'] ?? '') {
       $out[] = ['user' => public_user($r), 'currentEx' => $r['current_ex'], 'setsDone' => (int)$r['sets_done'], 'volumeKg' => (int)$r['volume_kg'], 'startedAt' => (int)$r['started_at']];
     }
     ok(['participants' => $out]);
+  }
+
+  // encourager un ami en pleine séance (notif + push)
+  case 'cheer': {
+    $u = require_user();
+    rate_limit('lwcheer', 30, 900);
+    $to = (int)($b['userId'] ?? 0);
+    if (!$to || $to === $u['id'] || !are_friends($u['id'], $to)) { fail(403, 'réservé aux amis'); }
+    with_live_sessions(function () {}); // garantit l'ENUM cheer avant le notify
+    notify($to, $u['id'], 'cheer', null, null);
+    bump_live([$to]);
+    ok(['ok' => true]);
   }
 
   default: fail(400, 'action inconnue');

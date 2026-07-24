@@ -726,6 +726,19 @@ export function mountSummary(root, params) {
     vibrate([80, 40, 80, 40, 120]);
   }
   celebrateAchievements(root); // badges nouvellement débloqués par cette séance
+  // récap de groupe : qui était de la séance à plusieurs
+  if (W?._sessionId && isLoggedIn()) {
+    call('liveworkout', 'session', { sessionId: W._sessionId }).then(d => {
+      if (!(d.participants || []).length) return;
+      const view = root.querySelector('.screen-pad') || root;
+      const el = document.createElement('section');
+      el.className = 'card together';
+      el.innerHTML = `<div class="tg-head">${icon('users')} <b>${t('Vous étiez ensemble','You trained together')}</b></div>` +
+        d.participants.map(p => `<div class="tg-row"><div class="tg-txt"><b>${esc(p.user.displayName)}</b>
+          <span class="mut sm">${p.setsDone} ${t('séries','sets')} · ${p.volumeKg.toLocaleString('fr-FR')} kg</span></div></div>`).join('');
+      view.appendChild(el);
+    }).catch(() => {});
+  }
   // partage de la séance dans le fil (opt-in : rien ne part sans ce geste)
   root.querySelector('#sum-share')?.addEventListener('click', async () => {
     const btn = root.querySelector('#sum-share');
@@ -754,9 +767,17 @@ async function refreshTogether(host) {
     host.innerHTML = `<div class="tg-head">${icon('users')} <b>${t('Ensemble','Together')}</b> · ${d.participants.length}</div>` +
       d.participants.map(p => {
         const mins = Math.max(1, Math.round((Date.now() - p.startedAt) / 60000));
-        return `<div class="tg-row"><b>${esc(p.user.displayName)}${p.user.username === me ? ` · ${t('toi','you')}` : ''}</b>
-          <span class="mut sm">${p.setsDone} ${t('séries','sets')} · ${p.volumeKg.toLocaleString('fr-FR')} kg · ${mins} min${p.currentEx ? ` · ${esc(p.currentEx)}` : ''}</span></div>`;
+        const isMe = p.user.username === me;
+        return `<div class="tg-row"><div class="tg-txt"><b>${esc(p.user.displayName)}${isMe ? ` · ${t('toi','you')}` : ''}</b>
+          <span class="mut sm">${p.setsDone} ${t('séries','sets')} · ${p.volumeKg.toLocaleString('fr-FR')} kg · ${mins} min${p.currentEx ? ` · ${esc(p.currentEx)}` : ''}</span></div>
+          ${isMe ? '' : `<button class="btn ghost sm tg-cheer" data-cheer="${p.user.id}">${t('Encourager','Cheer')}</button>`}</div>`;
       }).join('');
+    host.querySelectorAll('[data-cheer]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      try { await call('liveworkout', 'cheer', { userId: +b.dataset.cheer }); toast(t('Encouragement envoyé !','Cheer sent!')); }
+      catch (e) { toast(e.message, { type: 'error' }); }
+      setTimeout(() => { b.disabled = false; }, 30000); // anti-spam doux
+    });
   } catch {}
 }
 function mountTogether(root) {
